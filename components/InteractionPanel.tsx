@@ -1,7 +1,7 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, QuizTabState, Annotation, AnnotationAnchor, AnnotationKind } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, NoteIcon, HighlightIcon, MoreVertIcon, TrashIcon, EditIcon } from './icons';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, NoteIcon, HighlightIcon, MoreVertIcon, TrashIcon, EditIcon, AddIcon, XIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
@@ -591,109 +591,270 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, on
                     </div>
                 </div>
 
-                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'annotations' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/30">
-                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm mb-6">
-                            <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                <HighlightIcon className="text-blue-500"/>
-                                <span>Add Annotation</span>
+                <div className={`flex-1 flex flex-col md:flex-row bg-white overflow-hidden ${activeTab === 'annotations' ? 'flex' : 'hidden'}`}>
+                    <div className="flex-1 md:flex-none md:w-[420px] flex flex-col border-r border-slate-200 bg-white h-full">
+                         <div className="flex-shrink-0 p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10">
+                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                                <NoteIcon className="text-blue-500"/>
+                                <span>Annotations</span>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">{annotations.length}</span>
                             </h4>
-                            <div className="flex flex-wrap gap-2 mb-3">
+                            {!pendingAnnotation && (
                                 <button
-                                    type="button"
-                                    onClick={() => setAnnotationKind('note')}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${annotationKind === 'note' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                    onClick={() => {
+                                        setAnnotationKind('note');
+                                        setAnnotationDraft('');
+                                        setAnnotationAnchor({ page: currentPage, rects: [] });
+                                    }}
+                                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Add Note manually"
                                 >
-                                    Note
+                                    <AddIcon className="text-xl"/>
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setAnnotationKind('highlight')}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${annotationKind === 'highlight' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                                >
-                                    Highlight
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleUseSelection}
-                                    disabled={!pendingAnnotation}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${pendingAnnotation ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'}`}
-                                >
-                                    Use Selection
-                                </button>
-                                <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
-                                    <span>Page {annotationAnchor?.page ?? currentPage}</span>
-                                </div>
-                            </div>
-                            <div className="relative">
-                                <textarea
-                                    placeholder={annotationKind === 'highlight' ? 'Add a note about the highlight (optional)...' : 'Type your note here...'}
-                                    className="w-full h-24 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none resize-none transition-all placeholder:text-slate-400"
-                                    value={annotationDraft}
-                                    onChange={(event) => setAnnotationDraft(event.target.value)}
-                                ></textarea>
-                                <div className="absolute bottom-3 right-3 flex gap-2 items-center">
-                                    <span className="text-xs text-slate-400">Color</span>
-                                    <input
-                                        type="color"
-                                        value={annotationColor}
-                                        onChange={(event) => setAnnotationColor(event.target.value)}
-                                        className="h-7 w-7 rounded-md border border-slate-200 bg-white"
-                                        aria-label="Annotation color"
-                                    />
-                                </div>
-                            </div>
-                            {annotationError && (
-                                <p className="mt-2 text-xs text-red-600">{annotationError}</p>
                             )}
-                            <div className="flex justify-end mt-3">
-                                <button
-                                    onClick={handleSaveAnnotation}
-                                    disabled={isSavingAnnotation}
-                                    className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-md shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50"
-                                >
-                                    {isSavingAnnotation ? 'Saving...' : 'Save Annotation'}
-                                </button>
-                            </div>
                         </div>
 
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between px-1">
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Your Notes</h4>
-                                <button disabled className="text-blue-600 text-xs font-bold hover:underline opacity-50">Export All</button>
-                            </div>
+                        <div className="md:hidden">
+                            {(pendingAnnotation || annotationAnchor) && (
+                                <div className="flex-shrink-0 p-4 bg-slate-50 border-b border-blue-100 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                            {pendingAnnotation ? 'New Selection' : 'New Note'}
+                                        </h5>
+                                        <button 
+                                            onClick={() => {
+                                                setAnnotationAnchor(null);
+                                                onClearPendingAnnotation();
+                                                setAnnotationDraft('');
+                                                setAnnotationError(null);
+                                            }}
+                                            className="text-slate-400 hover:text-slate-600"
+                                        >
+                                            <XIcon className="text-lg"/>
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 mb-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setAnnotationKind('note')}
+                                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${annotationKind === 'note' ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                        >
+                                            <NoteIcon className="text-sm inline mr-1.5"/>
+                                            Note
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAnnotationKind('highlight')}
+                                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${annotationKind === 'highlight' ? 'bg-amber-400 text-white border-amber-400 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                        >
+                                            <HighlightIcon className="text-sm inline mr-1.5"/>
+                                            Highlight
+                                        </button>
+                                    </div>
 
-                            {annotations.length === 0 ? (
-                                <div className="bg-white rounded-xl p-6 border border-dashed border-slate-200 text-center text-sm text-slate-500">
-                                    No annotations yet. Select text in the document or add a note to get started.
-                                </div>
-                            ) : (
-                                annotations.map(annotation => (
-                                    <div key={annotation.id} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                                                Page {annotation.pageNumber}
-                                            </span>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-500"
-                                                    onClick={() => handleDeleteAnnotation(annotation)}
-                                                    aria-label="Delete annotation"
-                                                >
-                                                    <TrashIcon className="text-sm"/>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <p className="text-slate-600 text-sm leading-relaxed">
-                                            {annotation.content?.note || annotation.anchor.textQuote || 'Untitled annotation'}
-                                        </p>
-                                        <div className="mt-3 text-[10px] text-slate-400 font-medium">
-                                            {annotation.kind.toUpperCase()}
+                                    <div className="relative">
+                                        <textarea
+                                            placeholder={annotationKind === 'highlight' ? 'Add a note (optional)...' : 'Type your note here...'}
+                                            className="w-full h-20 p-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all placeholder:text-slate-400"
+                                            value={annotationDraft}
+                                            onChange={(event) => setAnnotationDraft(event.target.value)}
+                                            autoFocus
+                                        ></textarea>
+                                        <div className="absolute bottom-2 right-2">
+                                            <input
+                                                type="color"
+                                                value={annotationColor}
+                                                onChange={(event) => setAnnotationColor(event.target.value)}
+                                                className="h-6 w-6 rounded-md border border-slate-200 bg-white cursor-pointer"
+                                                title="Change Color"
+                                            />
                                         </div>
                                     </div>
-                                ))
+                                    
+                                    {annotationError && (
+                                        <p className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1">
+                                            <span className="w-1 h-1 rounded-full bg-red-600 inline-block"/>
+                                            {annotationError}
+                                        </p>
+                                    )}
+                                    
+                                    <div className="flex justify-end mt-3">
+                                        <button
+                                            onClick={handleSaveAnnotation}
+                                            disabled={isSavingAnnotation}
+                                            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all disabled:opacity-50 active:scale-95"
+                                        >
+                                            {isSavingAnnotation ? 'Saving...' : 'Save Annotation'}
+                                        </button>
+                                    </div>
+                                </div>
                             )}
                         </div>
+
+                        <div className="flex-1 overflow-y-auto min-h-0 bg-white scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                            {annotations.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-48 text-center p-6">
+                                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                                        <HighlightIcon className="text-slate-300 text-xl"/>
+                                    </div>
+                                    <p className="text-sm font-medium text-slate-600">No annotations yet</p>
+                                    <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Select text in the document or click + to add a note.</p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-100">
+                                    {annotations.map(annotation => (
+                                        <div 
+                                            key={annotation.id} 
+                                            className="group relative flex gap-4 p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                                            onClick={() => {
+                                                dispatch({
+                                                    type: 'UPDATE_DOCUMENT',
+                                                    payload: { docId: document.id, updates: { currentPage: annotation.pageNumber } }
+                                                });
+                                            }}
+                                        >
+                                            <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 w-10">
+                                                <span className="text-[10px] font-black text-slate-300 group-hover:text-slate-400 transition-colors uppercase tracking-wider">
+                                                    PG {annotation.pageNumber}
+                                                </span>
+                                                <div 
+                                                    className="w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
+                                                    style={{ backgroundColor: `${annotation.content?.color || '#FDE68A'}30` }}
+                                                >
+                                                    {annotation.kind === 'highlight' ? (
+                                                        <HighlightIcon className="text-sm" style={{ color: annotation.content?.color ? '#b45309' : '#d97706' }} />
+                                                    ) : (
+                                                        <NoteIcon className="text-sm text-blue-600" />
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 min-w-0 pt-0.5">
+                                                {annotation.anchor.textQuote && (
+                                                    <blockquote className="text-xs text-slate-500 border-l-2 border-slate-200 pl-2 mb-1.5 italic line-clamp-2 group-hover:border-slate-300 transition-colors">
+                                                        "{annotation.anchor.textQuote}"
+                                                    </blockquote>
+                                                )}
+                                                {annotation.content?.note && (
+                                                    <p className="text-sm font-medium text-slate-800 leading-snug">
+                                                        {annotation.content.note}
+                                                    </p>
+                                                )}
+                                                {!annotation.content?.note && !annotation.anchor.textQuote && (
+                                                    <p className="text-sm text-slate-400 italic">Empty annotation</p>
+                                                )}
+                                                
+                                                <div className="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <span className="text-[10px] text-slate-400 font-medium">
+                                                        {new Date(annotation.createdAt || '').toLocaleDateString()}
+                                                    </span>
+                                                    <div className="flex-1" />
+                                                    <button
+                                                        className="p-1.5 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded transition-colors"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteAnnotation(annotation);
+                                                        }}
+                                                        title="Delete annotation"
+                                                    >
+                                                        <TrashIcon className="text-sm"/>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="hidden md:flex flex-1 bg-slate-50 flex-col h-full overflow-y-auto relative items-center justify-center p-8">
+                         {(pendingAnnotation || annotationAnchor) ? (
+                            <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-lg font-bold text-slate-800">
+                                        {pendingAnnotation ? 'New Selection' : 'Add Note'}
+                                    </h3>
+                                    <button 
+                                        onClick={() => {
+                                            setAnnotationAnchor(null);
+                                            onClearPendingAnnotation();
+                                            setAnnotationDraft('');
+                                            setAnnotationError(null);
+                                        }}
+                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                                    >
+                                        <XIcon className="text-xl"/>
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-2 mb-4 p-1 bg-slate-100 rounded-xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAnnotationKind('note')}
+                                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${annotationKind === 'note' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <NoteIcon className="text-sm inline mr-2 mb-0.5"/>
+                                        Note
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAnnotationKind('highlight')}
+                                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${annotationKind === 'highlight' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        <HighlightIcon className="text-sm inline mr-2 mb-0.5"/>
+                                        Highlight
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="relative">
+                                        <textarea
+                                            placeholder={annotationKind === 'highlight' ? 'Add an optional note to your highlight...' : 'Type your note content here...'}
+                                            className="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all placeholder:text-slate-400"
+                                            value={annotationDraft}
+                                            onChange={(event) => setAnnotationDraft(event.target.value)}
+                                            autoFocus
+                                        ></textarea>
+                                        <div className="absolute bottom-3 right-3">
+                                            <input
+                                                type="color"
+                                                value={annotationColor}
+                                                onChange={(event) => setAnnotationColor(event.target.value)}
+                                                className="h-8 w-8 rounded-lg border border-slate-200 bg-white cursor-pointer shadow-sm hover:scale-105 transition-transform"
+                                                title="Change Color"
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {annotationError && (
+                                        <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-600"/>
+                                            {annotationError}
+                                        </div>
+                                    )}
+                                    
+                                    <button
+                                        onClick={handleSaveAnnotation}
+                                        disabled={isSavingAnnotation}
+                                        className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        {isSavingAnnotation ? <Spinner /> : <React.Fragment><AddIcon className="text-lg"/> Save Annotation</React.Fragment>}
+                                    </button>
+                                </div>
+                            </div>
+                         ) : (
+                             <div className="text-center p-8 max-w-sm mx-auto opacity-60">
+                                 <div className="w-24 h-24 bg-slate-200/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                     <NoteIcon className="text-4xl text-slate-400" />
+                                 </div>
+                                 <h3 className="text-xl font-bold text-slate-700 mb-2">No Selection</h3>
+                                 <p className="text-slate-500">
+                                     Select text on the document to add a highlight or note, or click the <span className="inline-flex items-center justify-center w-5 h-5 bg-slate-200 rounded text-xs mx-1"><AddIcon className="text-xs"/></span> button to add a standalone note.
+                                 </p>
+                             </div>
+                         )}
                     </div>
                 </div>
             </React.Fragment>

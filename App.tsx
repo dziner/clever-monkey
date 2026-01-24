@@ -78,6 +78,8 @@ const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: b
                   file={document.file}
                   imageUrl={document.imageUrl}
                   docId={document.id}
+                  annotations={document.annotations}
+                  currentPage={document.currentPage}
                   onSelection={onSelection}
                   onPageChange={onPageChange}
                 />

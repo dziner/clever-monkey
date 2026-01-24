@@ -2,12 +2,14 @@
 import * as React from 'react';
 import { Spinner } from './Spinner';
 import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
-import type { AnnotationAnchor } from '../types';
+import type { AnnotationAnchor, Annotation } from '../types';
 
 interface PdfViewerProps {
     file: File;
     imageUrl?: string;
     docId: string;
+    annotations?: Annotation[];
+    currentPage?: number;
     onSelection?: (anchor: AnnotationAnchor) => void;
     onPageChange?: (page: number) => void;
 }
@@ -18,7 +20,8 @@ const PdfPage: React.FC<{
     pageNum: number;
     renderScale: number;
     viewScale: number;
-}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale }) => {
+    pageAnnotations?: Annotation[];
+}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, pageAnnotations }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
     const renderTaskRef = React.useRef<any>(null);
     const textLayerRef = React.useRef<HTMLDivElement>(null);
@@ -151,10 +154,34 @@ const PdfPage: React.FC<{
 
     return (
         <div className="relative w-full h-full shadow-lg bg-white">
-            <canvas ref={pdfCanvasRef} className="w-full h-full" />
+            <canvas ref={pdfCanvasRef} className="w-full h-full block" />
+            
+            {/* Annotation Highlights Layer */}
+            {pageAnnotations && pageAnnotations.length > 0 && (
+                <div className="absolute inset-0 pointer-events-none z-10">
+                    {pageAnnotations.map((annotation) => 
+                        annotation.anchor.rects.map((rect, rectIndex) => (
+                            <div
+                                key={`${annotation.id}-${rectIndex}`}
+                                className="absolute bg-yellow-300 mix-blend-multiply transition-opacity duration-200"
+                                style={{
+                                    left: `${rect.x * 100}%`,
+                                    top: `${rect.y * 100}%`,
+                                    width: `${rect.width * 100}%`,
+                                    height: `${rect.height * 100}%`,
+                                    backgroundColor: annotation.content?.color || '#FDE68A',
+                                    opacity: 0.4,
+                                    borderRadius: '2px',
+                                }}
+                            />
+                        ))
+                    )}
+                </div>
+            )}
+
             <div
                 ref={textLayerRef}
-                className="absolute inset-0 text-transparent select-text"
+                className="absolute inset-0 text-transparent select-text z-20"
                 style={{ pointerEvents: 'auto' }}
             />
         </div>
@@ -166,14 +193,16 @@ const ZOOM_STEP = 0.2;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4.0;
 
-export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, onSelection, onPageChange }) => {
+export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotations = [], currentPage: externalCurrentPage, onSelection, onPageChange }) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [pdfDoc, setPdfDoc] = React.useState<any>(null);
     const [numPages, setNumPages] = React.useState(0);
     const [pageViewports, setPageViewports] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
-    const [currentPage, setCurrentPage] = React.useState(1);
+    const [internalCurrentPage, setInternalCurrentPage] = React.useState(1);
+    const currentPage = externalCurrentPage ?? internalCurrentPage;
+    
     const pageRefs = React.useRef<(HTMLDivElement | null)[]>([]);
     const [textContent, setTextContent] = React.useState<string | null>(null);
 
@@ -183,6 +212,27 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, onSelectio
     const debounceTimerRef = React.useRef<number>();
     const [visiblePages, setVisiblePages] = React.useState<number[]>([]);
     const effectiveScale = fitScale * zoomFactor;
+
+    const setCurrentPage = setInternalCurrentPage;
+    
+    React.useEffect(() => {
+        if (externalCurrentPage && externalCurrentPage !== internalCurrentPage) {
+            const pageEl = pageRefs.current[externalCurrentPage - 1];
+            if (pageEl && containerRef.current) {
+                const rect = pageEl.getBoundingClientRect();
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const isVisible = (
+                    rect.top >= containerRect.top &&
+                    rect.bottom <= containerRect.bottom
+                );
+                
+                if (!isVisible) {
+                    pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                setInternalCurrentPage(externalCurrentPage);
+            }
+        }
+    }, [externalCurrentPage, numPages]);
     
     // Refs for gesture-based zooming
     const activePointers = React.useRef(new Map<number, { x: number; y: number }>()).current;
@@ -607,12 +657,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, onSelectio
                                         style={{ width: scaledWidth, height: scaledHeight }}
                                     >
                                         {pagesToRender.has(pageNum) ? (
-                                            <PdfPage
-                                                pdfDoc={pdfDoc}
-                                                pageNum={pageNum}
-                                                renderScale={renderScale * window.devicePixelRatio}
-                                                viewScale={effectiveScale}
-                                            />
+                                        <PdfPage
+                                            pdfDoc={pdfDoc}
+                                            pageNum={pageNum}
+                                            renderScale={renderScale * window.devicePixelRatio}
+                                            viewScale={effectiveScale}
+                                            pageAnnotations={annotations.filter(a => a.pageNumber === pageNum)}
+                                        />
                                         ) : (
                                             <div className="w-full h-full bg-white shadow-lg" />
                                         )}
