@@ -1,0 +1,7 @@
+{
+  "name": "Clever Monkey",
+  "description": "Your personal AI tutor for any document. Upload study materials like PDFs, lecture notes, or textbook chapters to get summaries and ask questions.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
