@@ -153,47 +153,51 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
 
     return (
-        <div className="flex flex-col h-full bg-slate-50">
+        <div className="flex flex-col h-full bg-white">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-6 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <CleverMonkeyIcon className="w-8 h-8 text-blue-600" />
+                    <div className="bg-blue-600 p-1.5 rounded-xl shadow-lg shadow-blue-600/20">
+                        <CleverMonkeyIcon className="w-6 h-6 text-white" />
+                    </div>
                     <div>
-                        <span className="font-bold text-slate-800 text-xl font-outfit">Clever Monkey</span>
-                        <p className="text-xs text-slate-500 -mt-1">Kangmul+Joan's AI Study Pal</p>
+                        <span className="block font-bold text-slate-900 text-lg font-outfit leading-tight tracking-tight">Clever Monkey</span>
+                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Study Companion</p>
                     </div>
                 </div>
                 <button
                     onClick={() => setIsPanelCollapsed(true)}
-                    className="p-2 text-slate-500 hover:bg-slate-200 rounded-lg"
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                     title="Collapse file list"
                     aria-label="Collapse file list"
                 >
-                    {isDesktop ? <ChevronLeftIcon className="text-2xl" /> : <XIcon className="text-2xl" />}
+                    {isDesktop ? <ChevronLeftIcon className="text-xl" /> : <XIcon className="text-xl" />}
                 </button>
             </div>
             
              {/* Action Buttons */}
-            <div className="p-3 border-b border-slate-200 grid grid-cols-2 gap-2 flex-shrink-0">
-                <button
-                    onClick={() => inputRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors border border-slate-300 shadow-sm text-sm"
-                >
-                    <AddIcon className="text-xl" />
-                    <span>Document</span>
-                </button>
-                <button
-                    onClick={handleAddNewFolder}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors border border-slate-300 shadow-sm text-sm"
-                >
-                    <FolderPlusIcon className="text-xl" />
-                    <span>Folder</span>
-                </button>
+            <div className="px-5 pb-6 flex-shrink-0">
+                <div className="grid grid-cols-2 gap-3">
+                    <button
+                        onClick={() => inputRef.current?.click()}
+                        className="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-semibold transition-all duration-200 border border-blue-100 hover:border-blue-200 shadow-sm hover:shadow-md group"
+                    >
+                        <AddIcon className="text-2xl group-hover:scale-110 transition-transform" />
+                        <span className="text-xs">New PDF</span>
+                    </button>
+                    <button
+                        onClick={handleAddNewFolder}
+                        className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-slate-50 text-slate-600 rounded-xl font-semibold transition-all duration-200 border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md group"
+                    >
+                        <FolderPlusIcon className="text-2xl group-hover:scale-110 transition-transform text-slate-400 group-hover:text-slate-600" />
+                        <span className="text-xs">New Folder</span>
+                    </button>
+                </div>
             </div>
 
-
             {/* File List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="flex-1 overflow-y-auto px-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                 <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">My Library</div>
                  {state.folders.map(folder => (
                     <FolderItem
                         key={folder.id}
@@ -212,10 +216,13 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                  ))}
             </div>
             
-            <div className="flex-shrink-0 p-3 border-t border-slate-200 text-xs text-slate-500">
-                <div className="flex justify-between items-center mb-2 font-medium">
-                    <span className="font-semibold">Total Usage</span>
-                    <span className="font-mono">{totalTokens.toLocaleString()} tokens</span>
+            <div className="flex-shrink-0 p-5 border-t border-slate-100 bg-slate-50/50">
+                <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-semibold text-slate-500">Storage Usage</span>
+                    <span className="text-xs font-mono font-medium text-slate-600">{totalTokens.toLocaleString()} tkns</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min((totalTokens / 100000) * 100, 100)}%` }}></div>
                 </div>
             </div>
 

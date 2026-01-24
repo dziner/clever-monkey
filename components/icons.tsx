@@ -46,6 +46,9 @@ export const EditIcon = createIcon('edit');
 export const TrashIcon = createIcon('delete');
 export const CheckIcon = createIcon('check');
 export const FitScreenIcon = createIcon('fit_screen');
+export const HighlightIcon = createIcon('ink_highlighter');
+export const NoteIcon = createIcon('sticky_note_2');
+export const MoreVertIcon = createIcon('more_vert');
 
 export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px"

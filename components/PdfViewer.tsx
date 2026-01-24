@@ -2,22 +2,27 @@
 import * as React from 'react';
 import { Spinner } from './Spinner';
 import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
+import type { AnnotationAnchor } from '../types';
 
 interface PdfViewerProps {
     file: File;
     imageUrl?: string;
     docId: string;
+    onSelection?: (anchor: AnnotationAnchor) => void;
+    onPageChange?: (page: number) => void;
 }
 
 // A memoized component to render a single page of a PDF.
 const PdfPage: React.FC<{
     pdfDoc: any;
     pageNum: number;
-    baseViewport: any;
     renderScale: number;
-}> = React.memo(({ pdfDoc, pageNum, baseViewport, renderScale }) => {
+    viewScale: number;
+}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
     const renderTaskRef = React.useRef<any>(null);
+    const textLayerRef = React.useRef<HTMLDivElement>(null);
+    const textRenderTaskRef = React.useRef<any>(null);
 
     // Effect to render the PDF content to the main canvas
     React.useEffect(() => {
@@ -94,9 +99,64 @@ const PdfPage: React.FC<{
         };
     }, [pdfDoc, pageNum, renderScale]);
 
+    React.useEffect(() => {
+        let isCancelled = false;
+        const renderTextLayer = async () => {
+            const layer = textLayerRef.current;
+            if (!pdfDoc || !layer || viewScale <= 0) return;
+
+            const pdfjsLib = (window as any).pdfjsLib;
+            if (!pdfjsLib?.renderTextLayer) return;
+
+            layer.innerHTML = '';
+
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                if (isCancelled) return;
+
+                const viewport = page.getViewport({ scale: viewScale });
+                const textContent = await page.getTextContent();
+                if (isCancelled) return;
+
+                const task = pdfjsLib.renderTextLayer({
+                    textContent,
+                    container: layer,
+                    viewport,
+                });
+                textRenderTaskRef.current = task;
+
+                if (task?.promise) {
+                    await task.promise;
+                }
+            } catch (err: any) {
+                if (err?.name !== 'RenderingCancelledException') {
+                    console.error(`Error rendering text layer ${pageNum}:`, err);
+                }
+            }
+        };
+
+        renderTextLayer();
+
+        return () => {
+            isCancelled = true;
+            if (textRenderTaskRef.current?.cancel) {
+                try {
+                    textRenderTaskRef.current.cancel();
+                } catch (e) {
+                    // Ignore cancellation errors
+                }
+            }
+        };
+    }, [pdfDoc, pageNum, viewScale]);
+
     return (
-        <div className="relative w-full h-full shadow-lg">
+        <div className="relative w-full h-full shadow-lg bg-white">
             <canvas ref={pdfCanvasRef} className="w-full h-full" />
+            <div
+                ref={textLayerRef}
+                className="absolute inset-0 text-transparent select-text"
+                style={{ pointerEvents: 'auto' }}
+            />
         </div>
     );
 });
@@ -106,7 +166,7 @@ const ZOOM_STEP = 0.2;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4.0;
 
-export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
+export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, onSelection, onPageChange }) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [pdfDoc, setPdfDoc] = React.useState<any>(null);
     const [numPages, setNumPages] = React.useState(0);
@@ -117,10 +177,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
     const pageRefs = React.useRef<(HTMLDivElement | null)[]>([]);
     const [textContent, setTextContent] = React.useState<string | null>(null);
 
-    const [scale, setScale] = React.useState(1.0);
+    const [fitScale, setFitScale] = React.useState(1.0);
+    const [zoomFactor, setZoomFactor] = React.useState(1.0);
     const [renderScale, setRenderScale] = React.useState(1.0);
-    const [fitToPageScale, setFitToPageScale] = React.useState(1.0);
     const debounceTimerRef = React.useRef<number>();
+    const [visiblePages, setVisiblePages] = React.useState<number[]>([]);
+    const effectiveScale = fitScale * zoomFactor;
     
     // Refs for gesture-based zooming
     const activePointers = React.useRef(new Map<number, { x: number; y: number }>()).current;
@@ -203,10 +265,11 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
             const containerWidth = container.clientWidth - 24;
             const firstPageViewport = pageViewports[0];
             const calculatedScale = containerWidth / firstPageViewport.width;
-            
-            setFitToPageScale(calculatedScale);
-            setScale(calculatedScale);
-            setRenderScale(calculatedScale);
+            if (!Number.isFinite(calculatedScale) || calculatedScale <= 0) {
+                return;
+            }
+
+            setFitScale(calculatedScale);
         };
         
         calculateFitScale();
@@ -228,14 +291,81 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
     React.useEffect(() => {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = window.setTimeout(() => {
-            setRenderScale(scale);
+            setRenderScale(effectiveScale);
         }, 300);
         return () => clearTimeout(debounceTimerRef.current);
-    }, [scale]);
+    }, [effectiveScale]);
 
-    const zoomIn = React.useCallback(() => setScale(s => Math.min(MAX_ZOOM, s + ZOOM_STEP)), []);
-    const zoomOut = React.useCallback(() => setScale(s => Math.max(MIN_ZOOM, s - ZOOM_STEP)), []);
-    const fitToPage = React.useCallback(() => setScale(fitToPageScale), [fitToPageScale]);
+    React.useEffect(() => {
+        const container = containerRef.current;
+        if (!container || numPages === 0) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                setVisiblePages(prev => {
+                    const next = new Set(prev);
+                    entries.forEach(entry => {
+                        const target = entry.target as HTMLElement;
+                        const pageNum = Number(target.dataset.page);
+                        if (!pageNum) return;
+                        if (entry.isIntersecting) {
+                            next.add(pageNum);
+                        } else {
+                            next.delete(pageNum);
+                        }
+                    });
+                    return Array.from(next).sort((a, b) => a - b);
+                });
+            },
+            { root: container, rootMargin: '400px 0px', threshold: 0.1 }
+        );
+
+        pageRefs.current.forEach((el, index) => {
+            if (!el) return;
+            el.dataset.page = String(index + 1);
+            observer.observe(el);
+        });
+
+        return () => observer.disconnect();
+    }, [numPages, pageViewports, effectiveScale]);
+
+    const pagesToRender = React.useMemo(() => {
+        const set = new Set<number>();
+        if (numPages === 0) return set;
+        if (visiblePages.length === 0) {
+            for (let i = 1; i <= Math.min(3, numPages); i += 1) {
+                set.add(i);
+            }
+            return set;
+        }
+
+        visiblePages.forEach(pageNum => {
+            for (let i = pageNum - 2; i <= pageNum + 2; i += 1) {
+                if (i >= 1 && i <= numPages) {
+                    set.add(i);
+                }
+            }
+        });
+        return set;
+    }, [visiblePages, numPages]);
+
+    const clampScale = React.useCallback((value: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)), []);
+
+    const zoomIn = React.useCallback(() => {
+        setZoomFactor(current => {
+            const next = clampScale(fitScale * current + ZOOM_STEP);
+            return fitScale > 0 ? next / fitScale : current;
+        });
+    }, [fitScale, clampScale]);
+
+    const zoomOut = React.useCallback(() => {
+        setZoomFactor(current => {
+            const next = clampScale(fitScale * current - ZOOM_STEP);
+            return fitScale > 0 ? next / fitScale : current;
+        });
+    }, [fitScale, clampScale]);
+
+    const fitToPage = React.useCallback(() => setZoomFactor(1), []);
 
     const handleScroll = React.useCallback(() => {
         const container = containerRef.current;
@@ -255,8 +385,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                 }
             }
         }
-        setCurrentPage(closestPage + 1);
-    }, [numPages]);
+        const pageNumber = closestPage + 1;
+        setCurrentPage(pageNumber);
+        onPageChange?.(pageNumber);
+    }, [numPages, onPageChange]);
 
     const handleWheel = React.useCallback((e: WheelEvent) => {
         if (e.ctrlKey || e.metaKey) {
@@ -270,25 +402,26 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                 y: e.clientY - rect.top,
             };
             const contentOrigin = {
-                x: (container.scrollLeft + viewportOrigin.x) / scale,
-                y: (container.scrollTop + viewportOrigin.y) / scale,
+                x: (container.scrollLeft + viewportOrigin.x) / effectiveScale,
+                y: (container.scrollTop + viewportOrigin.y) / effectiveScale,
             };
-    
-            const oldScale = scale;
-            const newScale = oldScale - e.deltaY * 0.005;
-            const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
-            
-            setScale(clampedScale);
-    
-            const newScrollLeft = contentOrigin.x * clampedScale - viewportOrigin.x;
-            const newScrollTop = contentOrigin.y * clampedScale - viewportOrigin.y;
+
+            const oldScale = effectiveScale;
+            const newScale = clampScale(oldScale - e.deltaY * 0.005);
+
+            if (fitScale > 0) {
+                setZoomFactor(newScale / fitScale);
+            }
+
+            const newScrollLeft = contentOrigin.x * newScale - viewportOrigin.x;
+            const newScrollTop = contentOrigin.y * newScale - viewportOrigin.y;
     
             requestAnimationFrame(() => {
                 container.scrollLeft = newScrollLeft;
                 container.scrollTop = newScrollTop;
             });
         }
-    }, [scale]);
+    }, [effectiveScale, fitScale, clampScale]);
 
     React.useEffect(() => {
         const container = containerRef.current;
@@ -319,20 +452,20 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                 x: viewportMidpoint.x - rect.left,
                 y: viewportMidpoint.y - rect.top,
             };
-    
+
             const contentOrigin = {
-                x: (container.scrollLeft + viewportOrigin.x) / scale,
-                y: (container.scrollTop + viewportOrigin.y) / scale,
+                x: (container.scrollLeft + viewportOrigin.x) / effectiveScale,
+                y: (container.scrollTop + viewportOrigin.y) / effectiveScale,
             };
-    
+
             pinchStateRef.current = {
-                startScale: scale,
+                startScale: effectiveScale,
                 startDist: dist,
                 contentOrigin,
                 viewportOrigin,
             };
         }
-    }, [scale, activePointers]);
+    }, [effectiveScale, activePointers]);
 
     const handlePointerMove = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (e.pointerType !== 'touch' || activePointers.size !== 2 || !pinchStateRef.current) return;
@@ -345,9 +478,11 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
         const { startScale, startDist, contentOrigin, viewportOrigin } = pinchStateRef.current;
     
         const newScale = startScale * (newDist / startDist);
-        const clampedScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
-        
-        setScale(clampedScale);
+        const clampedScale = clampScale(newScale);
+
+        if (fitScale > 0) {
+            setZoomFactor(clampedScale / fitScale);
+        }
         
         const container = containerRef.current;
         if (container) {
@@ -357,7 +492,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
             container.scrollLeft = newScrollLeft;
             container.scrollTop = newScrollTop;
         }
-    }, [activePointers]);
+    }, [activePointers, clampScale, fitScale]);
     
     const handlePointerUp = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (e.pointerType !== 'touch') return;
@@ -366,6 +501,44 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
             pinchStateRef.current = null;
         }
     }, [activePointers]);
+
+    const handleMouseUp = React.useCallback(() => {
+        if (!onSelection) return;
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return;
+        const text = selection.toString().trim();
+        if (!text) return;
+
+        const anchorNode = selection.anchorNode as HTMLElement | null;
+        const pageElement = anchorNode?.parentElement?.closest('[data-page]') as HTMLElement | null;
+        if (!pageElement) return;
+
+        const pageNumber = Number(pageElement.dataset.page);
+        if (!pageNumber) return;
+
+        const range = selection.getRangeAt(0);
+        const rects = Array.from(range.getClientRects())
+            .filter(rect => rect.width > 0 && rect.height > 0)
+            .map(rect => {
+                const pageRect = pageElement.getBoundingClientRect();
+                return {
+                    x: (rect.left - pageRect.left) / pageRect.width,
+                    y: (rect.top - pageRect.top) / pageRect.height,
+                    width: rect.width / pageRect.width,
+                    height: rect.height / pageRect.height,
+                };
+            });
+
+        if (rects.length === 0) return;
+
+        const anchor: AnnotationAnchor = {
+            page: pageNumber,
+            rects,
+            textQuote: text,
+        };
+
+        onSelection(anchor);
+    }, [onSelection]);
     
     if (isLoading) {
         return <div className="flex items-center justify-center h-full"><Spinner /></div>;
@@ -376,19 +549,32 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-100">
-            <div className="flex-shrink-0 flex items-center justify-between p-1.5 bg-slate-100 border-b border-slate-200">
-                <div className="w-28 text-center">
-                    <span className="text-sm font-semibold text-slate-600">Page {currentPage} of {numPages || 1}</span>
-                </div>
-                <div className="flex-1 flex justify-center">
-                    <div className="flex items-center justify-center gap-1">
-                        <button onClick={zoomOut} className="p-2 rounded-lg text-slate-600 hover:bg-slate-200"><ZoomOutIcon className="text-xl"/></button>
-                        <span className="w-16 text-center text-sm font-mono text-slate-700">{(scale * 100).toFixed(0)}%</span>
-                        <button onClick={zoomIn} className="p-2 rounded-lg text-slate-600 hover:bg-slate-200"><ZoomInIcon className="text-xl"/></button>
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                        <button onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom Out">
+                            <ZoomOutIcon className="text-lg"/>
+                        </button>
+                        <span className="w-12 text-center text-xs font-mono font-bold text-slate-600 select-none">
+                            {(effectiveScale * 100).toFixed(0)}%
+                        </span>
+                        <button onClick={zoomIn} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom In">
+                            <ZoomInIcon className="text-lg"/>
+                        </button>
                     </div>
                 </div>
-                <div className="w-28 flex justify-end">
-                    <button onClick={fitToPage} className="p-2 rounded-lg text-slate-600 hover:bg-slate-200" title="Fit to width"><FitScreenIcon className="text-xl"/></button>
+
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Page</span>
+                    <span className="text-sm font-bold text-slate-700 font-mono">{currentPage}</span>
+                    <span className="text-xs text-slate-300">/</span>
+                    <span className="text-sm font-medium text-slate-500 font-mono">{numPages || '--'}</span>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                    <button onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
+                        <FitScreenIcon className="text-xl"/>
+                    </button>
                 </div>
             </div>
             <div
@@ -399,6 +585,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
+                onMouseUp={handleMouseUp}
             >
                 {pdfDoc && numPages > 0 ? (
                     // Add an extra wrapper div to ensure the scroll container's child
@@ -408,8 +595,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                             {Array.from({ length: numPages }, (_, i) => {
                                 const pageNum = i + 1;
                                 const viewport = pageViewports[i];
-                                const scaledWidth = viewport.width * scale;
-                                const scaledHeight = viewport.height * scale;
+                                const scaledWidth = viewport.width * effectiveScale;
+                                const scaledHeight = viewport.height * effectiveScale;
                                 
                                 return (
                                     <div
@@ -419,12 +606,16 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                                         className="mx-auto"
                                         style={{ width: scaledWidth, height: scaledHeight }}
                                     >
-                                        <PdfPage
-                                            pdfDoc={pdfDoc}
-                                            pageNum={pageNum}
-                                            baseViewport={viewport}
-                                            renderScale={renderScale * window.devicePixelRatio}
-                                        />
+                                        {pagesToRender.has(pageNum) ? (
+                                            <PdfPage
+                                                pdfDoc={pdfDoc}
+                                                pageNum={pageNum}
+                                                renderScale={renderScale * window.devicePixelRatio}
+                                                viewScale={effectiveScale}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-white shadow-lg" />
+                                        )}
                                     </div>
                                 );
                             })}
@@ -432,7 +623,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl }) => {
                     </div>
                 ) : imageUrl ? (
                     <div className="p-6 flex justify-center">
-                        <img src={imageUrl} alt="document content" className="max-w-full h-auto shadow-lg" style={{ width: `${scale * 100}%` }} />
+                        <img src={imageUrl} alt="document content" className="max-w-full h-auto shadow-lg" style={{ width: `${effectiveScale * 100}%` }} />
                     </div>
                 ) : textContent !== null ? (
                     <div className="p-6 bg-white max-w-4xl mx-auto my-4 rounded-lg shadow-lg">

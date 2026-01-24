@@ -11,7 +11,7 @@ import { useFileHandler } from './hooks/useFileHandler';
 import { DocumentIcon, MenuIcon, XIcon } from './components/icons';
 import { FileUploader } from './components/FileUploader';
 import { signInWithGoogle, signOut, supabase } from './services/supabaseClient';
-import type { DocumentData, DocumentProcessingState } from './types';
+import type { DocumentData, DocumentProcessingState, AnnotationAnchor } from './types';
 
 const getProcessingMessage = (state: DocumentProcessingState): string => {
     switch (state) {
@@ -36,7 +36,7 @@ const ViewerPlaceholder = () => (
     </div>
 );
 
-const PdfContent: React.FC<{ document: DocumentData | undefined, isProcessing: boolean }> = ({ document, isProcessing }) => {
+const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: boolean; onSelection?: (anchor: AnnotationAnchor) => void; onPageChange?: (page: number) => void }> = ({ document, isProcessing, onSelection, onPageChange }) => {
     if (!document) return null;
 
     return (
@@ -64,6 +64,8 @@ const PdfContent: React.FC<{ document: DocumentData | undefined, isProcessing: b
                   file={document.file}
                   imageUrl={document.imageUrl}
                   docId={document.id}
+                  onSelection={onSelection}
+                  onPageChange={onPageChange}
                 />
             ) : (
                 !isProcessing && <ViewerPlaceholder />
@@ -82,9 +84,18 @@ const App: React.FC = () => {
     const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(450, 350, 800, 'right');
     const [userEmail, setUserEmail] = React.useState<string | null>(null);
     const [isAuthLoading, setIsAuthLoading] = React.useState(true);
+    const [pendingAnnotation, setPendingAnnotation] = React.useState<AnnotationAnchor | null>(null);
 
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
+
+    const handlePageChange = React.useCallback((page: number) => {
+        if (!activeDocument) return;
+        dispatch({
+            type: 'UPDATE_DOCUMENT',
+            payload: { docId: activeDocument.id, updates: { currentPage: page } },
+        });
+    }, [activeDocument, dispatch]);
 
     const handleSignIn = React.useCallback(async () => {
         const { error } = await signInWithGoogle();
@@ -189,7 +200,7 @@ const App: React.FC = () => {
     }
 
     return (
-        <div className="flex h-full bg-white font-sans antialiased overflow-hidden">
+        <div className="flex h-full bg-slate-50 font-sans antialiased overflow-hidden">
             {authUI}
             <FileUploader />
             {/* --- FILE LIST PANEL (Mobile Overlay) --- */}
@@ -197,16 +208,16 @@ const App: React.FC = () => {
                 {!isPanelCollapsed && (
                     <div className="fixed inset-0 bg-black/60 z-30" onClick={() => setIsPanelCollapsed(true)} aria-hidden="true" />
                 )}
-                <aside className={`fixed top-0 left-0 h-full w-72 bg-slate-50 border-r border-slate-200 transform transition-transform duration-300 ease-in-out z-40 ${isPanelCollapsed ? '-translate-x-full' : 'translate-x-0'}`}>
+                <aside className={`fixed top-0 left-0 h-full w-72 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out z-40 ${isPanelCollapsed ? '-translate-x-full' : 'translate-x-0'} shadow-2xl`}>
                     <FileListPanel onFileSelected={handleFileSelected} setIsPanelCollapsed={setIsPanelCollapsed} />
                 </aside>
             </div>
             
             {/* --- FILE LIST PANEL (Desktop Static Collapsible) --- */}
-            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-slate-50 border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-14' : 'w-72'}`}>
+            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-16' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
                     <div className="flex flex-col items-center pt-4">
-                        <button onClick={() => setIsPanelCollapsed(false)} className="p-2 text-slate-600 hover:bg-slate-200 rounded-lg" title="Expand file list" aria-label="Expand file list">
+                        <button onClick={() => setIsPanelCollapsed(false)} className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors" title="Expand file list" aria-label="Expand file list">
                             <MenuIcon className="text-2xl" />
                         </button>
                     </div>
@@ -221,15 +232,20 @@ const App: React.FC = () => {
                         {/* --- PDF Viewer (Desktop Only) --- */}
                         <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
                            <div className={`flex-1 relative min-h-0 w-full h-full ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
-                                <PdfContent document={activeDocument} isProcessing={isProcessing} />
+                                <PdfContent document={activeDocument} isProcessing={isProcessing} onSelection={setPendingAnnotation} onPageChange={handlePageChange} />
                             </div>
                         </section>
                         
                         {/* --- Resizer (Desktop Only) --- */}
-                        <div onMouseDown={handleResize} className={`hidden md:block w-1.5 h-full bg-slate-200 hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors ${isPdfViewerCollapsed ? 'hidden' : ''}`} />
+                        <div 
+                            onMouseDown={handleResize} 
+                            className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
+                        >
+                            <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
+                        </div>
                         
                         {/* --- Interaction Panel --- */}
-                        <section className="min-h-0 w-full md:w-auto md:flex-shrink-0" style={!isPdfViewerCollapsed ? { width: interactionPanelWidth } : { width: '100%' }}>
+                        <section className="min-h-0 w-full md:w-auto md:flex-shrink-0 bg-white border-l border-slate-200 shadow-xl z-10" style={!isPdfViewerCollapsed ? { width: interactionPanelWidth } : { width: '100%' }}>
                             <InteractionPanel
                                 key={activeDocument.id}
                                 document={activeDocument}
@@ -238,13 +254,15 @@ const App: React.FC = () => {
                                 isPdfVisible={isPdfVisible}
                                 isPdfViewerCollapsed={isPdfViewerCollapsed}
                                 onTogglePdfViewer={() => setIsPdfViewerCollapsed(v => !v)}
+                                pendingAnnotation={pendingAnnotation}
+                                onClearPendingAnnotation={() => setPendingAnnotation(null)}
                             />
                         </section>
 
                         {/* --- PDF Viewer (Mobile Overlay) --- */}
                         <div className={`md:hidden fixed inset-0 z-20 bg-slate-100 transform transition-transform duration-500 ease-in-out ${isPdfVisible ? 'translate-y-0' : 'translate-y-full'} overflow-hidden`}>
                             <div className="relative h-full w-full">
-                                <PdfContent document={activeDocument} isProcessing={isProcessing} />
+                                <PdfContent document={activeDocument} isProcessing={isProcessing} onSelection={setPendingAnnotation} onPageChange={handlePageChange} />
                                 <button
                                     onClick={() => setIsPdfVisible(false)}
                                     className="absolute top-4 right-4 z-30 w-10 h-10 bg-black/50 text-white rounded-full hover:bg-black/70 flex items-center justify-center"

@@ -85,11 +85,47 @@ export interface DocumentData {
   monkeyMode: boolean;
   documentContent?: string;
   folderId: string | null;
+  currentPage?: number;
   quizTabData?: {
       quizContent: QuizData | FRQData;
       quizState: QuizTabState;
       studyTips?: string;
   } | null;
+  annotations?: Annotation[];
+  annotationsLoaded?: boolean;
+}
+
+export type AnnotationKind = 'highlight' | 'note' | 'underline' | 'area';
+
+export interface AnnotationRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface AnnotationAnchor {
+  page: number;
+  rects: AnnotationRect[];
+  textQuote?: string;
+}
+
+export interface AnnotationContent {
+  note?: string;
+  color?: string;
+  tags?: string[];
+}
+
+export interface Annotation {
+  id: string;
+  userId?: string;
+  documentId: string;
+  pageNumber: number;
+  kind: AnnotationKind;
+  anchor: AnnotationAnchor;
+  content?: AnnotationContent;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface QuizQuestion {

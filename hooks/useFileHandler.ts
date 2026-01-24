@@ -5,6 +5,7 @@ import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { getErrorMessage } from '../utils/errors';
 import { initialBotMessage } from '../constants';
+import { maybeCompressPdf } from '../utils/pdfCompression';
 import type { DocumentData, DocumentProcessingState, ProcessingModel } from '../types';
 
 const SUPPORTED_MIME_TYPES = [
@@ -62,23 +63,27 @@ export const useFileHandler = () => {
                 answerScope: 'document',
                 monkeyMode: false,
                 folderId: targetFolderId,
+                annotations: [],
+                annotationsLoaded: true,
+                currentPage: 1,
             };
             dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
             return;
         }
         
         const fileType = getFileType(file);
+        const { file: uploadFile } = await maybeCompressPdf(file);
         const storagePath = `${user.id}/${file.name}`;
         
         const newDoc: DocumentData = {
             id: docId,
-            file,
+            file: uploadFile,
             fileName: file.name,
-            fileSize: file.size,
-            fileMime: file.type,
+            fileSize: uploadFile.size,
+            fileMime: uploadFile.type,
             fileType,
             storagePath,
-            imageUrl: fileType === 'image' ? URL.createObjectURL(file) : undefined,
+            imageUrl: fileType === 'image' ? URL.createObjectURL(uploadFile) : undefined,
             summary: '',
             chat: null,
             chatHistory: [initialBotMessage],
@@ -87,6 +92,9 @@ export const useFileHandler = () => {
             answerScope: 'document',
             monkeyMode: false,
             folderId: targetFolderId,
+            annotations: [],
+            annotationsLoaded: true,
+            currentPage: 1,
         };
 
         dispatch({ type: 'ADD_DOCUMENT', payload: newDoc });
@@ -99,8 +107,8 @@ export const useFileHandler = () => {
                     user_id: user.id,
                     folder_id: targetFolderId,
                     file_name: file.name,
-                    file_size: file.size,
-                    file_mime: file.type,
+                    file_size: uploadFile.size,
+                    file_mime: uploadFile.type,
                     file_type: fileType,
                     storage_path: storagePath,
                     summary: '',
@@ -129,7 +137,7 @@ export const useFileHandler = () => {
 
             const { error: uploadError } = await supabase.storage
                 .from('docs')
-                .upload(storagePath, file, { upsert: true });
+                .upload(storagePath, uploadFile, { upsert: true });
 
             if (uploadError) {
                 console.error('업로드 실패:', uploadError);
@@ -177,7 +185,7 @@ export const useFileHandler = () => {
 
         try {
             const modelForProcessing: ProcessingModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(file, modelForProcessing, onProgress);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(uploadFile, modelForProcessing, onProgress);
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {

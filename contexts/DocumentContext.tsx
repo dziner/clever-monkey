@@ -3,6 +3,7 @@ import React from 'react';
 import type { DocumentData, DocumentState, DocumentAction, Folder } from '../types';
 import { initialBotMessage } from '../constants';
 import { supabase } from '../services/supabaseClient';
+import { fetchAnnotationsForDocument } from '../services/annotationService';
 
 const DocumentContext = React.createContext<{
   state: DocumentState;
@@ -190,6 +191,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             documentContent: doc.document_content ?? undefined,
             folderId: doc.folder_id ?? null,
             quizTabData: doc.quiz_tab_data ?? undefined,
+            annotations: [],
+            annotationsLoaded: false,
+            currentPage: 1,
           };
         });
 
@@ -273,6 +277,30 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     downloadFile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [state.activeDocumentId, state.documents]);
+
+  React.useEffect(() => {
+    const activeDoc = state.documents.find(doc => doc.id === state.activeDocumentId);
+    if (!activeDoc || activeDoc.annotationsLoaded) return;
+
+    let isActive = true;
+    const loadAnnotations = async () => {
+      const annotations = await fetchAnnotationsForDocument(activeDoc.id);
+      if (!isActive) return;
+      dispatch({
+        type: 'UPDATE_DOCUMENT',
+        payload: {
+          docId: activeDoc.id,
+          updates: { annotations, annotationsLoaded: true },
+        },
+      });
+    };
+
+    loadAnnotations();
 
     return () => {
       isActive = false;

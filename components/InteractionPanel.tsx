@@ -1,7 +1,7 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
-import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, QuizTabState } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
+import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, QuizTabState, Annotation, AnnotationAnchor, AnnotationKind } from '../types';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, NoteIcon, HighlightIcon, MoreVertIcon, TrashIcon, EditIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
@@ -15,6 +15,7 @@ import { QuizGenerator } from './QuizGenerator';
 import { FRQuiz } from './FRQuiz';
 import { generateQuiz } from '../services/geminiService';
 import { getErrorMessage } from '../utils/errors';
+import { createAnnotation, deleteAnnotation } from '../services/annotationService';
 
 // Assuming jspdf and html2canvas are loaded from CDN
 declare const jspdf: any;
@@ -26,15 +27,23 @@ interface InteractionPanelProps {
     isPdfVisible: boolean;
     isPdfViewerCollapsed: boolean;
     onTogglePdfViewer: () => void;
+    pendingAnnotation: AnnotationAnchor | null;
+    onClearPendingAnnotation: () => void;
 }
 
-export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, onMenuClick, onPreviewClick, isPdfVisible, isPdfViewerCollapsed, onTogglePdfViewer }) => {
+export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, onMenuClick, onPreviewClick, isPdfVisible, isPdfViewerCollapsed, onTogglePdfViewer, pendingAnnotation, onClearPendingAnnotation }) => {
     const { dispatch } = useDocuments();
     const [view, setView] = React.useState<'selection' | 'content'>('selection');
-    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz'>('summary');
+    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz' | 'annotations'>('summary');
     
     const [showCopyToast, setShowCopyToast] = React.useState(false);
     const [isPresetQuestionsOpen, setIsPresetQuestionsOpen] = React.useState(false);
+    const [annotationDraft, setAnnotationDraft] = React.useState('');
+    const [annotationColor, setAnnotationColor] = React.useState('#FDE68A');
+    const [annotationKind, setAnnotationKind] = React.useState<AnnotationKind>('note');
+    const [annotationAnchor, setAnnotationAnchor] = React.useState<AnnotationAnchor | null>(null);
+    const [annotationError, setAnnotationError] = React.useState<string | null>(null);
+    const [isSavingAnnotation, setIsSavingAnnotation] = React.useState(false);
 
     // State for quiz generation status in the quiz tab
     const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false);
@@ -66,6 +75,9 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, on
         setView('selection');
         setActiveTab('summary');
         setQuizError(null);
+        setAnnotationDraft('');
+        setAnnotationAnchor(null);
+        setAnnotationError(null);
     }, [document.id]);
 
     // Effect to manage the initial chat sequence and preset questions visibility
@@ -259,6 +271,82 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, on
 
     const isProcessing = document.processingState !== 'done' && document.processingState !== 'error';
     const quizTabData = document.quizTabData;
+    const annotations = React.useMemo(() => {
+        return (document.annotations ?? []).slice().sort((a, b) => {
+            if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
+            if (!a.createdAt || !b.createdAt) return 0;
+            return a.createdAt.localeCompare(b.createdAt);
+        });
+    }, [document.annotations]);
+
+    const currentPage = document.currentPage ?? 1;
+
+    const handleUseSelection = () => {
+        if (!pendingAnnotation) return;
+        setAnnotationAnchor(pendingAnnotation);
+        setAnnotationKind('highlight');
+        if (pendingAnnotation.textQuote) {
+            setAnnotationDraft(pendingAnnotation.textQuote);
+        }
+        onClearPendingAnnotation();
+    };
+
+    const handleSaveAnnotation = async () => {
+        setAnnotationError(null);
+        if (!annotationDraft.trim() && !annotationAnchor?.textQuote) {
+            setAnnotationError('Please add a note or capture a selection before saving.');
+            return;
+        }
+
+        setIsSavingAnnotation(true);
+        const anchor: AnnotationAnchor = annotationAnchor ?? {
+            page: currentPage,
+            rects: [],
+            textQuote: annotationDraft.trim() || undefined,
+        };
+
+        const created = await createAnnotation({
+            documentId: document.id,
+            pageNumber: anchor.page,
+            kind: annotationKind,
+            anchor,
+            content: {
+                note: annotationDraft.trim() || undefined,
+                color: annotationColor,
+            },
+        });
+
+        if (created) {
+            dispatch({
+                type: 'UPDATE_DOCUMENT',
+                payload: {
+                    docId: document.id,
+                    updates: { annotations: [...(document.annotations ?? []), created] },
+                },
+            });
+            setAnnotationDraft('');
+            setAnnotationAnchor(null);
+            setAnnotationKind('note');
+        } else {
+            setAnnotationError('Failed to save annotation.');
+        }
+
+        setIsSavingAnnotation(false);
+    };
+
+    const handleDeleteAnnotation = async (annotation: Annotation) => {
+        const deleted = await deleteAnnotation(annotation.id);
+        if (!deleted) return;
+        dispatch({
+            type: 'UPDATE_DOCUMENT',
+            payload: {
+                docId: document.id,
+                updates: {
+                    annotations: (document.annotations ?? []).filter(item => item.id !== annotation.id),
+                },
+            },
+        });
+    };
 
     const MonkeyModeToggle = () => (
       <div className="flex items-center justify-end gap-2 text-sm text-slate-600" title="Toggle mischievous monkey mode">
@@ -291,19 +379,26 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, on
     );
     
     const TabsComponent = () => (
-         <div className="p-1 bg-slate-100 rounded-lg flex items-center gap-1">
-            <button onClick={() => setActiveTab('summary')} className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${activeTab === 'summary' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}>
-                <CopyIcon className="text-xl" />
-                <span>Summary</span>
-            </button>
-            <button onClick={() => setActiveTab('chat')} className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${activeTab === 'chat' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}>
-                <ChatIcon className="text-xl" />
-                <span>Chat</span>
-            </button>
-            <button onClick={() => setActiveTab('quiz')} className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors ${activeTab === 'quiz' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-200/50'}`}>
-                <AssignmentIcon className="text-xl" />
-                <span>Quiz</span>
-            </button>
+         <div className="p-1.5 bg-slate-100/70 rounded-2xl flex items-center gap-1 border border-slate-200/60 w-full overflow-x-auto">
+            {[
+                { id: 'summary', icon: CopyIcon, label: 'Summary' },
+                { id: 'chat', icon: ChatIcon, label: 'Chat' },
+                { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
+                { id: 'annotations', icon: NoteIcon, label: 'Notes' }
+            ].map(tab => (
+                <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                        activeTab === tab.id
+                        ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5 scale-[1.02]' 
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                    }`}
+                >
+                    <tab.icon className="text-lg sm:text-xl" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+            ))}
         </div>
     );
 
@@ -493,6 +588,112 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({ document, on
                                 )}
                              </div>
                         )}
+                    </div>
+                </div>
+
+                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'annotations' ? 'flex' : 'hidden'}`}>
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/30">
+                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm mb-6">
+                            <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                <HighlightIcon className="text-blue-500"/>
+                                <span>Add Annotation</span>
+                            </h4>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setAnnotationKind('note')}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${annotationKind === 'note' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    Note
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setAnnotationKind('highlight')}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${annotationKind === 'highlight' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                    Highlight
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleUseSelection}
+                                    disabled={!pendingAnnotation}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${pendingAnnotation ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'}`}
+                                >
+                                    Use Selection
+                                </button>
+                                <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+                                    <span>Page {annotationAnchor?.page ?? currentPage}</span>
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <textarea
+                                    placeholder={annotationKind === 'highlight' ? 'Add a note about the highlight (optional)...' : 'Type your note here...'}
+                                    className="w-full h-24 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 outline-none resize-none transition-all placeholder:text-slate-400"
+                                    value={annotationDraft}
+                                    onChange={(event) => setAnnotationDraft(event.target.value)}
+                                ></textarea>
+                                <div className="absolute bottom-3 right-3 flex gap-2 items-center">
+                                    <span className="text-xs text-slate-400">Color</span>
+                                    <input
+                                        type="color"
+                                        value={annotationColor}
+                                        onChange={(event) => setAnnotationColor(event.target.value)}
+                                        className="h-7 w-7 rounded-md border border-slate-200 bg-white"
+                                        aria-label="Annotation color"
+                                    />
+                                </div>
+                            </div>
+                            {annotationError && (
+                                <p className="mt-2 text-xs text-red-600">{annotationError}</p>
+                            )}
+                            <div className="flex justify-end mt-3">
+                                <button
+                                    onClick={handleSaveAnnotation}
+                                    disabled={isSavingAnnotation}
+                                    className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-md shadow-blue-200 hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                >
+                                    {isSavingAnnotation ? 'Saving...' : 'Save Annotation'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between px-1">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Your Notes</h4>
+                                <button disabled className="text-blue-600 text-xs font-bold hover:underline opacity-50">Export All</button>
+                            </div>
+
+                            {annotations.length === 0 ? (
+                                <div className="bg-white rounded-xl p-6 border border-dashed border-slate-200 text-center text-sm text-slate-500">
+                                    No annotations yet. Select text in the document or add a note to get started.
+                                </div>
+                            ) : (
+                                annotations.map(annotation => (
+                                    <div key={annotation.id} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:shadow-md transition-shadow group">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                                                Page {annotation.pageNumber}
+                                            </span>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-500"
+                                                    onClick={() => handleDeleteAnnotation(annotation)}
+                                                    aria-label="Delete annotation"
+                                                >
+                                                    <TrashIcon className="text-sm"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p className="text-slate-600 text-sm leading-relaxed">
+                                            {annotation.content?.note || annotation.anchor.textQuote || 'Untitled annotation'}
+                                        </p>
+                                        <div className="mt-3 text-[10px] text-slate-400 font-medium">
+                                            {annotation.kind.toUpperCase()}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             </React.Fragment>
