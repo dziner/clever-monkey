@@ -25,10 +25,23 @@ export const signInWithGoogle = async () => {
         provider: 'google',
     })
     if (error) console.error('Error logging in with Google:', error.message)
-    return data
+    return { data, error }
 }
 
 export const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) console.error('Error signing out:', error.message)
+    return { error }
+}
+
+export const signInWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) console.error('Error logging in with email:', error.message)
+    return { data, error }
+}
+
+export const signUpWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) console.error('Error signing up with email:', error.message)
+    return { data, error }
 }
