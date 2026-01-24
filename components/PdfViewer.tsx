@@ -1,7 +1,7 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import { Spinner } from './Spinner';
-import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
+import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon } from './icons';
 import type { AnnotationAnchor, Annotation } from '../types';
 
 interface PdfViewerProps {
@@ -12,6 +12,9 @@ interface PdfViewerProps {
     currentPage?: number;
     onSelection?: (anchor: AnnotationAnchor) => void;
     onPageChange?: (page: number) => void;
+    penMode?: boolean;
+    onTogglePenMode?: () => void;
+    onHighlightCreate?: (anchor: AnnotationAnchor) => void;
 }
 
 // A memoized component to render a single page of a PDF.
@@ -193,7 +196,7 @@ const ZOOM_STEP = 0.2;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4.0;
 
-export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotations = [], currentPage: externalCurrentPage, onSelection, onPageChange }) => {
+export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotations = [], currentPage: externalCurrentPage, onSelection, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [pdfDoc, setPdfDoc] = React.useState<any>(null);
     const [numPages, setNumPages] = React.useState(0);
@@ -553,7 +556,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     }, [activePointers]);
 
     const handleMouseUp = React.useCallback(() => {
-        if (!onSelection) return;
+        if (!onSelection && !onHighlightCreate) return;
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed) return;
         const text = selection.toString().trim();
@@ -587,8 +590,14 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
             textQuote: text,
         };
 
-        onSelection(anchor);
-    }, [onSelection]);
+        if (penMode && onHighlightCreate) {
+            onHighlightCreate(anchor);
+            selection.removeAllRanges();
+            return;
+        }
+
+        onSelection?.(anchor);
+    }, [onSelection, onHighlightCreate, penMode]);
     
     if (isLoading) {
         return <div className="flex items-center justify-center h-full"><Spinner /></div>;
@@ -622,6 +631,20 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 </div>
 
                 <div className="flex justify-end gap-2">
+                    {onTogglePenMode && (
+                        <button
+                            onClick={onTogglePenMode}
+                            className={`p-2 rounded-lg transition-colors active:scale-95 ${
+                                penMode
+                                    ? 'bg-blue-100 text-blue-600 shadow-inner ring-1 ring-blue-200'
+                                    : 'text-slate-500 hover:bg-blue-50 hover:text-blue-600'
+                            }`}
+                            title={penMode ? "Exit Pen Mode" : "Enter Pen Mode"}
+                            aria-pressed={penMode}
+                        >
+                            <HighlightIcon className="text-xl" />
+                        </button>
+                    )}
                     <button onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
                         <FitScreenIcon className="text-xl"/>
                     </button>

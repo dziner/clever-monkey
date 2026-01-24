@@ -13,6 +13,7 @@ import { FileUploader } from './components/FileUploader';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
+import { createAnnotation } from './services/annotationService';
 import type { DocumentData, DocumentProcessingState, AnnotationAnchor } from './types';
 
 const getProcessingMessage = (state: DocumentProcessingState): string => {
@@ -50,7 +51,7 @@ const formatBytes = (value: number) => {
     return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: boolean; onSelection?: (anchor: AnnotationAnchor) => void; onPageChange?: (page: number) => void }> = ({ document, isProcessing, onSelection, onPageChange }) => {
+const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: boolean; onSelection?: (anchor: AnnotationAnchor) => void; onPageChange?: (page: number) => void; penMode?: boolean; onTogglePenMode?: () => void; onHighlightCreate?: (anchor: AnnotationAnchor) => void }> = ({ document, isProcessing, onSelection, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
     if (!document) return null;
 
     return (
@@ -82,6 +83,9 @@ const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: b
                   currentPage={document.currentPage}
                   onSelection={onSelection}
                   onPageChange={onPageChange}
+                  penMode={penMode}
+                  onTogglePenMode={onTogglePenMode}
+                  onHighlightCreate={onHighlightCreate}
                 />
             ) : (
                 !isProcessing && <ViewerPlaceholder />
@@ -103,6 +107,7 @@ const App: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
     const [pendingAnnotation, setPendingAnnotation] = React.useState<AnnotationAnchor | null>(null);
     const [route, setRoute] = React.useState(window.location.pathname);
+    const [penMode, setPenMode] = React.useState(false);
 
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
@@ -114,6 +119,37 @@ const App: React.FC = () => {
             payload: { docId: activeDocument.id, updates: { currentPage: page } },
         });
     }, [activeDocument, dispatch]);
+
+    const handleHighlightCreate = React.useCallback(async (anchor: AnnotationAnchor) => {
+        if (!activeDocument || anchor.rects.length === 0) return;
+        const created = await createAnnotation({
+            documentId: activeDocument.id,
+            pageNumber: anchor.page,
+            kind: 'highlight',
+            anchor,
+            content: { color: '#FDE68A' },
+        });
+
+        if (!created) return;
+
+        dispatch({
+            type: 'UPDATE_DOCUMENT',
+            payload: {
+                docId: activeDocument.id,
+                updates: { annotations: [...(activeDocument.annotations ?? []), created] },
+            },
+        });
+    }, [activeDocument, dispatch]);
+
+    const handleTogglePenMode = React.useCallback(() => {
+        setPenMode(current => {
+            const next = !current;
+            if (next) {
+                setPendingAnnotation(null);
+            }
+            return next;
+        });
+    }, []);
 
     const handleSignIn = React.useCallback(async () => {
         const { error } = await signInWithGoogle();
@@ -307,7 +343,15 @@ const App: React.FC = () => {
                         {/* --- PDF Viewer (Desktop Only) --- */}
                         <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
                            <div className={`flex-1 relative min-h-0 w-full h-full ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
-                                <PdfContent document={activeDocument} isProcessing={isProcessing} onSelection={setPendingAnnotation} onPageChange={handlePageChange} />
+                                <PdfContent
+                                    document={activeDocument}
+                                    isProcessing={isProcessing}
+                                    onSelection={setPendingAnnotation}
+                                    onPageChange={handlePageChange}
+                                    penMode={penMode}
+                                    onTogglePenMode={handleTogglePenMode}
+                                    onHighlightCreate={handleHighlightCreate}
+                                />
                             </div>
                         </section>
                         
@@ -337,7 +381,15 @@ const App: React.FC = () => {
                         {/* --- PDF Viewer (Mobile Overlay) --- */}
                         <div className={`md:hidden fixed inset-0 z-20 bg-slate-100 transform transition-transform duration-500 ease-in-out ${isPdfVisible ? 'translate-y-0' : 'translate-y-full'} overflow-hidden`}>
                             <div className="relative h-full w-full">
-                                <PdfContent document={activeDocument} isProcessing={isProcessing} onSelection={setPendingAnnotation} onPageChange={handlePageChange} />
+                                <PdfContent
+                                    document={activeDocument}
+                                    isProcessing={isProcessing}
+                                    onSelection={setPendingAnnotation}
+                                    onPageChange={handlePageChange}
+                                    penMode={penMode}
+                                    onTogglePenMode={handleTogglePenMode}
+                                    onHighlightCreate={handleHighlightCreate}
+                                />
                                 <button
                                     onClick={() => setIsPdfVisible(false)}
                                     className="absolute top-4 right-4 z-30 w-10 h-10 bg-black/50 text-white rounded-full hover:bg-black/70 flex items-center justify-center"
