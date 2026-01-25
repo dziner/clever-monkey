@@ -19,8 +19,8 @@ declare global {
 }
 
 export interface Folder {
-    id: string;
-    name: string;
+  id: string;
+  name: string;
 }
 
 // State for Multiple Choice Quizzes
@@ -33,22 +33,22 @@ export interface MCQQuizState {
 
 // State for Free Response Quizzes
 export interface FRQQuizState {
-    type: 'frq';
-    userAnswers: FRUserAnswer[];
-    currentQuestionIndex: number;
-    isFinished: boolean;
-    isGrading: boolean;
+  type: 'frq';
+  userAnswers: FRUserAnswer[];
+  currentQuestionIndex: number;
+  isFinished: boolean;
+  isGrading: boolean;
 }
 
 export type QuizTabState = MCQQuizState | FRQQuizState;
 
 export interface ChatMessage {
-    sender: 'user' | 'bot';
-    text: string;
-    type?: 'scope_change' | 'quiz' | 'monkey_mode_status' | 'quiz_suggestion';
-    quizData?: QuizData;
-    quizState?: MCQQuizState; // Chat-based quizzes are currently only MCQ
-    wasMonkeyMode?: boolean;
+  sender: 'user' | 'bot';
+  text: string;
+  type?: 'scope_change' | 'quiz' | 'monkey_mode_status' | 'quiz_suggestion';
+  quizData?: QuizData;
+  quizState?: MCQQuizState; // Chat-based quizzes are currently only MCQ
+  wasMonkeyMode?: boolean;
 }
 
 export type DocumentProcessingState = 'reading' | 'summarizing' | 'generating_questions' | 'error' | 'done';
@@ -58,9 +58,9 @@ export type Model = typeof AVAILABLE_MODEL_IDS[number];
 export type ProcessingModel = Model | 'gemini-flash-latest';
 
 export interface ModelInfo {
-    id: Model;
-    name: string;
-    description: string;
+  id: Model;
+  name: string;
+  description: string;
 }
 
 export interface DocumentData {
@@ -87,15 +87,15 @@ export interface DocumentData {
   folderId: string | null;
   currentPage?: number;
   quizTabData?: {
-      quizContent: QuizData | FRQData;
-      quizState: QuizTabState;
-      studyTips?: string;
+    quizContent: QuizData | FRQData;
+    quizState: QuizTabState;
+    studyTips?: string;
   } | null;
   annotations?: Annotation[];
   annotationsLoaded?: boolean;
 }
 
-export type AnnotationKind = 'highlight' | 'note' | 'underline' | 'area';
+export type AnnotationKind = 'highlight' | 'note' | 'underline' | 'area' | 'pen';
 
 export interface AnnotationRect {
   x: number;
@@ -110,10 +110,17 @@ export interface AnnotationAnchor {
   textQuote?: string;
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export interface AnnotationContent {
   note?: string;
   color?: string;
   tags?: string[];
+  paths?: Point[][]; // For pen drawings: list of strokes, each stroke is list of points
+  penWidth?: number;
 }
 
 export interface Annotation {

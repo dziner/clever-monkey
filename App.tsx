@@ -13,8 +13,8 @@ import { FileUploader } from './components/FileUploader';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
-import { createAnnotation } from './services/annotationService';
-import type { DocumentData, DocumentProcessingState, AnnotationAnchor } from './types';
+import { fetchAnnotationsForDocument, createAnnotation } from './services/annotationService';
+import type { DocumentData, DocumentProcessingState, AnnotationAnchor, Point } from './types';
 
 const getProcessingMessage = (state: DocumentProcessingState): string => {
     switch (state) {
@@ -51,7 +51,16 @@ const formatBytes = (value: number) => {
     return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: boolean; onSelection?: (anchor: AnnotationAnchor) => void; onPageChange?: (page: number) => void; penMode?: boolean; onTogglePenMode?: () => void; onHighlightCreate?: (anchor: AnnotationAnchor) => void }> = ({ document, isProcessing, onSelection, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
+interface PdfContentProps {
+    document: DocumentData | undefined;
+    isProcessing: boolean;
+    onPageChange?: (page: number) => void;
+    penMode: boolean;
+    onTogglePenMode: () => void;
+    onHighlightCreate: (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => void;
+}
+
+const PdfContent: React.FC<PdfContentProps> = ({ document, isProcessing, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
     if (!document) return null;
 
     return (
@@ -76,16 +85,17 @@ const PdfContent: React.FC<{ document: DocumentData | undefined; isProcessing: b
             )}
             {document.file ? (
                 <PdfViewer
-                  file={document.file}
-                  imageUrl={document.imageUrl}
-                  docId={document.id}
-                  annotations={document.annotations}
-                  currentPage={document.currentPage}
-                  onSelection={onSelection}
-                  onPageChange={onPageChange}
-                  penMode={penMode}
-                  onTogglePenMode={onTogglePenMode}
-                  onHighlightCreate={onHighlightCreate}
+                    file={document.file}
+                    imageUrl={document.imageUrl}
+                    docId={document.id}
+
+
+                    annotations={document.annotations}
+                    currentPage={document.currentPage}
+                    onPageChange={onPageChange}
+                    penMode={penMode}
+                    onTogglePenMode={onTogglePenMode}
+                    onHighlightCreate={onHighlightCreate}
                 />
             ) : (
                 !isProcessing && <ViewerPlaceholder />
@@ -104,10 +114,11 @@ const App: React.FC = () => {
     const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(450, 350, 800, 'right');
     const [userEmail, setUserEmail] = React.useState<string | null>(null);
     const [isAuthLoading, setIsAuthLoading] = React.useState(true);
-    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
-    const [pendingAnnotation, setPendingAnnotation] = React.useState<AnnotationAnchor | null>(null);
-    const [route, setRoute] = React.useState(window.location.pathname);
     const [penMode, setPenMode] = React.useState(false);
+    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz' | 'annotations'>('summary');
+    const [editingAnnotationId, setEditingAnnotationId] = React.useState<string | null>(null);
+    const [route, setRoute] = React.useState(window.location.pathname);
 
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
@@ -120,35 +131,44 @@ const App: React.FC = () => {
         });
     }, [activeDocument, dispatch]);
 
-    const handleHighlightCreate = React.useCallback(async (anchor: AnnotationAnchor) => {
-        if (!activeDocument || anchor.rects.length === 0) return;
+    const handleAnnotationCreate = React.useCallback(async (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => {
+        if (!activeDocument) return;
+
+        const kind = paths && paths.length > 0 ? 'pen' : 'highlight';
+        const content: { color?: string; note?: string; paths?: Point[][]; penWidth?: number } = {};
+
+        if (kind === 'highlight') {
+            content.color = color || '#FDE68A';
+            if (note) content.note = note;
+        } else if (kind === 'pen') {
+            content.paths = paths;
+            content.penWidth = penWidth;
+            content.color = color || '#000000'; // Default pen color
+        }
+
         const created = await createAnnotation({
             documentId: activeDocument.id,
             pageNumber: anchor.page,
-            kind: 'highlight',
+            kind,
             anchor,
-            content: { color: '#FDE68A' },
+            content,
         });
 
-        if (!created) return;
-
-        dispatch({
-            type: 'UPDATE_DOCUMENT',
-            payload: {
-                docId: activeDocument.id,
-                updates: { annotations: [...(activeDocument.annotations ?? []), created] },
-            },
-        });
+        if (created) {
+            dispatch({
+                type: 'UPDATE_DOCUMENT',
+                payload: {
+                    docId: activeDocument.id,
+                    updates: { annotations: [...(activeDocument.annotations ?? []), created] },
+                },
+            });
+            setActiveTab('annotations');
+            setEditingAnnotationId(created.id);
+        }
     }, [activeDocument, dispatch]);
 
     const handleTogglePenMode = React.useCallback(() => {
-        setPenMode(current => {
-            const next = !current;
-            if (next) {
-                setPendingAnnotation(null);
-            }
-            return next;
-        });
+        setPenMode(current => !current);
     }, []);
 
     const handleSignIn = React.useCallback(async () => {
@@ -211,7 +231,7 @@ const App: React.FC = () => {
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
-    
+
     React.useEffect(() => {
         if (state.documents.length === 0) {
             document.body.style.overflow = 'auto';
@@ -223,6 +243,21 @@ const App: React.FC = () => {
             document.body.style.overflow = 'hidden';
         };
     }, [state.documents.length]);
+
+    React.useEffect(() => {
+        const fetchAnnotations = async () => {
+            if (activeDocument && !activeDocument.annotations) {
+                const annotations = await fetchAnnotationsForDocument(activeDocument.id);
+                if (annotations) {
+                    dispatch({
+                        type: 'UPDATE_DOCUMENT',
+                        payload: { docId: activeDocument.id, updates: { annotations } },
+                    });
+                }
+            }
+        };
+        fetchAnnotations();
+    }, [activeDocument, dispatch]);
 
     const authUI = (
         <React.Fragment>
@@ -240,9 +275,9 @@ const App: React.FC = () => {
                     </button>
                 )}
             </div>
-            <AuthModal 
-                isOpen={isAuthModalOpen} 
-                onClose={() => setIsAuthModalOpen(false)} 
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
                 onGoogleSignIn={handleSignIn}
                 onEmailSignIn={handleEmailSignIn}
                 onEmailSignUp={handleEmailSignUp}
@@ -310,7 +345,7 @@ const App: React.FC = () => {
                     />
                 </aside>
             </div>
-            
+
             {/* --- FILE LIST PANEL (Desktop Static Collapsible) --- */}
             <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-16' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
@@ -336,33 +371,32 @@ const App: React.FC = () => {
                     />
                 )}
             </aside>
-            
+
             <main className="flex-1 flex min-w-0 relative">
                 {activeDocument ? (
                     <div className="flex-1 flex min-w-0">
                         {/* --- PDF Viewer (Desktop Only) --- */}
                         <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
-                           <div className={`flex-1 relative min-h-0 w-full h-full ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
+                            <div className={`flex-1 relative min-h-0 w-full h-full ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
                                 <PdfContent
                                     document={activeDocument}
                                     isProcessing={isProcessing}
-                                    onSelection={setPendingAnnotation}
                                     onPageChange={handlePageChange}
                                     penMode={penMode}
                                     onTogglePenMode={handleTogglePenMode}
-                                    onHighlightCreate={handleHighlightCreate}
+                                    onHighlightCreate={handleAnnotationCreate}
                                 />
                             </div>
                         </section>
-                        
+
                         {/* --- Resizer (Desktop Only) --- */}
-                        <div 
-                            onMouseDown={handleResize} 
+                        <div
+                            onMouseDown={handleResize}
                             className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
                         >
                             <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
                         </div>
-                        
+
                         {/* --- Interaction Panel --- */}
                         <section className="min-h-0 w-full md:w-auto md:flex-shrink-0 bg-white border-l border-slate-200 shadow-xl z-10" style={!isPdfViewerCollapsed ? { width: interactionPanelWidth } : { width: '100%' }}>
                             <InteractionPanel
@@ -372,9 +406,12 @@ const App: React.FC = () => {
                                 onPreviewClick={() => setIsPdfVisible(v => !v)}
                                 isPdfVisible={isPdfVisible}
                                 isPdfViewerCollapsed={isPdfViewerCollapsed}
+
                                 onTogglePdfViewer={() => setIsPdfViewerCollapsed(v => !v)}
-                                pendingAnnotation={pendingAnnotation}
-                                onClearPendingAnnotation={() => setPendingAnnotation(null)}
+                                activeTab={activeTab}
+                                onTabChange={setActiveTab}
+                                editingAnnotationId={editingAnnotationId}
+                                onEditingAnnotationChange={setEditingAnnotationId}
                             />
                         </section>
 
@@ -384,11 +421,10 @@ const App: React.FC = () => {
                                 <PdfContent
                                     document={activeDocument}
                                     isProcessing={isProcessing}
-                                    onSelection={setPendingAnnotation}
                                     onPageChange={handlePageChange}
                                     penMode={penMode}
                                     onTogglePenMode={handleTogglePenMode}
-                                    onHighlightCreate={handleHighlightCreate}
+                                    onHighlightCreate={handleAnnotationCreate}
                                 />
                                 <button
                                     onClick={() => setIsPdfVisible(false)}
