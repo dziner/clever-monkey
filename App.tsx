@@ -14,7 +14,7 @@ import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
 import { fetchAnnotationsForDocument, createAnnotation } from './services/annotationService';
-import type { DocumentData, DocumentProcessingState, AnnotationAnchor, Point } from './types';
+import type { DocumentData, DocumentProcessingState, Annotation, AnnotationAnchor, Point } from './types';
 
 const getProcessingMessage = (state: DocumentProcessingState): string => {
     switch (state) {
@@ -61,6 +61,7 @@ interface PdfContentProps {
 }
 
 const PdfContent: React.FC<PdfContentProps> = ({ document, isProcessing, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
+    const { dispatch } = useDocuments();
     if (!document) return null;
 
     return (
@@ -76,7 +77,8 @@ const PdfContent: React.FC<PdfContentProps> = ({ document, isProcessing, onPageC
                     <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
                     <p className="text-red-600 mt-2 text-center">{document.errorMessage}</p>
                     <button
-                        onClick={() => useDocuments().dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: document.id } })}
+                        type="button"
+                        onClick={() => dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: document.id } })}
                         className="mt-4 flex items-center px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
                     >
                         <XIcon className="text-base mr-2" /> Close
@@ -159,6 +161,10 @@ const App: React.FC = () => {
     const handleAnnotationCreate = React.useCallback(async (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => {
         if (!activeDocument) return;
 
+        const getCurrentAnnotations = () => {
+            const currentDoc = state.documents.find(doc => doc.id === activeDocument.id);
+            return currentDoc?.annotations ?? [];
+        };
         const kind = paths && paths.length > 0 ? 'pen' : 'highlight';
         const content: { color?: string; note?: string; paths?: Point[][]; penWidth?: number } = {};
         const trimmedNote = note?.trim();
@@ -170,7 +176,25 @@ const App: React.FC = () => {
             content.paths = paths;
             content.penWidth = penWidth;
             content.color = color || '#000000'; // Default pen color
+            if (trimmedNote) content.note = trimmedNote;
         }
+
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const optimistic: Annotation = {
+            id: tempId,
+            documentId: activeDocument.id,
+            pageNumber: anchor.page,
+            kind,
+            anchor,
+            content,
+        };
+        dispatch({
+            type: 'UPDATE_DOCUMENT',
+            payload: {
+                docId: activeDocument.id,
+                updates: { annotations: [...getCurrentAnnotations(), optimistic] },
+            },
+        });
 
         const created = await createAnnotation({
             documentId: activeDocument.id,
@@ -181,19 +205,29 @@ const App: React.FC = () => {
         });
 
         if (created) {
+            const nextAnnotations = getCurrentAnnotations().map(annotation => annotation.id === tempId ? created : annotation);
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {
                     docId: activeDocument.id,
-                    updates: { annotations: [...(activeDocument.annotations ?? []), created] },
+                    updates: { annotations: nextAnnotations },
                 },
             });
             if (trimmedNote) {
                 setActiveTab('annotations');
                 setEditingAnnotationId(created.id);
             }
+        } else {
+            const nextAnnotations = getCurrentAnnotations().filter(annotation => annotation.id !== tempId);
+            dispatch({
+                type: 'UPDATE_DOCUMENT',
+                payload: {
+                    docId: activeDocument.id,
+                    updates: { annotations: nextAnnotations },
+                },
+            });
         }
-    }, [activeDocument, dispatch]);
+    }, [activeDocument, dispatch, state.documents]);
 
     const handleTogglePenMode = React.useCallback(() => {
         setPenMode(current => !current);
@@ -296,6 +330,7 @@ const App: React.FC = () => {
                     </div>
                 ) : !userEmail && state.documents.length === 0 && (
                     <button
+                        type="button"
                         onClick={() => setIsAuthModalOpen(true)}
                         className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white border border-transparent px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-slate-900/20 hover:shadow-xl hover:scale-105 transition-all duration-300"
                     >
@@ -355,7 +390,12 @@ const App: React.FC = () => {
             {/* --- FILE LIST PANEL (Mobile Overlay) --- */}
             <div className="md:hidden">
                 {!isPanelCollapsed && (
-                    <div className="fixed inset-0 bg-black/60 z-30" onClick={() => setIsPanelCollapsed(true)} aria-hidden="true" />
+                    <button
+                        type="button"
+                        className="fixed inset-0 bg-black/60 z-30"
+                        onClick={() => setIsPanelCollapsed(true)}
+                        aria-label="Close file list"
+                    />
                 )}
                 <aside className={`fixed top-0 left-0 h-full w-72 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out z-40 ${isPanelCollapsed ? '-translate-x-full' : 'translate-x-0'} shadow-2xl`}>
                     <FileListPanel
@@ -363,8 +403,6 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         userEmail={userEmail}
                         planName={planName}
-                        fileCount={fileCount}
-                        storageUsage={storageUsage}
                         onProfileClick={() => {
                             window.history.pushState({}, '', '/profile');
                             setRoute('/profile');
@@ -378,7 +416,7 @@ const App: React.FC = () => {
             <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-16' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
                     <div className="flex flex-col items-center pt-4">
-                        <button onClick={() => setIsPanelCollapsed(false)} className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors" title="Expand file list" aria-label="Expand file list">
+                        <button type="button" onClick={() => setIsPanelCollapsed(false)} className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors" title="Expand file list" aria-label="Expand file list">
                             <MenuIcon className="text-2xl" />
                         </button>
                     </div>
@@ -389,8 +427,6 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         userEmail={userEmail}
                         planName={planName}
-                        fileCount={fileCount}
-                        storageUsage={storageUsage}
                         onProfileClick={() => {
                             window.history.pushState({}, '', '/profile');
                             setRoute('/profile');
@@ -418,12 +454,14 @@ const App: React.FC = () => {
                         </section>
 
                         {/* --- Resizer (Desktop Only) --- */}
-                        <div
+                        <button
+                            type="button"
                             onMouseDown={handleResize}
                             className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
+                            aria-label="Resize panel"
                         >
                             <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
-                        </div>
+                        </button>
 
                         {/* --- Interaction Panel --- */}
                         <section className="min-h-0 w-full md:w-auto md:flex-shrink-0 bg-white border-l border-slate-200 shadow-xl z-10" style={!isPdfViewerCollapsed ? { width: interactionPanelWidth } : { width: '100%' }}>
@@ -445,9 +483,11 @@ const App: React.FC = () => {
 
                         {/* --- PDF Viewer (Mobile Overlay) --- */}
                         {isPdfVisible && (
-                            <div 
+                            <button
+                                type="button"
                                 className="md:hidden fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
                                 onClick={() => setIsPdfVisible(false)}
+                                aria-label="Close PDF preview"
                             />
                         )}
                         
@@ -479,6 +519,7 @@ const App: React.FC = () => {
                                     onHighlightCreate={handleAnnotationCreate}
                                 />
                                 <button
+                                    type="button"
                                     onClick={() => setIsPdfVisible(false)}
                                     className="absolute top-2 right-2 z-30 p-2 text-slate-400 hover:text-slate-600"
                                     aria-label="Close document preview"

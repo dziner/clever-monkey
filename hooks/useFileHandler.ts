@@ -19,6 +19,27 @@ const SUPPORTED_MIME_TYPES = [
     'text/markdown',
 ];
 
+const RETRYABLE_UPLOAD_STATUSES = new Set([0, 408, 409, 429, 500, 502, 503, 504]);
+
+const sanitizeFileName = (name: string) => {
+    const extensionMatch = name.match(/\.([a-zA-Z0-9]+)$/);
+    const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : '';
+    const baseName = extensionMatch ? name.slice(0, -extension.length) : name;
+    const asciiOnly = baseName.normalize('NFKD').replace(/[^\x00-\x7F]/g, '');
+    const cleaned = asciiOnly.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
+    const finalBase = cleaned || 'file';
+    return `${finalBase}${extension}`;
+};
+
+const getUploadErrorMessage = (error: { status?: number; message?: string }) => {
+    const status = error.status ?? 0;
+    if (status === 413) return '파일이 너무 큽니다. 업로드 용량 제한을 확인해주세요.';
+    if (status === 401 || status === 403) return '업로드 권한이 없습니다. 로그인 상태와 권한을 확인해주세요.';
+    if (status === 409) return '같은 이름의 파일이 이미 있습니다. 이름을 변경하거나 잠시 후 다시 시도해주세요.';
+    if (status === 0) return '네트워크 오류가 발생했습니다. 다시 시도해주세요.';
+    return error.message || '업로드에 실패했습니다.';
+};
+
 const getFileType = (file: File): 'pdf' | 'image' | 'text' => {
     if (file.type === 'application/pdf') return 'pdf';
     if (file.type.startsWith('image/')) return 'image';
@@ -40,7 +61,12 @@ export const useFileHandler = () => {
             return;
         }
         
-        const docId = `${file.name}-${Date.now()}`;
+        const safeFileName = sanitizeFileName(file.name);
+        const safeExtensionMatch = safeFileName.match(/\.([a-zA-Z0-9]+)$/);
+        const safeExtension = safeExtensionMatch ? `.${safeExtensionMatch[1].toLowerCase()}` : '';
+        const safeBaseName = safeExtensionMatch ? safeFileName.slice(0, -safeExtension.length) : safeFileName;
+        const storageName = `${safeBaseName}-${Date.now()}${safeExtension}`;
+        const docId = storageName;
         
         let targetFolderId: string | null = state.activeFolderId;
         if (!targetFolderId && state.folders.length > 0) {
@@ -73,7 +99,7 @@ export const useFileHandler = () => {
         
         const fileType = getFileType(file);
         const { file: uploadFile } = await maybeCompressPdf(file);
-        const storagePath = `${user.id}/${file.name}`;
+        const storagePath = `${user.id}/${storageName}`;
         
         const newDoc: DocumentData = {
             id: docId,
@@ -100,6 +126,38 @@ export const useFileHandler = () => {
         dispatch({ type: 'ADD_DOCUMENT', payload: newDoc });
 
         try {
+            let uploadError: { status?: number; message?: string } | null = null;
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+                const { error } = await supabase.storage
+                    .from('docs')
+                    .upload(storagePath, uploadFile, { contentType: uploadFile.type });
+                if (!error) {
+                    uploadError = null;
+                    break;
+                }
+                uploadError = error;
+                const status = (error as { status?: number }).status ?? 0;
+                if (!RETRYABLE_UPLOAD_STATUSES.has(status) || attempt === 3) {
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 400 * attempt));
+            }
+
+            if (uploadError) {
+                console.error('업로드 실패:', uploadError);
+                dispatch({
+                    type: 'UPDATE_DOCUMENT',
+                    payload: {
+                        docId,
+                        updates: {
+                            processingState: 'error',
+                            errorMessage: getUploadErrorMessage(uploadError)
+                        }
+                    }
+                });
+                return;
+            }
+
             const { error: insertError } = await supabase
                 .from('documents')
                 .insert({
@@ -129,33 +187,6 @@ export const useFileHandler = () => {
                         updates: {
                             processingState: 'error',
                             errorMessage: '문서 메타데이터 저장에 실패했습니다.'
-                        }
-                    }
-                });
-                return;
-            }
-
-            const { error: uploadError } = await supabase.storage
-                .from('docs')
-                .upload(storagePath, uploadFile, { upsert: true });
-
-            if (uploadError) {
-                console.error('업로드 실패:', uploadError);
-                await supabase
-                    .from('documents')
-                    .update({
-                        processing_state: 'error',
-                        error_message: '업로드에 실패했습니다.'
-                    })
-                    .eq('id', docId)
-                    .eq('user_id', user.id);
-                dispatch({
-                    type: 'UPDATE_DOCUMENT',
-                    payload: {
-                        docId,
-                        updates: {
-                            processingState: 'error',
-                            errorMessage: '업로드에 실패했습니다.'
                         }
                     }
                 });

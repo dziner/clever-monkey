@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Spinner } from './Spinner';
-import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon } from './icons';
+import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon, EditIcon } from './icons';
 import type { AnnotationAnchor, Annotation, Point } from '../types';
 import { AnnotationPopover } from './AnnotationPopover';
 import { PenToolbar } from './PenToolbar';
@@ -29,7 +29,10 @@ const PdfPage: React.FC<{
     currentStroke?: Point[];
     strokeColor?: string;
     strokeWidth?: number;
-}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, penMode, pageAnnotations, currentStroke, strokeColor, strokeWidth }) => {
+    pendingStroke?: Point[];
+    pendingStrokeColor?: string;
+    pendingStrokeWidth?: number;
+}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, penMode, pageAnnotations, currentStroke, strokeColor, strokeWidth, pendingStroke, pendingStrokeColor, pendingStrokeWidth }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
     const renderTaskRef = React.useRef<any>(null);
     const textLayerRef = React.useRef<HTMLDivElement>(null);
@@ -118,11 +121,11 @@ const PdfPage: React.FC<{
                 if (isCancelled) return;
 
                 const viewport = page.getViewport({ scale: viewScale });
-                const textContent = await page.getTextContent();
+                const textContentSource = await page.getTextContent();
                 if (isCancelled) return;
 
                 const task = pdfjsLib.renderTextLayer({
-                    textContent,
+                    textContentSource,
                     container: layer,
                     viewport,
                 });
@@ -168,6 +171,11 @@ const PdfPage: React.FC<{
         );
     };
 
+    const textLayerStyle: React.CSSProperties & { ['--scale-factor']?: string } = {
+        pointerEvents: penMode ? 'none' : 'auto',
+        ['--scale-factor']: String(viewScale),
+    };
+
     return (
         <div className="relative w-full h-full shadow-lg bg-white select-none">
             <canvas ref={pdfCanvasRef} className="w-full h-full block" />
@@ -201,7 +209,9 @@ const PdfPage: React.FC<{
                     className="absolute inset-0 w-full h-full overflow-visible"
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
+                    aria-hidden="true"
                 >
+                    <title>Pen annotations</title>
                     {pageAnnotations?.map((annotation) => {
                         if (annotation.kind === 'pen' && annotation.content?.paths) {
                             return annotation.content.paths.map((path, i) => (
@@ -216,13 +226,16 @@ const PdfPage: React.FC<{
                     {currentStroke && currentStroke.length > 0 && (
                         renderPath(currentStroke, strokeColor || 'red', strokeWidth || 2)
                     )}
+                    {pendingStroke && pendingStroke.length > 0 && (
+                        renderPath(pendingStroke, pendingStrokeColor || strokeColor || 'red', pendingStrokeWidth || strokeWidth || 2)
+                    )}
                 </svg>
             </div>
 
             <div
                 ref={textLayerRef}
                 className={`absolute inset-0 text-transparent z-20 ${penMode ? 'select-none' : 'select-text'}`}
-                style={{ pointerEvents: penMode ? 'none' : 'auto' }}
+                style={textLayerStyle}
             />
         </div>
     );
@@ -262,6 +275,14 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     const penWidth = penTool === 'pen' ? 2 : 14;
     // stroke accumulates points {x,y} relative to a specific page
     const [currentStroke, setCurrentStroke] = React.useState<{ page: number, points: Point[] } | null>(null);
+    const [pendingPenNote, setPendingPenNote] = React.useState<{
+        anchor: AnnotationAnchor;
+        points: Point[];
+        position: { x: number; y: number };
+        color: string;
+        penWidth: number;
+        page: number;
+    } | null>(null);
     const [isPenToolbarCollapsed, setIsPenToolbarCollapsed] = React.useState(false);
 
     React.useEffect(() => {
@@ -287,7 +308,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 setInternalCurrentPage(externalCurrentPage);
             }
         }
-    }, [externalCurrentPage, numPages]);
+    }, [externalCurrentPage, internalCurrentPage]);
 
     // Refs for gesture-based zooming
     const activePointers = React.useRef(new Map<number, { x: number; y: number }>()).current;
@@ -432,7 +453,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         });
 
         return () => observer.disconnect();
-    }, [numPages, pageViewports, effectiveScale]);
+    }, [numPages]);
 
     const pagesToRender = React.useMemo(() => {
         const set = new Set<number>();
@@ -544,6 +565,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     const handlePointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         // Drawing Logic
         if (penMode) {
+            if (pendingPenNote) return;
             // Only draw with primary pointer (mouse left click, or first touch)
             if (!e.isPrimary && e.pointerType !== 'mouse') return;
             // Check which page we are over
@@ -604,7 +626,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 viewportOrigin,
             };
         }
-    }, [effectiveScale, activePointers, penMode]);
+    }, [effectiveScale, activePointers, penMode, pendingPenNote]);
 
     const handlePointerMove = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         // Drawing
@@ -664,9 +686,25 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                     rects: [], // Pen drawings don't have text rects
                     // We could calculate a bounding box here if we wanted
                 };
-
-                // We're just passing the paths as 'content'
-                onHighlightCreate?.(anchor, undefined, penColor, [currentStroke.points], penWidth);
+                const lastPoint = currentStroke.points[currentStroke.points.length - 1];
+                const pageEl = pageRefs.current[currentStroke.page - 1];
+                let position = { x: e.clientX, y: e.clientY };
+                if (pageEl) {
+                    const pageRect = pageEl.getBoundingClientRect();
+                    position = {
+                        x: pageRect.left + lastPoint.x * pageRect.width,
+                        y: pageRect.top + lastPoint.y * pageRect.height,
+                    };
+                }
+                setPendingPenNote({
+                    anchor,
+                    points: currentStroke.points,
+                    position,
+                    color: penColor,
+                    penWidth,
+                    page: currentStroke.page,
+                });
+                setActiveSelection(null);
             }
             setCurrentStroke(null);
             return;
@@ -677,7 +715,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         if (activePointers.size < 2) {
             pinchStateRef.current = null;
         }
-    }, [activePointers, penMode, currentStroke, onHighlightCreate, penColor, penWidth]);
+    }, [activePointers, penMode, currentStroke, penColor, penWidth]);
 
     const handleMouseUp = React.useCallback((e: React.MouseEvent) => {
         // If drawing, ignore
@@ -752,6 +790,16 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         window.getSelection()?.removeAllRanges();
     };
 
+    const handlePenNoteSave = React.useCallback((note: string, _color: string) => {
+        if (!pendingPenNote) return;
+        onHighlightCreate?.(pendingPenNote.anchor, note, pendingPenNote.color, [pendingPenNote.points], pendingPenNote.penWidth);
+        setPendingPenNote(null);
+    }, [pendingPenNote, onHighlightCreate]);
+
+    const handlePenNoteCancel = React.useCallback(() => {
+        setPendingPenNote(null);
+    }, []);
+
     if (isLoading) {
         return <div className="flex items-center justify-center h-full"><Spinner /></div>;
     }
@@ -764,13 +812,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
             <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
                 <div className="flex items-center gap-3">
                     <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-                        <button onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom Out">
+                        <button type="button" onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom Out">
                             <ZoomOutIcon className="text-lg" />
                         </button>
                         <span className="w-12 text-center text-xs font-mono font-bold text-slate-600 select-none">
                             {(effectiveScale * 100).toFixed(0)}%
                         </span>
-                        <button onClick={zoomIn} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom In">
+                        <button type="button" onClick={zoomIn} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom In">
                             <ZoomInIcon className="text-lg" />
                         </button>
                     </div>
@@ -786,6 +834,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 <div className="flex justify-end gap-2">
                     {onTogglePenMode && (
                         <button
+                            type="button"
                             onClick={onTogglePenMode}
                             className={`p-2 rounded-lg transition-colors active:scale-95 ${penMode
                                 ? 'bg-blue-100 text-blue-600 shadow-inner ring-1 ring-blue-200'
@@ -797,7 +846,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                             <HighlightIcon className="text-xl" />
                         </button>
                     )}
-                    <button onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
+                    <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
                         <FitScreenIcon className="text-xl" />
                     </button>
                 </div>
@@ -814,28 +863,24 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                             title="Expand Pen Tools"
                             aria-label="Expand pen tools"
                         >
-                            {penTool === 'pen' ? (
-                                <div
-                                    className="rounded-full transition-all duration-200"
+                            <div className="flex flex-col items-center justify-center leading-none">
+                                <span
+                                    className="text-lg"
+                                    style={{ color: penColor, opacity: penTool === 'highlighter' ? 0.6 : 1 }}
+                                    aria-hidden="true"
+                                >
+                                    {penTool === 'pen' ? <EditIcon /> : <HighlightIcon />}
+                                </span>
+                                <span
+                                    className="mt-0.5 w-5 h-1.5 rounded-full"
                                     style={{
                                         backgroundColor: penColor,
-                                        width: 16,
-                                        height: 16,
+                                        opacity: penTool === 'highlighter' ? 0.45 : 0.9,
                                         boxShadow: penColor === '#ffffff' ? 'inset 0 0 0 1px #e2e8f0' : 'none'
                                     }}
+                                    aria-hidden="true"
                                 />
-                            ) : (
-                                <div
-                                    className="rounded-sm transition-all duration-200"
-                                    style={{
-                                        backgroundColor: penColor,
-                                        width: 20,
-                                        height: 10,
-                                        opacity: 0.5,
-                                        boxShadow: penColor === '#ffffff' ? 'inset 0 0 0 1px #e2e8f0' : 'none'
-                                    }}
-                                />
-                            )}
+                            </div>
                         </button>
                     </div>
                 ) : (
@@ -862,11 +907,21 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                     }}
                 />
             )}
+            {pendingPenNote && (
+                <AnnotationPopover
+                    x={pendingPenNote.position.x}
+                    y={pendingPenNote.position.y}
+                    onSave={handlePenNoteSave}
+                    onCancel={handlePenNoteCancel}
+                    showColorPicker={false}
+                />
+            )}
 
-            <div
+            <section
                 ref={containerRef}
                 className={`flex-1 w-full h-full overflow-auto bg-slate-200 touch-panning relative ${penMode ? 'cursor-crosshair' : ''}`}
                 style={penMode ? { touchAction: 'none' } : undefined}
+                aria-label="PDF viewer"
                 onScroll={handleScroll}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -900,6 +955,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                                                 penMode={penMode}
                                                 pageAnnotations={annotations.filter(a => a.pageNumber === pageNum)}
                                                 currentStroke={currentStroke?.page === pageNum ? currentStroke.points : undefined}
+                                                pendingStroke={pendingPenNote?.page === pageNum ? pendingPenNote.points : undefined}
+                                                pendingStrokeColor={pendingPenNote?.page === pageNum ? pendingPenNote.color : undefined}
+                                                pendingStrokeWidth={pendingPenNote?.page === pageNum ? pendingPenNote.penWidth : undefined}
                                                 strokeColor={penColor}
                                                 strokeWidth={penWidth}
                                             />
@@ -920,7 +978,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                         <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">{textContent}</pre>
                     </div>
                 ) : null}
-            </div>
+            </section>
         </div>
     );
 };

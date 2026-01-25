@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 const CloudIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        <title>Cloud</title>
         <path d="M17.5 19c0-1.7-1.3-3-3-3h-1.1c-.1-2.9-2.5-5.2-5.4-5.2-1.9 0-3.6 1-4.6 2.5-1.4-.4-2.9.2-3.7 1.4-.8 1.1-.7 2.6.2 3.5.9.9 2.1 1.4 3.4 1.4h11.2c1.7 0 3-1.3 3-3z" />
     </svg>
 );
 
 const UploadCloudIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        <title>Upload</title>
         <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
         <path d="M12 12v9" />
         <path d="m16 16-4-4-4 4" />
@@ -16,21 +18,24 @@ const UploadCloudIcon = ({ className }: { className?: string }) => (
 );
 
 const FileIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        <title>File</title>
         <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
         <polyline points="14 2 14 8 20 8" />
     </svg>
 );
 
 const XIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        <title>Close</title>
         <path d="M18 6 6 18" />
         <path d="m6 6 12 12" />
     </svg>
 );
 
 const RefreshIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        <title>Refresh</title>
         <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
         <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
@@ -47,6 +52,27 @@ interface StorageFile {
     metadata: Record<string, any>;
 }
 
+const RETRYABLE_UPLOAD_STATUSES = new Set([0, 408, 409, 429, 500, 502, 503, 504]);
+
+const sanitizeFileName = (name: string) => {
+    const extensionMatch = name.match(/\.([a-zA-Z0-9]+)$/);
+    const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : '';
+    const baseName = extensionMatch ? name.slice(0, -extension.length) : name;
+    const asciiOnly = baseName.normalize('NFKD').replace(/[^\x00-\x7F]/g, '');
+    const cleaned = asciiOnly.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
+    const finalBase = cleaned || 'file';
+    return `${finalBase}${extension}`;
+};
+
+const getUploadErrorMessage = (error: { status?: number; message?: string }) => {
+    const status = error.status ?? 0;
+    if (status === 413) return '파일이 너무 큽니다. 업로드 용량 제한을 확인해주세요.';
+    if (status === 401 || status === 403) return '업로드 권한이 없습니다. 로그인 상태와 권한을 확인해주세요.';
+    if (status === 409) return '같은 이름의 파일이 이미 있습니다. 이름을 변경하거나 잠시 후 다시 시도해주세요.';
+    if (status === 0) return '네트워크 오류가 발생했습니다. 다시 시도해주세요.';
+    return error.message || '업로드에 실패했습니다.';
+};
+
 export const FileUploader: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [user, setUser] = useState<any>(null);
@@ -56,21 +82,49 @@ export const FileUploader: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const log = (message: string, details?: Record<string, unknown>) => {
+    const log = React.useCallback((message: string, details?: Record<string, unknown>) => {
         if (details) {
             console.info(`[FileUploader] ${message}`, details);
         } else {
             console.info(`[FileUploader] ${message}`);
         }
-    };
+    }, []);
 
-    const logError = (message: string, details?: Record<string, unknown>) => {
+    const logError = React.useCallback((message: string, details?: Record<string, unknown>) => {
         if (details) {
             console.error(`[FileUploader] ${message}`, details);
         } else {
             console.error(`[FileUploader] ${message}`);
         }
-    };
+    }, []);
+
+    const fetchFiles = React.useCallback(async (userId: string) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            log('파일 목록 조회 시작', { bucket: 'docs', prefix: `${userId}/` });
+            const { data, error } = await supabase.storage
+                .from('docs')
+                .list(`${userId}/`, {
+                    limit: 100,
+                    offset: 0,
+                    sortBy: { column: 'name', order: 'asc' },
+                });
+
+            if (error) {
+                const status = (error as { status?: number }).status;
+                logError('파일 목록 조회 실패', { message: error.message, name: error.name, status });
+                throw error;
+            }
+            log('파일 목록 조회 성공', { count: data?.length ?? 0 });
+            setFiles(data?.filter(f => f.name !== '.emptyFolderPlaceholder') || []);
+        } catch (err: any) {
+            console.error('Error fetching files:', err);
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [log, logError]);
 
     useEffect(() => {
         const checkUser = async () => {
@@ -98,34 +152,7 @@ export const FileUploader: React.FC = () => {
         });
 
         return () => subscription.unsubscribe();
-    }, []);
-
-    const fetchFiles = async (userId: string) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            log('파일 목록 조회 시작', { bucket: 'docs', prefix: `${userId}/` });
-            const { data, error } = await supabase.storage
-                .from('docs')
-                .list(`${userId}/`, {
-                    limit: 100,
-                    offset: 0,
-                    sortBy: { column: 'name', order: 'asc' },
-                });
-
-            if (error) {
-                logError('파일 목록 조회 실패', { message: error.message, name: error.name, status: error.status });
-                throw error;
-            }
-            log('파일 목록 조회 성공', { count: data?.length ?? 0 });
-            setFiles(data?.filter(f => f.name !== '.emptyFolderPlaceholder') || []);
-        } catch (err: any) {
-            console.error('Error fetching files:', err);
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    }, [fetchFiles, log, logError]);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -140,23 +167,39 @@ export const FileUploader: React.FC = () => {
         setError(null);
 
         try {
-            const filePath = `${user.id}/${file.name}`;
+            const safeFileName = sanitizeFileName(file.name);
+            const filePath = `${user.id}/${safeFileName}`;
             log('업로드 시작', {
                 bucket: 'docs',
                 path: filePath,
-                name: file.name,
+                name: safeFileName,
                 size: file.size,
                 type: file.type,
                 userId: user.id,
             });
-            const { error: uploadError } = await supabase.storage
-                .from('docs')
-                .upload(filePath, file, {
-                    upsert: true
-                });
+            let uploadError: { status?: number; message?: string } | null = null;
+            for (let attempt = 1; attempt <= 3; attempt += 1) {
+                const { error } = await supabase.storage
+                    .from('docs')
+                    .upload(filePath, file, {
+                        upsert: true,
+                        contentType: file.type,
+                    });
+                if (!error) {
+                    uploadError = null;
+                    break;
+                }
+                uploadError = error;
+                const status = (error as { status?: number }).status ?? 0;
+                if (!RETRYABLE_UPLOAD_STATUSES.has(status) || attempt === 3) {
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 400 * attempt));
+            }
 
             if (uploadError) {
-                logError('업로드 실패', { message: uploadError.message, name: uploadError.name, status: uploadError.status });
+                const status = (uploadError as { status?: number }).status;
+                logError('업로드 실패', { message: uploadError.message, status });
                 throw uploadError;
             }
 
@@ -166,7 +209,7 @@ export const FileUploader: React.FC = () => {
             setIsOpen(true);
         } catch (err: any) {
             console.error('Error uploading file:', err);
-            setError(err.message);
+            setError(getUploadErrorMessage(err));
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -182,7 +225,8 @@ export const FileUploader: React.FC = () => {
                 .createSignedUrl(`${user.id}/${file.name}`, 3600);
 
             if (error) {
-                logError('서명 URL 생성 실패', { message: error.message, name: error.name, status: error.status });
+                const status = (error as { status?: number }).status;
+                logError('서명 URL 생성 실패', { message: error.message, name: error.name, status });
                 throw error;
             }
             if (data?.signedUrl) {
@@ -201,6 +245,7 @@ export const FileUploader: React.FC = () => {
         <>
             <div className="fixed bottom-6 right-6 z-50">
                 <button
+                    type="button"
                     onClick={() => setIsOpen(!isOpen)}
                     className={`
                         flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-all duration-300
@@ -226,6 +271,7 @@ export const FileUploader: React.FC = () => {
                         <h3 className="font-bold text-slate-800">Cloud Files</h3>
                     </div>
                     <button 
+                        type="button"
                         onClick={() => fetchFiles(user.id)} 
                         disabled={isLoading}
                         className={`p-1.5 rounded-full hover:bg-slate-100 text-slate-500 transition-colors ${isLoading ? 'animate-spin' : ''}`}
@@ -256,6 +302,7 @@ export const FileUploader: React.FC = () => {
                         <div className="space-y-1">
                             {files.map((file) => (
                                 <button
+                                    type="button"
                                     key={file.id}
                                     onClick={() => handleFileClick(file)}
                                     className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors text-left group border border-transparent hover:border-slate-100"

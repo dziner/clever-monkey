@@ -55,16 +55,24 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
             <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Documents</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-2">{fileCount}</h3>
             <p className="text-sm text-slate-500 mt-1">Uploaded files</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
             <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Storage</p>
             <h3 className="text-2xl font-bold text-slate-900 mt-2">{storageUsage}</h3>
             <p className="text-sm text-slate-500 mt-1">Used capacity</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow duration-200 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-300 transform rotate-12">
+               <CleverMonkeyIcon className="w-24 h-24 text-blue-600" />
+            </div>
+            <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Current Plan</p>
+            <h3 className="text-2xl font-bold text-blue-600 mt-2">{planName}</h3>
+            <p className="text-sm text-slate-500 mt-1">Personal Tier</p>
           </div>
         </div>
 

@@ -6,6 +6,8 @@ interface AnnotationPopoverProps {
     y: number;
     onSave: (note: string, color: string) => void;
     onCancel: () => void;
+    showColorPicker?: boolean;
+    initialColor?: string;
 }
 
 const COLORS = [
@@ -16,9 +18,9 @@ const COLORS = [
     { name: 'Purple', value: '#E9D5FF' }, // purple-200
 ];
 
-export const AnnotationPopover: React.FC<AnnotationPopoverProps> = ({ x, y, onSave, onCancel }) => {
+export const AnnotationPopover: React.FC<AnnotationPopoverProps> = ({ x, y, onSave, onCancel, showColorPicker = true, initialColor }) => {
     const [note, setNote] = useState('');
-    const [selectedColor, setSelectedColor] = useState(COLORS[0].value);
+    const [selectedColor, setSelectedColor] = useState(initialColor ?? COLORS[0].value);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -26,6 +28,12 @@ export const AnnotationPopover: React.FC<AnnotationPopoverProps> = ({ x, y, onSa
             inputRef.current.focus();
         }
     }, []);
+
+    useEffect(() => {
+        if (initialColor) {
+            setSelectedColor(initialColor);
+        }
+    }, [initialColor]);
 
     // Adjust position to keep within viewport? 
     // Simplified style for now.
@@ -41,17 +49,20 @@ export const AnnotationPopover: React.FC<AnnotationPopoverProps> = ({ x, y, onSa
             className="bg-white rounded-lg shadow-xl border border-slate-200 p-3 w-72 animate-in fade-in zoom-in duration-200"
             style={style}
         >
-            <div className="flex gap-2 mb-3">
-                {COLORS.map((c) => (
-                    <button
-                        key={c.value}
-                        onClick={() => setSelectedColor(c.value)}
-                        className={`w-6 h-6 rounded-full border transition-all ${selectedColor === c.value ? 'ring-2 ring-offset-1 ring-slate-400 scale-110' : 'border-slate-200 hover:scale-105'}`}
-                        style={{ backgroundColor: c.value }}
-                        title={c.name}
-                    />
-                ))}
-            </div>
+            {showColorPicker && (
+                <div className="flex gap-2 mb-3">
+                    {COLORS.map((c) => (
+                        <button
+                            key={c.value}
+                            type="button"
+                            onClick={() => setSelectedColor(c.value)}
+                            className={`w-6 h-6 rounded-full border transition-all ${selectedColor === c.value ? 'ring-2 ring-offset-1 ring-slate-400 scale-110' : 'border-slate-200 hover:scale-105'}`}
+                            style={{ backgroundColor: c.value }}
+                            title={c.name}
+                        />
+                    ))}
+                </div>
+            )}
 
             <textarea
                 ref={inputRef}
@@ -63,6 +74,7 @@ export const AnnotationPopover: React.FC<AnnotationPopoverProps> = ({ x, y, onSa
 
             <div className="flex justify-end gap-2">
                 <button
+                    type="button"
                     onClick={onCancel}
                     className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
                     title="Cancel"
@@ -70,6 +82,7 @@ export const AnnotationPopover: React.FC<AnnotationPopoverProps> = ({ x, y, onSa
                     <XIcon className="text-xl" />
                 </button>
                 <button
+                    type="button"
                     onClick={() => onSave(note, selectedColor)}
                     className="p-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-full transition-colors shadow-sm"
                     title="Save"

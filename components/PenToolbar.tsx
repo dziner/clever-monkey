@@ -1,5 +1,5 @@
 import React from 'react';
-import { XIcon, EditIcon, HighlightIcon } from './icons';
+import { ChevronDownIcon, EditIcon, HighlightIcon } from './icons';
 
 interface PenToolbarProps {
     color: string;
@@ -67,8 +67,9 @@ export const PenToolbar: React.FC<PenToolbarProps> = ({ color, setColor, tool, s
                 onClick={onCollapse}
                 className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-full transition-colors ml-1"
                 title="Collapse Pen Tools"
+                aria-label="Collapse pen tools"
             >
-                <XIcon className="text-xl" />
+                <ChevronDownIcon className="text-xl" />
             </button>
         </div>
     );

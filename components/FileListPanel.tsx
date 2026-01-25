@@ -12,13 +12,11 @@ interface FileListPanelProps {
     isDesktop?: boolean;
     userEmail: string | null;
     planName: string;
-    fileCount: number;
-    storageUsage: string;
     onProfileClick: () => void;
     onSignOut: () => void;
 }
 
-export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, userEmail, planName, fileCount, storageUsage, onProfileClick, onSignOut }) => {
+export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, userEmail, planName, onProfileClick, onSignOut }) => {
     const { state, dispatch } = useDocuments();
     const inputRef = React.useRef<HTMLInputElement>(null);
     
@@ -198,29 +196,6 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                             </div>
                         </div>
                     </button>
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                        <div className="bg-white border border-slate-200 rounded-lg p-2">
-                            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Files</p>
-                            <p className="text-sm font-bold text-slate-700 mt-1">{fileCount}</p>
-                        </div>
-                        <div className="bg-white border border-slate-200 rounded-lg p-2">
-                            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Storage</p>
-                            <p className="text-sm font-bold text-slate-700 mt-1">{storageUsage}</p>
-                        </div>
-                        <div className="bg-white border border-slate-200 rounded-lg p-2 col-span-2">
-                            <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Tier</p>
-                            <div className="flex items-center justify-between mt-1">
-                                <span className="text-sm font-bold text-slate-700">{planName}</span>
-                                <button
-                                    type="button"
-                                    onClick={onProfileClick}
-                                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                                >
-                                    Upgrade
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             )}
             
