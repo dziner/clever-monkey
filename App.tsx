@@ -120,6 +120,31 @@ const App: React.FC = () => {
     const [editingAnnotationId, setEditingAnnotationId] = React.useState<string | null>(null);
     const [route, setRoute] = React.useState(window.location.pathname);
 
+    const [sheetTranslateY, setSheetTranslateY] = React.useState(0);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const dragStartY = React.useRef(0);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        dragStartY.current = e.touches[0].clientY;
+        setIsDragging(true);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging) return;
+        const deltaY = e.touches[0].clientY - dragStartY.current;
+        if (deltaY > 0) {
+            setSheetTranslateY(deltaY);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        setIsDragging(false);
+        if (sheetTranslateY > 150) {
+            setIsPdfVisible(false);
+        }
+        setSheetTranslateY(0);
+    };
+
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
 
@@ -136,10 +161,11 @@ const App: React.FC = () => {
 
         const kind = paths && paths.length > 0 ? 'pen' : 'highlight';
         const content: { color?: string; note?: string; paths?: Point[][]; penWidth?: number } = {};
+        const trimmedNote = note?.trim();
 
         if (kind === 'highlight') {
             content.color = color || '#FDE68A';
-            if (note) content.note = note;
+            if (trimmedNote) content.note = trimmedNote;
         } else if (kind === 'pen') {
             content.paths = paths;
             content.penWidth = penWidth;
@@ -162,8 +188,10 @@ const App: React.FC = () => {
                     updates: { annotations: [...(activeDocument.annotations ?? []), created] },
                 },
             });
-            setActiveTab('annotations');
-            setEditingAnnotationId(created.id);
+            if (trimmedNote) {
+                setActiveTab('annotations');
+                setEditingAnnotationId(created.id);
+            }
         }
     }, [activeDocument, dispatch]);
 
@@ -416,8 +444,32 @@ const App: React.FC = () => {
                         </section>
 
                         {/* --- PDF Viewer (Mobile Overlay) --- */}
-                        <div className={`md:hidden fixed inset-0 z-20 bg-slate-100 transform transition-transform duration-500 ease-in-out ${isPdfVisible ? 'translate-y-0' : 'translate-y-full'} overflow-hidden`}>
-                            <div className="relative h-full w-full">
+                        {isPdfVisible && (
+                            <div 
+                                className="md:hidden fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
+                                onClick={() => setIsPdfVisible(false)}
+                            />
+                        )}
+                        
+                        <div 
+                            className={`md:hidden fixed inset-x-0 bottom-0 z-50 bg-slate-100 rounded-t-2xl shadow-2xl transform transition-transform duration-300 ease-out overflow-hidden h-[92vh]`}
+                            style={{
+                                transform: isPdfVisible 
+                                    ? `translateY(${isDragging ? sheetTranslateY : 0}px)` 
+                                    : 'translateY(100%)',
+                                transition: isDragging ? 'none' : 'transform 0.3s ease-out'
+                            }}
+                        >
+                            <div 
+                                className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
+                            >
+                                <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
+                            </div>
+
+                            <div className="relative h-full w-full pt-8">
                                 <PdfContent
                                     document={activeDocument}
                                     isProcessing={isProcessing}
@@ -428,10 +480,10 @@ const App: React.FC = () => {
                                 />
                                 <button
                                     onClick={() => setIsPdfVisible(false)}
-                                    className="absolute top-4 right-4 z-30 w-10 h-10 bg-black/50 text-white rounded-full hover:bg-black/70 flex items-center justify-center"
+                                    className="absolute top-2 right-2 z-30 p-2 text-slate-400 hover:text-slate-600"
                                     aria-label="Close document preview"
                                 >
-                                    <XIcon className="text-2xl" />
+                                    <XIcon className="text-xl" />
                                 </button>
                             </div>
                         </div>

@@ -286,7 +286,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     const isProcessing = document.processingState !== 'done' && document.processingState !== 'error';
     const quizTabData = document.quizTabData;
     const annotations = React.useMemo(() => {
-        return (document.annotations ?? []).slice().sort((a, b) => {
+        return (document.annotations ?? [])
+            .filter((annotation) => Boolean(annotation.content?.note?.trim()))
+            .slice()
+            .sort((a, b) => {
             if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
             if (!a.createdAt || !b.createdAt) return 0;
             return a.createdAt.localeCompare(b.createdAt);
@@ -617,7 +620,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                         <div className="flex-shrink-0 p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10">
                             <h4 className="font-bold text-slate-800 flex items-center gap-2">
                                 <NoteIcon className="text-blue-500" />
-                                <span>Annotations</span>
+                                <span>Notes</span>
                                 <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">{annotations.length}</span>
                             </h4>
 
@@ -631,8 +634,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                     <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
                                         <HighlightIcon className="text-slate-300 text-xl" />
                                     </div>
-                                    <p className="text-sm font-medium text-slate-600">No annotations yet</p>
-                                    <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Select text in the document or click + to add a note.</p>
+                                    <p className="text-sm font-medium text-slate-600">No notes yet</p>
+                                    <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Add a note to see it listed here.</p>
                                 </div>
                             ) : (
                                 <div className="divide-y divide-slate-100">

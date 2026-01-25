@@ -153,6 +153,7 @@ const PdfPage: React.FC<{
     const renderPath = (pts: Point[], color: string, width: number) => {
         if (pts.length === 0) return '';
         const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * 100} ${p.y * 100}`).join(' ');
+        const isHighlighter = width > 10;
         return (
             <path
                 d={d}
@@ -162,6 +163,7 @@ const PdfPage: React.FC<{
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
+                style={isHighlighter ? { opacity: 0.4, mixBlendMode: 'multiply' } : undefined}
             />
         );
     };
@@ -256,7 +258,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     // Annotation & Pen State
     const [activeSelection, setActiveSelection] = React.useState<{ anchor: AnnotationAnchor, position: { x: number, y: number } } | null>(null);
     const [penColor, setPenColor] = React.useState('#000000');
-    const [penWidth, setPenWidth] = React.useState(2);
+    const [penTool, setPenTool] = React.useState<'pen' | 'highlighter'>('pen');
+    const penWidth = penTool === 'pen' ? 2 : 14;
     // stroke accumulates points {x,y} relative to a specific page
     const [currentStroke, setCurrentStroke] = React.useState<{ page: number, points: Point[] } | null>(null);
     const [isPenToolbarCollapsed, setIsPenToolbarCollapsed] = React.useState(false);
@@ -811,22 +814,35 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                             title="Expand Pen Tools"
                             aria-label="Expand pen tools"
                         >
-                            <div
-                                className="rounded-full transition-all duration-200"
-                                style={{
-                                    backgroundColor: penColor,
-                                    width: Math.max(6, Math.min(24, penWidth * 2.5)),
-                                    height: Math.max(6, Math.min(24, penWidth * 2.5)),
-                                    boxShadow: penColor === '#ffffff' ? 'inset 0 0 0 1px #e2e8f0' : 'none'
-                                }}
-                            />
+                            {penTool === 'pen' ? (
+                                <div
+                                    className="rounded-full transition-all duration-200"
+                                    style={{
+                                        backgroundColor: penColor,
+                                        width: 16,
+                                        height: 16,
+                                        boxShadow: penColor === '#ffffff' ? 'inset 0 0 0 1px #e2e8f0' : 'none'
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    className="rounded-sm transition-all duration-200"
+                                    style={{
+                                        backgroundColor: penColor,
+                                        width: 20,
+                                        height: 10,
+                                        opacity: 0.5,
+                                        boxShadow: penColor === '#ffffff' ? 'inset 0 0 0 1px #e2e8f0' : 'none'
+                                    }}
+                                />
+                            )}
                         </button>
                     </div>
                 ) : (
                     <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50">
                         <PenToolbar
                             color={penColor} setColor={setPenColor}
-                            width={penWidth} setWidth={setPenWidth}
+                            tool={penTool} setTool={setPenTool}
                             onCollapse={() => setIsPenToolbarCollapsed(true)}
                             onAfterSelect={() => setIsPenToolbarCollapsed(true)}
                         />
