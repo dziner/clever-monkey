@@ -577,12 +577,11 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
             if (!pageNum) return;
 
             const pageRect = pageEl.getBoundingClientRect();
-            const x = (e.clientX - pageRect.left) / pageRect.width;
-            const y = (e.clientY - pageRect.top) / pageRect.height;
+            const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+            const x = clamp01((e.clientX - pageRect.left) / pageRect.width);
+            const y = clamp01((e.clientY - pageRect.top) / pageRect.height);
 
-            // Capture pointer to container to track it even if it leaves the page? 
-            // Or keep it simple. Capturing on pageEl might be better but pageEl is inside scroll.
-            // Let's rely on global move for now or set capture on container.
+            // Capture pointer to container to track it even if it leaves the page.
             containerRef.current?.setPointerCapture(e.pointerId);
 
             setCurrentStroke({
@@ -639,8 +638,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
             if (!pageEl) return;
 
             const pageRect = pageEl.getBoundingClientRect();
-            const x = (e.clientX - pageRect.left) / pageRect.width;
-            const y = (e.clientY - pageRect.top) / pageRect.height;
+            const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+            const x = clamp01((e.clientX - pageRect.left) / pageRect.width);
+            const y = clamp01((e.clientY - pageRect.top) / pageRect.height);
 
             setCurrentStroke(prev => prev ? {
                 ...prev,
@@ -755,11 +755,12 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
             .filter(rect => rect.width > 0 && rect.height > 0)
             .map(rect => {
                 const pageRect = pageElement.getBoundingClientRect();
+                const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
                 return {
-                    x: (rect.left - pageRect.left) / pageRect.width,
-                    y: (rect.top - pageRect.top) / pageRect.height,
-                    width: rect.width / pageRect.width,
-                    height: rect.height / pageRect.height,
+                    x: clamp01((rect.left - pageRect.left) / pageRect.width),
+                    y: clamp01((rect.top - pageRect.top) / pageRect.height),
+                    width: clamp01(rect.width / pageRect.width),
+                    height: clamp01(rect.height / pageRect.height),
                 };
             });
 
