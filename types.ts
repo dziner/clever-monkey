@@ -1,6 +1,5 @@
 
 import React from 'react';
-import type { Chat } from '@google/genai';
 
 // Fix: Add lottie-player global type declaration to resolve JSX intrinsic element error.
 // Update: Made property types more permissive to align with web component attribute behavior.
@@ -75,7 +74,8 @@ export interface DocumentData {
   pdfDoc?: any; // pdf.js document object
   imageUrl?: string; // for images
   summary: string;
-  chat: Chat | null;
+  // Gemini chat is stateless; we reconstruct context from chatHistory + documentContent
+  chat: null;
   chatHistory: ChatMessage[];
   presetQuestions?: string[];
   processingState: DocumentProcessingState;
