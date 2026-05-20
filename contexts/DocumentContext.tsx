@@ -8,6 +8,7 @@ import { fetchAnnotationsForDocument } from '../services/annotationService';
 const DocumentContext = React.createContext<{
   state: DocumentState;
   dispatch: React.Dispatch<DocumentAction>;
+  isLoading: boolean;
 } | undefined>(undefined);
 
 // Fix: Add missing useDocuments hook to consume the context.
@@ -121,11 +122,13 @@ const initialState: DocumentState = {
 // TypeScript error in `index.tsx` where the `children` prop was not being inferred correctly.
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = React.useReducer(documentReducer, initialState);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     let isMounted = true;
 
     const loadStateForUser = async (userId: string) => {
+      setIsLoading(true);
       try {
         const { data: folderRows, error: folderError } = await supabase
           .from('folders')
@@ -212,6 +215,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       } catch (error) {
         console.error('문서 상태를 불러오는 중 오류가 발생했습니다:', error);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -224,6 +229,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         await loadStateForUser(user.id);
       } else if (isMounted) {
         dispatch({ type: 'SET_STATE', payload: initialState });
+        setIsLoading(false);
       }
     };
 
@@ -309,7 +315,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   return (
-    <DocumentContext.Provider value={{ state, dispatch }}>
+    <DocumentContext.Provider value={{ state, dispatch, isLoading }}>
       {children}
     </DocumentContext.Provider>
   );

@@ -46,7 +46,7 @@ const getFileType = (file: File): 'pdf' | 'image' | 'text' => {
     return 'text';
 };
 
-export const useFileHandler = () => {
+export const useFileHandler = (onAuthRequired?: () => void) => {
     const { state, dispatch } = useDocuments();
 
     return React.useCallback(async (file: File) => {
@@ -57,7 +57,7 @@ export const useFileHandler = () => {
             console.error('사용자 정보를 불러오지 못했습니다:', userError);
         }
         if (!user) {
-            console.error('로그인이 필요합니다.');
+            onAuthRequired?.();
             return;
         }
         

@@ -4,9 +4,11 @@ import { UploadIcon, CleverMonkeyIcon } from './icons';
 
 interface IdleStateViewProps {
     onFileSelected: (file: File) => void;
+    userEmail?: string | null;
+    onSignInClick?: () => void;
 }
 
-export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected }) => {
+export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, userEmail, onSignInClick }) => {
     const [isDragging, setIsDragging] = React.useState(false);
     const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -60,7 +62,23 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected }) 
                 <p className="text-lg md:text-xl text-slate-600 mt-1 md:mt-2">Your personal AI tutor for any document</p>
             </div>
             
-            <div 
+            {/* Sign-in prompt for unauthenticated users */}
+            {!userEmail && onSignInClick && (
+                <div className="w-full max-w-lg mb-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5">
+                    <p className="text-sm text-blue-700 font-medium">
+                        Sign in to save your documents and progress
+                    </p>
+                    <button
+                        type="button"
+                        onClick={onSignInClick}
+                        className="ml-4 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-1.5 rounded-xl transition-colors shadow-sm"
+                    >
+                        Sign In
+                    </button>
+                </div>
+            )}
+
+            <div
                 onClick={handleClick}
                 className={`relative w-full max-w-lg p-6 md:p-10 bg-white rounded-2xl shadow-lg border-2 border-dashed transition-all duration-300 cursor-pointer ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400'}`}
             >

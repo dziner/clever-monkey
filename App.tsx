@@ -16,6 +16,7 @@ import { FlashcardsPage } from './pages/FlashcardsPage';
 import { MindMapPage } from './pages/MindMapPage';
 import { SlidesPage } from './pages/SlidesPage';
 import { PodcastPage } from './pages/PodcastPage';
+import { CleverMonkeyIcon } from './components/icons';
 
 const formatBytes = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0 B';
@@ -30,15 +31,15 @@ const formatBytes = (value: number) => {
 };
 
 const App: React.FC = () => {
-    const { state } = useDocuments();
-    const handleFileSelected = useFileHandler();
+    const { state, isLoading: isDocumentsLoading } = useDocuments();
+    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
+    const handleFileSelected = useFileHandler(() => setIsAuthModalOpen(true));
     const navigate = useNavigate();
     const location = useLocation();
 
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
     const [userEmail, setUserEmail] = React.useState<string | null>(null);
     const [isAuthLoading, setIsAuthLoading] = React.useState(true);
-    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
 
     const handleSignIn = React.useCallback(async () => {
         const { error } = await signInWithGoogle();
@@ -97,30 +98,13 @@ const App: React.FC = () => {
     const planName = 'Free';
 
     const authUI = (
-        <React.Fragment>
-            <div className="fixed top-4 right-4 z-50 flex items-center gap-3 pointer-events-auto">
-                {isAuthLoading ? (
-                    <div className="bg-white/90 backdrop-blur-sm border border-slate-200 px-4 py-2 rounded-full shadow-sm">
-                        <span className="text-sm text-slate-400 font-medium animate-pulse">Loading...</span>
-                    </div>
-                ) : !userEmail && state.documents.length === 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setIsAuthModalOpen(true)}
-                        className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white border border-transparent px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-slate-900/20 hover:shadow-xl hover:scale-105 transition-all duration-300"
-                    >
-                        Sign In / Sign Up
-                    </button>
-                )}
-            </div>
-            <AuthModal
-                isOpen={isAuthModalOpen}
-                onClose={() => setIsAuthModalOpen(false)}
-                onGoogleSignIn={handleSignIn}
-                onEmailSignIn={handleEmailSignIn}
-                onEmailSignUp={handleEmailSignUp}
-            />
-        </React.Fragment>
+        <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            onGoogleSignIn={handleSignIn}
+            onEmailSignIn={handleEmailSignIn}
+            onEmailSignUp={handleEmailSignUp}
+        />
     );
 
     // Profile page — full screen, no sidebar
@@ -140,13 +124,32 @@ const App: React.FC = () => {
         );
     }
 
-    // No documents — idle state, full screen
+    // Show loading screen while auth + documents are initializing
+    if (isAuthLoading || isDocumentsLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 gap-4">
+                <CleverMonkeyIcon className="w-20 h-20 text-blue-600 animate-pulse" />
+                <p className="text-slate-400 text-sm font-medium">Loading…</p>
+            </div>
+        );
+    }
+
+    // No documents — idle/landing state, full screen
     if (state.documents.length === 0) {
         return (
             <React.Fragment>
-                {authUI}
-                <FileUploader />
-                <IdleStateView onFileSelected={handleFileSelected} />
+                <AuthModal
+                    isOpen={isAuthModalOpen}
+                    onClose={() => setIsAuthModalOpen(false)}
+                    onGoogleSignIn={handleSignIn}
+                    onEmailSignIn={handleEmailSignIn}
+                    onEmailSignUp={handleEmailSignUp}
+                />
+                <IdleStateView
+                    onFileSelected={handleFileSelected}
+                    userEmail={userEmail}
+                    onSignInClick={() => setIsAuthModalOpen(true)}
+                />
             </React.Fragment>
         );
     }
