@@ -5,7 +5,7 @@ import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
-import { MenuIcon } from './components/icons';
+import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './components/icons';
 import { FileUploader } from './components/FileUploader';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
@@ -29,6 +29,15 @@ const formatBytes = (value: number) => {
     }
     return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[unitIndex]}`;
 };
+
+const NAV_ITEMS = [
+    { path: '/', label: 'Study', icon: HomeIcon },
+    { path: '/wrong-answers', label: '오답노트', icon: ErrorOutlineIcon },
+    { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
+    { path: '/mindmap', label: 'Mind Map', icon: AccountTreeIcon },
+    { path: '/slides', label: 'Slides', icon: SlideshowIcon },
+    { path: '/podcast', label: 'Podcast', icon: HeadphonesIcon },
+] as const;
 
 const App: React.FC = () => {
     const { state, isLoading: isDocumentsLoading } = useDocuments();
@@ -185,16 +194,33 @@ const App: React.FC = () => {
             {/* Sidebar — Desktop collapsible */}
             <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-16' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
-                    <div className="flex flex-col items-center pt-4">
+                    <div className="flex flex-col items-center py-4 gap-1 h-full">
                         <button
                             type="button"
                             onClick={() => setIsPanelCollapsed(false)}
-                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
-                            title="Expand file list"
-                            aria-label="Expand file list"
+                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors mb-1"
+                            title="Expand sidebar"
+                            aria-label="Expand sidebar"
                         >
                             <MenuIcon className="text-2xl" />
                         </button>
+                        <div className="w-8 h-px bg-slate-100 mb-1" />
+                        {NAV_ITEMS.map(item => (
+                            <button
+                                key={item.path}
+                                type="button"
+                                onClick={() => navigate(item.path)}
+                                className={`p-3 rounded-xl transition-colors ${
+                                    location.pathname === item.path
+                                        ? 'bg-blue-50 text-blue-700'
+                                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                                }`}
+                                title={item.label}
+                                aria-label={item.label}
+                            >
+                                <item.icon className="text-2xl" />
+                            </button>
+                        ))}
                     </div>
                 ) : (
                     <FileListPanel
@@ -210,7 +236,7 @@ const App: React.FC = () => {
             </aside>
 
             {/* Main content area — routed */}
-            <main className="flex-1 flex min-w-0 relative">
+            <main className="flex-1 flex min-w-0 relative pb-16 md:pb-0">
                 <Routes>
                     <Route path="/" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="/wrong-answers" element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
@@ -221,6 +247,26 @@ const App: React.FC = () => {
                     <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                 </Routes>
             </main>
+
+            {/* Mobile bottom navigation bar */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 flex">
+                {NAV_ITEMS.map(item => (
+                    <button
+                        key={item.path}
+                        type="button"
+                        onClick={() => navigate(item.path)}
+                        className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+                            location.pathname === item.path
+                                ? 'text-blue-700'
+                                : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                        aria-label={item.label}
+                    >
+                        <item.icon className="text-xl" />
+                        <span className="text-[9px] font-semibold leading-none truncate max-w-[52px] text-center">{item.label}</span>
+                    </button>
+                ))}
+            </nav>
         </div>
     );
 };
