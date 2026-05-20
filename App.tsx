@@ -1,43 +1,18 @@
-
 import React from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from './contexts/DocumentContext';
 import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
-import { PdfViewer } from './components/PdfViewer';
-import { InteractionPanel } from './components/InteractionPanel';
 import { Spinner } from './components/Spinner';
-import { useResizablePanel } from './hooks/useResizablePanel';
 import { useFileHandler } from './hooks/useFileHandler';
-import { DocumentIcon, MenuIcon, XIcon } from './components/icons';
+import { MenuIcon } from './components/icons';
 import { FileUploader } from './components/FileUploader';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
-import { fetchAnnotationsForDocument, createAnnotation } from './services/annotationService';
-import type { DocumentData, DocumentProcessingState, Annotation, AnnotationAnchor, Point } from './types';
-
-const getProcessingMessage = (state: DocumentProcessingState): string => {
-    switch (state) {
-        case 'reading':
-            return 'Extracting text with AI...';
-        case 'summarizing':
-            return 'Summarizing document...';
-        case 'generating_questions':
-            return 'Getting things ready...';
-        default:
-            return `${state.charAt(0).toUpperCase() + state.slice(1)} document...`;
-    }
-};
-
-const ViewerPlaceholder = () => (
-    <div className="flex flex-col items-center justify-center h-full bg-slate-100 p-8 text-center">
-        <DocumentIcon className="text-5xl text-slate-400" />
-        <h3 className="text-lg font-bold text-slate-700 mt-4">File content not available</h3>
-        <p className="text-slate-500 mt-2 max-w-sm">
-            To view the document, please upload the file again. Your summary and chat history have been saved.
-        </p>
-    </div>
-);
+import { StudyPage } from './pages/StudyPage';
+import { WrongAnswersPage } from './pages/WrongAnswersPage';
+import { FlashcardsPage } from './pages/FlashcardsPage';
 
 const formatBytes = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0 B';
@@ -51,193 +26,20 @@ const formatBytes = (value: number) => {
     return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-interface PdfContentProps {
-    document: DocumentData | undefined;
-    isProcessing: boolean;
-    onPageChange?: (page: number) => void;
-    penMode: boolean;
-    onTogglePenMode: () => void;
-    onHighlightCreate: (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => void;
-}
-
-const PdfContent: React.FC<PdfContentProps> = ({ document, isProcessing, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
-    const { dispatch } = useDocuments();
-    if (!document) return null;
-
-    return (
-        <React.Fragment>
-            {isProcessing && (
-                <div className="absolute inset-0 bg-slate-100/80 flex flex-col items-center justify-center z-10">
-                    <Spinner />
-                    <p className="mt-4 text-slate-700 font-semibold">{getProcessingMessage(document.processingState)}</p>
-                </div>
-            )}
-            {document.processingState === 'error' && (
-                <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-10 p-4">
-                    <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
-                    <p className="text-red-600 mt-2 text-center">{document.errorMessage}</p>
-                    <button
-                        type="button"
-                        onClick={() => dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: document.id } })}
-                        className="mt-4 flex items-center px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
-                    >
-                        <XIcon className="text-base mr-2" /> Close
-                    </button>
-                </div>
-            )}
-            {document.file ? (
-                <PdfViewer
-                    file={document.file}
-                    imageUrl={document.imageUrl}
-                    docId={document.id}
-
-
-                    annotations={document.annotations}
-                    currentPage={document.currentPage}
-                    onPageChange={onPageChange}
-                    penMode={penMode}
-                    onTogglePenMode={onTogglePenMode}
-                    onHighlightCreate={onHighlightCreate}
-                />
-            ) : (
-                !isProcessing && <ViewerPlaceholder />
-            )}
-        </React.Fragment>
-    );
-};
-
-
 const App: React.FC = () => {
-    const { state, dispatch } = useDocuments();
+    const { state } = useDocuments();
     const handleFileSelected = useFileHandler();
+    const navigate = useNavigate();
+    const location = useLocation();
+
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
-    const [isPdfVisible, setIsPdfVisible] = React.useState(false);
-    const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
-    const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(450, 350, 800, 'right');
     const [userEmail, setUserEmail] = React.useState<string | null>(null);
     const [isAuthLoading, setIsAuthLoading] = React.useState(true);
-    const [penMode, setPenMode] = React.useState(false);
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
-    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz' | 'annotations'>('summary');
-    const [editingAnnotationId, setEditingAnnotationId] = React.useState<string | null>(null);
-    const [route, setRoute] = React.useState(window.location.pathname);
-
-    const [sheetTranslateY, setSheetTranslateY] = React.useState(0);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const dragStartY = React.useRef(0);
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-        dragStartY.current = e.touches[0].clientY;
-        setIsDragging(true);
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (!isDragging) return;
-        const deltaY = e.touches[0].clientY - dragStartY.current;
-        if (deltaY > 0) {
-            setSheetTranslateY(deltaY);
-        }
-    };
-
-    const handleTouchEnd = () => {
-        setIsDragging(false);
-        if (sheetTranslateY > 150) {
-            setIsPdfVisible(false);
-        }
-        setSheetTranslateY(0);
-    };
-
-    const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
-    const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
-
-    const handlePageChange = React.useCallback((page: number) => {
-        if (!activeDocument) return;
-        dispatch({
-            type: 'UPDATE_DOCUMENT',
-            payload: { docId: activeDocument.id, updates: { currentPage: page } },
-        });
-    }, [activeDocument, dispatch]);
-
-    const handleAnnotationCreate = React.useCallback(async (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => {
-        if (!activeDocument) return;
-
-        const getCurrentAnnotations = () => {
-            const currentDoc = state.documents.find(doc => doc.id === activeDocument.id);
-            return currentDoc?.annotations ?? [];
-        };
-        const kind = paths && paths.length > 0 ? 'pen' : 'highlight';
-        const content: { color?: string; note?: string; paths?: Point[][]; penWidth?: number } = {};
-        const trimmedNote = note?.trim();
-
-        if (kind === 'highlight') {
-            content.color = color || '#FDE68A';
-            if (trimmedNote) content.note = trimmedNote;
-        } else if (kind === 'pen') {
-            content.paths = paths;
-            content.penWidth = penWidth;
-            content.color = color || '#000000'; // Default pen color
-            if (trimmedNote) content.note = trimmedNote;
-        }
-
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const optimistic: Annotation = {
-            id: tempId,
-            documentId: activeDocument.id,
-            pageNumber: anchor.page,
-            kind,
-            anchor,
-            content,
-        };
-        dispatch({
-            type: 'UPDATE_DOCUMENT',
-            payload: {
-                docId: activeDocument.id,
-                updates: { annotations: [...getCurrentAnnotations(), optimistic] },
-            },
-        });
-
-        const created = await createAnnotation({
-            documentId: activeDocument.id,
-            pageNumber: anchor.page,
-            kind,
-            anchor,
-            content,
-        });
-
-        if (created) {
-            const nextAnnotations = getCurrentAnnotations().map(annotation => annotation.id === tempId ? created : annotation);
-            dispatch({
-                type: 'UPDATE_DOCUMENT',
-                payload: {
-                    docId: activeDocument.id,
-                    updates: { annotations: nextAnnotations },
-                },
-            });
-            if (trimmedNote) {
-                setActiveTab('annotations');
-                setEditingAnnotationId(created.id);
-            }
-        } else {
-            const nextAnnotations = getCurrentAnnotations().filter(annotation => annotation.id !== tempId);
-            dispatch({
-                type: 'UPDATE_DOCUMENT',
-                payload: {
-                    docId: activeDocument.id,
-                    updates: { annotations: nextAnnotations },
-                },
-            });
-        }
-    }, [activeDocument, dispatch, state.documents]);
-
-    const handleTogglePenMode = React.useCallback(() => {
-        setPenMode(current => !current);
-    }, []);
 
     const handleSignIn = React.useCallback(async () => {
         const { error } = await signInWithGoogle();
-        if (error) {
-            console.error('Google sign-in failed', error);
-        }
+        if (error) console.error('Google sign-in failed', error);
     }, []);
 
     const handleEmailSignIn = React.useCallback(async (email: string, password: string) => {
@@ -252,27 +54,19 @@ const App: React.FC = () => {
 
     const handleSignOut = React.useCallback(async () => {
         const { error } = await signOut();
-        if (error) {
-            console.error('Sign out failed', error);
-        }
+        if (error) console.error('Sign out failed', error);
     }, []);
 
     React.useEffect(() => {
-        if (window.innerWidth < 768) {
-            setIsPanelCollapsed(true);
-        } else {
-            setIsPanelCollapsed(false);
-        }
+        if (window.innerWidth < 768) setIsPanelCollapsed(true);
+        else setIsPanelCollapsed(false);
     }, []);
 
     React.useEffect(() => {
         let isMounted = true;
-
         supabase.auth.getSession().then(({ data, error }) => {
             if (!isMounted) return;
-            if (error) {
-                console.error('Failed to load session', error);
-            }
+            if (error) console.error('Failed to load session', error);
             setUserEmail(data.session?.user?.email ?? null);
             setIsAuthLoading(false);
         });
@@ -289,37 +83,15 @@ const App: React.FC = () => {
     }, []);
 
     React.useEffect(() => {
-        const handlePopState = () => setRoute(window.location.pathname);
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, []);
-
-    React.useEffect(() => {
-        if (state.documents.length === 0) {
-            document.body.style.overflow = 'auto';
-        } else {
-            document.body.style.overflow = 'hidden';
-        }
-        // When the component unmounts, restore default
-        return () => {
-            document.body.style.overflow = 'hidden';
-        };
+        if (state.documents.length === 0) document.body.style.overflow = 'auto';
+        else document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = 'hidden'; };
     }, [state.documents.length]);
 
-    React.useEffect(() => {
-        const fetchAnnotations = async () => {
-            if (activeDocument && !activeDocument.annotations) {
-                const annotations = await fetchAnnotationsForDocument(activeDocument.id);
-                if (annotations) {
-                    dispatch({
-                        type: 'UPDATE_DOCUMENT',
-                        payload: { docId: activeDocument.id, updates: { annotations } },
-                    });
-                }
-            }
-        };
-        fetchAnnotations();
-    }, [activeDocument, dispatch]);
+    const fileCount = state.documents.length;
+    const totalFileSize = state.documents.reduce((acc, doc) => acc + (doc.fileSize || 0), 0);
+    const storageUsage = formatBytes(totalFileSize);
+    const planName = 'Free';
 
     const authUI = (
         <React.Fragment>
@@ -348,13 +120,8 @@ const App: React.FC = () => {
         </React.Fragment>
     );
 
-    const isProfileView = route === '/profile';
-    const fileCount = state.documents.length;
-    const totalFileSize = state.documents.reduce((acc, doc) => acc + (doc.fileSize || 0), 0);
-    const storageUsage = formatBytes(totalFileSize);
-    const planName = 'Free';
-
-    if (isProfileView) {
+    // Profile page — full screen, no sidebar
+    if (location.pathname === '/profile') {
         return (
             <React.Fragment>
                 {authUI}
@@ -363,16 +130,14 @@ const App: React.FC = () => {
                     fileCount={fileCount}
                     storageUsage={storageUsage}
                     planName={planName}
-                    onBack={() => {
-                        window.history.pushState({}, '', '/');
-                        setRoute('/');
-                    }}
+                    onBack={() => navigate('/')}
                     onUpgrade={() => setIsAuthModalOpen(true)}
                 />
             </React.Fragment>
         );
     }
 
+    // No documents — idle state, full screen
     if (state.documents.length === 0) {
         return (
             <React.Fragment>
@@ -383,11 +148,13 @@ const App: React.FC = () => {
         );
     }
 
+    // Main layout with sidebar + routed content
     return (
         <div className="flex h-full bg-slate-50 font-sans antialiased overflow-hidden">
             {authUI}
             <FileUploader />
-            {/* --- FILE LIST PANEL (Mobile Overlay) --- */}
+
+            {/* Sidebar — Mobile overlay */}
             <div className="md:hidden">
                 {!isPanelCollapsed && (
                     <button
@@ -403,20 +170,23 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         userEmail={userEmail}
                         planName={planName}
-                        onProfileClick={() => {
-                            window.history.pushState({}, '', '/profile');
-                            setRoute('/profile');
-                        }}
+                        onProfileClick={() => navigate('/profile')}
                         onSignOut={handleSignOut}
                     />
                 </aside>
             </div>
 
-            {/* --- FILE LIST PANEL (Desktop Static Collapsible) --- */}
+            {/* Sidebar — Desktop collapsible */}
             <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-16' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
                     <div className="flex flex-col items-center pt-4">
-                        <button type="button" onClick={() => setIsPanelCollapsed(false)} className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors" title="Expand file list" aria-label="Expand file list">
+                        <button
+                            type="button"
+                            onClick={() => setIsPanelCollapsed(false)}
+                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                            title="Expand file list"
+                            aria-label="Expand file list"
+                        >
                             <MenuIcon className="text-2xl" />
                         </button>
                     </div>
@@ -427,113 +197,20 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         userEmail={userEmail}
                         planName={planName}
-                        onProfileClick={() => {
-                            window.history.pushState({}, '', '/profile');
-                            setRoute('/profile');
-                        }}
+                        onProfileClick={() => navigate('/profile')}
                         onSignOut={handleSignOut}
                     />
                 )}
             </aside>
 
+            {/* Main content area — routed */}
             <main className="flex-1 flex min-w-0 relative">
-                {activeDocument ? (
-                    <div className="flex-1 flex min-w-0">
-                        {/* --- PDF Viewer (Desktop Only) --- */}
-                        <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
-                            <div className={`flex-1 relative min-h-0 w-full h-full ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
-                                <PdfContent
-                                    document={activeDocument}
-                                    isProcessing={isProcessing}
-                                    onPageChange={handlePageChange}
-                                    penMode={penMode}
-                                    onTogglePenMode={handleTogglePenMode}
-                                    onHighlightCreate={handleAnnotationCreate}
-                                />
-                            </div>
-                        </section>
-
-                        {/* --- Resizer (Desktop Only) --- */}
-                        <button
-                            type="button"
-                            onMouseDown={handleResize}
-                            className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
-                            aria-label="Resize panel"
-                        >
-                            <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
-                        </button>
-
-                        {/* --- Interaction Panel --- */}
-                        <section className="min-h-0 w-full md:w-auto md:flex-shrink-0 bg-white border-l border-slate-200 shadow-xl z-10" style={!isPdfViewerCollapsed ? { width: interactionPanelWidth } : { width: '100%' }}>
-                            <InteractionPanel
-                                key={activeDocument.id}
-                                document={activeDocument}
-                                onMenuClick={() => setIsPanelCollapsed(false)}
-                                onPreviewClick={() => setIsPdfVisible(v => !v)}
-                                isPdfVisible={isPdfVisible}
-                                isPdfViewerCollapsed={isPdfViewerCollapsed}
-
-                                onTogglePdfViewer={() => setIsPdfViewerCollapsed(v => !v)}
-                                activeTab={activeTab}
-                                onTabChange={setActiveTab}
-                                editingAnnotationId={editingAnnotationId}
-                                onEditingAnnotationChange={setEditingAnnotationId}
-                            />
-                        </section>
-
-                        {/* --- PDF Viewer (Mobile Overlay) --- */}
-                        {isPdfVisible && (
-                            <button
-                                type="button"
-                                className="md:hidden fixed inset-0 bg-black/60 z-40 transition-opacity duration-300"
-                                onClick={() => setIsPdfVisible(false)}
-                                aria-label="Close PDF preview"
-                            />
-                        )}
-                        
-                        <div 
-                            className={`md:hidden fixed inset-x-0 bottom-0 z-50 bg-slate-100 rounded-t-2xl shadow-2xl transform transition-transform duration-300 ease-out overflow-hidden h-[92vh]`}
-                            style={{
-                                transform: isPdfVisible 
-                                    ? `translateY(${isDragging ? sheetTranslateY : 0}px)` 
-                                    : 'translateY(100%)',
-                                transition: isDragging ? 'none' : 'transform 0.3s ease-out'
-                            }}
-                        >
-                            <div 
-                                className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
-                                onTouchStart={handleTouchStart}
-                                onTouchMove={handleTouchMove}
-                                onTouchEnd={handleTouchEnd}
-                            >
-                                <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
-                            </div>
-
-                            <div className="relative h-full w-full pt-8">
-                                <PdfContent
-                                    document={activeDocument}
-                                    isProcessing={isProcessing}
-                                    onPageChange={handlePageChange}
-                                    penMode={penMode}
-                                    onTogglePenMode={handleTogglePenMode}
-                                    onHighlightCreate={handleAnnotationCreate}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setIsPdfVisible(false)}
-                                    className="absolute top-2 right-2 z-30 p-2 text-slate-400 hover:text-slate-600"
-                                    aria-label="Close document preview"
-                                >
-                                    <XIcon className="text-xl" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-500">
-                        <p>Select a document to get started.</p>
-                    </div>
-                )}
+                <Routes>
+                    <Route path="/" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path="/wrong-answers" element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path="/flashcards" element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                </Routes>
             </main>
         </div>
     );

@@ -1,7 +1,8 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
@@ -18,6 +19,8 @@ interface FileListPanelProps {
 
 export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, userEmail, planName, onProfileClick, onSignOut }) => {
     const { state, dispatch } = useDocuments();
+    const navigate = useNavigate();
+    const location = useLocation();
     const inputRef = React.useRef<HTMLInputElement>(null);
     
     const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
@@ -216,6 +219,29 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         <span className="text-xs">New Folder</span>
                     </button>
                 </div>
+            </div>
+
+            {/* Tools Navigation */}
+            <div className="px-3 pb-3 flex-shrink-0">
+                <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Tools</div>
+                {[
+                    { path: '/', label: 'Study', icon: HomeIcon },
+                    { path: '/wrong-answers', label: '오답노트', icon: ErrorOutlineIcon },
+                    { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
+                ].map(item => (
+                    <button
+                        key={item.path}
+                        onClick={() => { navigate(item.path); if (!isDesktop) setIsPanelCollapsed(true); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors mb-0.5 ${
+                            location.pathname === item.path
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                    >
+                        <item.icon className="text-xl flex-shrink-0" />
+                        {item.label}
+                    </button>
+                ))}
             </div>
 
             {/* File List */}
