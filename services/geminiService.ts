@@ -356,6 +356,74 @@ ${documentContent}
   return cleanAndParseJSON(text) as SlideData;
 }
 
+// ── TTS helpers ───────────────────────────────────────────────────────────────
+
+function pcmToWavBlob(pcm: Uint8Array, sampleRate = 24000): Blob {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const byteRate = sampleRate * blockAlign;
+  const header = new ArrayBuffer(44);
+  const v = new DataView(header);
+  const s = (o: number, str: string) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  s(0, 'RIFF'); v.setUint32(4, 36 + pcm.length, true); s(8, 'WAVE');
+  s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, numChannels, true); v.setUint32(24, sampleRate, true);
+  v.setUint32(28, byteRate, true); v.setUint16(32, blockAlign, true);
+  v.setUint16(34, bitsPerSample, true);
+  s(36, 'data'); v.setUint32(40, pcm.length, true);
+  const wav = new Uint8Array(44 + pcm.length);
+  wav.set(new Uint8Array(header)); wav.set(pcm, 44);
+  return new Blob([wav], { type: 'audio/wav' });
+}
+
+function splitIntoChunks(text: string): string[] {
+  // Split on blank lines first; fall back to sentence grouping
+  const byPara = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  if (byPara.length >= 2) return byPara;
+  const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
+  const size = Math.ceil(sentences.length / 4);
+  const chunks: string[] = [];
+  for (let i = 0; i < sentences.length; i += size) {
+    chunks.push(sentences.slice(i, i + size).join(' ').trim());
+  }
+  return chunks.filter(Boolean);
+}
+
+export async function synthesizeSpeech(
+  text: string,
+  voice: string,
+  onProgress: (done: number, total: number) => void
+): Promise<Blob> {
+  const chunks = splitIntoChunks(text);
+  const pcmBuffers: Uint8Array[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const data = await callGemini<{ audioData: string; mimeType: string }>({
+      action: 'tts',
+      text: chunks[i],
+      voice,
+    });
+    pcmBuffers.push(Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0)));
+    onProgress(i + 1, chunks.length);
+  }
+
+  // Concatenate PCM buffers, add 480-sample silence between chunks
+  const silence = new Uint8Array(480 * 2); // 20ms @ 24kHz, 16-bit
+  const parts: Uint8Array[] = [];
+  pcmBuffers.forEach((buf, i) => { parts.push(buf); if (i < pcmBuffers.length - 1) parts.push(silence); });
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const combined = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) { combined.set(p, off); off += p.length; }
+
+  // Extract sample rate from mimeType (e.g. "audio/pcm;rate=24000")
+  const sampleRate = 24000;
+  return pcmToWavBlob(combined, sampleRate);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function generatePodcastScript(
   documentContent: string,
   model: Model

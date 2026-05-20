@@ -58,6 +58,11 @@ type GeminiRequest =
       model: string;
       inlineData: { data: string; mimeType: string };
       prompt?: string;
+    }
+  | {
+      action: 'tts';
+      text: string;
+      voice?: string;
     };
 
 export const handler: Handler = async (event) => {
@@ -94,10 +99,15 @@ export const handler: Handler = async (event) => {
     return json(400, { error: 'Missing action' });
   }
 
-  const model = (parsed as any).model;
-  if (!ALLOWED_MODELS.has(model)) {
-    return json(400, { error: `Unsupported model: ${String(model)}` });
+  // TTS action uses a fixed internal model — skip model whitelist check
+  if (parsed.action !== 'tts') {
+    const model = (parsed as any).model;
+    if (!ALLOWED_MODELS.has(model)) {
+      return json(400, { error: `Unsupported model: ${String(model)}` });
+    }
   }
+
+  const model = (parsed as any).model as string;
 
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -160,6 +170,40 @@ export const handler: Handler = async (event) => {
       }
 
       return json(200, { text });
+    }
+
+    if (parsed.action === 'tts') {
+      if (typeof parsed.text !== 'string' || parsed.text.length === 0 || parsed.text.length > 5000) {
+        return json(400, { error: 'TTS text must be 1–5000 characters' });
+      }
+
+      const ALLOWED_VOICES = new Set(['Aoede', 'Charon', 'Fenrir', 'Kore', 'Puck', 'Zephyr']);
+      const voice = typeof parsed.voice === 'string' && ALLOWED_VOICES.has(parsed.voice)
+        ? parsed.voice
+        : 'Puck';
+
+      const res = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-preview-tts',
+        contents: [{ parts: [{ text: parsed.text }] }],
+        config: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: voice },
+            },
+          },
+        } as any,
+      });
+
+      const part = (res as any).candidates?.[0]?.content?.parts?.[0];
+      if (!part?.inlineData?.data) {
+        return json(500, { error: 'TTS returned no audio data' });
+      }
+
+      return json(200, {
+        audioData: part.inlineData.data as string,
+        mimeType: (part.inlineData.mimeType as string) ?? 'audio/pcm;rate=24000',
+      });
     }
 
     return json(400, { error: 'Unknown action' });

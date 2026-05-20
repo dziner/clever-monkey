@@ -1,8 +1,16 @@
 import React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
-import { generatePodcastScript } from '../services/geminiService';
-import { MenuIcon, HeadphonesIcon, PlayArrowIcon, PauseIcon, StopIcon, AutoAwesomeIcon } from '../components/icons';
+import { generatePodcastScript, synthesizeSpeech } from '../services/geminiService';
+import { MenuIcon, HeadphonesIcon, AutoAwesomeIcon } from '../components/icons';
 import { Spinner } from '../components/Spinner';
+
+const VOICES = [
+  { id: 'Puck',   label: 'Puck',   desc: 'Enthusiastic' },
+  { id: 'Aoede',  label: 'Aoede',  desc: 'Warm' },
+  { id: 'Kore',   label: 'Kore',   desc: 'Professional' },
+  { id: 'Charon', label: 'Charon', desc: 'Authoritative' },
+  { id: 'Zephyr', label: 'Zephyr', desc: 'Casual' },
+] as const;
 
 interface Props { onMenuClick: () => void; }
 
@@ -11,85 +19,54 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
   const activeDoc = state.documents.find(d => d.id === state.activeDocumentId);
 
   const [script, setScript] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const [scriptLoading, setScriptLoading] = React.useState(false);
+  const [scriptError, setScriptError] = React.useState<string | null>(null);
 
-  const [playing, setPlaying] = React.useState(false);
-  const [utteranceIndex, setUtteranceIndex] = React.useState(-1);
-  const sentencesRef = React.useRef<string[]>([]);
-  const utteranceRef = React.useRef<SpeechSynthesisUtterance | null>(null);
+  const [voice, setVoice] = React.useState<string>('Puck');
+  const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
+  const [audioLoading, setAudioLoading] = React.useState(false);
+  const [audioProgress, setAudioProgress] = React.useState<{ done: number; total: number } | null>(null);
+  const [audioError, setAudioError] = React.useState<string | null>(null);
 
-  const handleGenerate = React.useCallback(async () => {
+  // Revoke previous blob URL on change/unmount
+  React.useEffect(() => {
+    return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); };
+  }, [audioUrl]);
+
+  const handleGenerateScript = React.useCallback(async () => {
     if (!activeDoc?.documentContent) return;
-    stop();
-    setLoading(true);
-    setError(null);
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); setAudioUrl(null); }
+    setScriptLoading(true);
+    setScriptError(null);
+    setAudioError(null);
     try {
       const result = await generatePodcastScript(activeDoc.documentContent, activeDoc.model);
       setScript(result);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to generate podcast script.');
+      setScriptError(e.message ?? 'Failed to generate script.');
     } finally {
-      setLoading(false);
+      setScriptLoading(false);
     }
-  }, [activeDoc]);
+  }, [activeDoc, audioUrl]);
 
-  // Split script into sentences for highlighting
-  React.useEffect(() => {
+  const handleGenerateAudio = React.useCallback(async () => {
     if (!script) return;
-    sentencesRef.current = script.match(/[^.!?]+[.!?]+/g) ?? [script];
-  }, [script]);
-
-  function stop() {
-    window.speechSynthesis?.cancel();
-    setPlaying(false);
-    setUtteranceIndex(-1);
-  }
-
-  function play() {
-    if (!script) return;
-    const sentences = sentencesRef.current;
-    if (!sentences.length) return;
-
-    window.speechSynthesis.cancel();
-    setPlaying(true);
-
-    let idx = utteranceIndex < 0 ? 0 : utteranceIndex;
-
-    const speakFrom = (i: number) => {
-      if (i >= sentences.length) { stop(); return; }
-      setUtteranceIndex(i);
-      const u = new SpeechSynthesisUtterance(sentences[i]);
-      u.rate = 0.95;
-      u.pitch = 1;
-      u.onend = () => speakFrom(i + 1);
-      u.onerror = () => stop();
-      utteranceRef.current = u;
-      window.speechSynthesis.speak(u);
-    };
-
-    speakFrom(idx);
-  }
-
-  function pause() {
-    window.speechSynthesis.pause();
-    setPlaying(false);
-  }
-
-  function resume() {
-    window.speechSynthesis.resume();
-    setPlaying(true);
-  }
-
-  // Cleanup on unmount
-  React.useEffect(() => () => window.speechSynthesis?.cancel(), []);
-
-  const sentences = sentencesRef.current;
-  const progress = sentences.length > 0 && utteranceIndex >= 0
-    ? Math.round((utteranceIndex / sentences.length) * 100)
-    : 0;
-
-  const hasTTS = typeof window !== 'undefined' && 'speechSynthesis' in window;
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); setAudioUrl(null); }
+    setAudioLoading(true);
+    setAudioError(null);
+    setAudioProgress(null);
+    try {
+      const blob = await synthesizeSpeech(script, voice, (done, total) => {
+        setAudioProgress({ done, total });
+      });
+      setAudioUrl(URL.createObjectURL(blob));
+    } catch (e: any) {
+      setAudioError(e.message ?? 'Audio generation failed.');
+    } finally {
+      setAudioLoading(false);
+      setAudioProgress(null);
+    }
+  }, [script, voice, audioUrl]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
@@ -107,130 +84,132 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
           {activeDoc?.documentContent && (
             <button
               type="button"
-              onClick={handleGenerate}
-              disabled={loading}
+              onClick={handleGenerateScript}
+              disabled={scriptLoading || audioLoading}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
             >
               <AutoAwesomeIcon className="text-base" />
-              {loading ? 'Generating…' : script ? 'Regenerate' : 'Generate Script'}
+              {scriptLoading ? 'Writing…' : script ? 'New Script' : 'Generate Script'}
             </button>
           )}
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto flex flex-col items-center p-6">
+      <div className="flex-1 overflow-auto flex flex-col items-center p-6 gap-5">
         {!activeDoc ? (
           <div className="flex flex-col items-center justify-center flex-1 text-slate-400">
             <HeadphonesIcon className="text-5xl mb-3 opacity-30" />
-            <p className="text-sm font-medium">Upload a document to generate a podcast script</p>
+            <p className="text-sm font-medium">Upload a document to generate a podcast</p>
           </div>
-        ) : loading ? (
+        ) : scriptLoading ? (
           <div className="flex flex-col items-center justify-center flex-1 gap-3 text-slate-500">
             <Spinner />
-            <span className="text-sm">Writing your podcast script…</span>
+            <span className="text-sm">Writing podcast script…</span>
           </div>
-        ) : error ? (
-          <div className="text-center text-red-500 text-sm max-w-sm mt-8">
-            <p className="font-semibold mb-1">Generation failed</p>
-            <p>{error}</p>
+        ) : scriptError ? (
+          <div className="flex flex-col items-center justify-center flex-1 text-center text-red-500 text-sm max-w-sm">
+            <p className="font-semibold mb-1">Script generation failed</p>
+            <p>{scriptError}</p>
           </div>
         ) : !script ? (
           <div className="flex flex-col items-center justify-center flex-1 text-center text-slate-400 max-w-xs">
             <HeadphonesIcon className="text-6xl mb-4 opacity-20" />
             <p className="font-semibold text-slate-600 mb-1">Listen to your document</p>
-            <p className="text-sm">Generate a podcast-style audio script and play it back with text-to-speech.</p>
+            <p className="text-sm">Generate a podcast script, pick a voice, then synthesize real AI audio — no more robotic text-to-speech.</p>
           </div>
         ) : (
           <div className="w-full max-w-2xl flex flex-col gap-5">
-            {/* Player card */}
+
+            {/* ── Audio generation card ──────────────────────────────── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0">
-                  <HeadphonesIcon className="text-2xl text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-slate-800 text-sm truncate">{activeDoc.fileName}</p>
-                  <p className="text-xs text-slate-400">Podcast Episode</p>
-                </div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Voice</p>
+
+              {/* Voice selector */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {VOICES.map(v => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setVoice(v.id)}
+                    disabled={audioLoading}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all disabled:opacity-50 ${
+                      voice === v.id
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700'
+                    }`}
+                  >
+                    {v.label}
+                    <span className={`ml-1.5 font-normal opacity-70`}>{v.desc}</span>
+                  </button>
+                ))}
               </div>
 
-              {/* Progress bar */}
-              <div className="mb-4">
-                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
+              {/* Generate audio button / progress */}
+              {audioLoading ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                    <span>Synthesizing audio…</span>
+                    {audioProgress && (
+                      <span className="font-semibold text-emerald-600">
+                        {audioProgress.done} / {audioProgress.total} segments
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      style={{
+                        width: audioProgress
+                          ? `${(audioProgress.done / audioProgress.total) * 100}%`
+                          : '10%',
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400 text-center mt-1">
+                    This takes 10–30 seconds. Neural voices are generating in real-time.
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGenerateAudio}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <HeadphonesIcon className="text-base" />
+                  {audioUrl ? 'Regenerate Audio' : 'Generate Audio'} · {voice}
+                </button>
+              )}
+
+              {audioError && (
+                <p className="mt-2 text-xs text-red-500 text-center">{audioError}</p>
+              )}
+
+              {/* Audio player */}
+              {audioUrl && !audioLoading && (
+                <div className="mt-4 flex flex-col gap-2">
+                  <audio
+                    key={audioUrl}
+                    src={audioUrl}
+                    controls
+                    className="w-full rounded-xl"
+                    style={{ accentColor: '#059669' }}
                   />
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-[10px] text-slate-400">
-                    {utteranceIndex >= 0 ? `Sentence ${utteranceIndex + 1} / ${sentences.length}` : 'Not started'}
-                  </span>
-                  <span className="text-[10px] text-slate-400">{progress}%</span>
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={stop}
-                  disabled={!playing && utteranceIndex < 0}
-                  className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors"
-                  title="Stop"
-                >
-                  <StopIcon className="text-xl text-slate-600" />
-                </button>
-                {!hasTTS ? (
-                  <p className="text-sm text-slate-400">TTS not supported in this browser</p>
-                ) : playing ? (
-                  <button
-                    type="button"
-                    onClick={pause}
-                    className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center shadow-lg transition-colors"
-                    title="Pause"
+                  <a
+                    href={audioUrl}
+                    download="podcast.wav"
+                    className="text-center text-xs text-emerald-600 hover:text-emerald-700 font-medium py-1"
                   >
-                    <PauseIcon className="text-3xl text-white" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={utteranceIndex >= 0 ? resume : play}
-                    className="w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center shadow-lg transition-colors"
-                    title="Play"
-                  >
-                    <PlayArrowIcon className="text-3xl text-white" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => { stop(); setUtteranceIndex(0); }}
-                  disabled={utteranceIndex === 0}
-                  className="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 flex items-center justify-center transition-colors text-xs font-bold text-slate-600"
-                  title="Restart"
-                >
-                  ↺
-                </button>
-              </div>
+                    ↓ Download WAV
+                  </a>
+                </div>
+              )}
             </div>
 
-            {/* Transcript */}
+            {/* ── Transcript ────────────────────────────────────────── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Transcript</p>
-              <div className="text-sm text-slate-700 leading-relaxed space-y-0.5">
-                {sentences.length > 0
-                  ? sentences.map((s, i) => (
-                    <span
-                      key={i}
-                      className={`transition-colors ${i === utteranceIndex ? 'bg-emerald-100 text-emerald-900 rounded px-0.5' : ''}`}
-                    >
-                      {s}{' '}
-                    </span>
-                  ))
-                  : <p>{script}</p>
-                }
-              </div>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{script}</p>
             </div>
           </div>
         )}
