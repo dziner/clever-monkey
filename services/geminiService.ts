@@ -45,11 +45,12 @@ const cleanAndParseJSON = (text: string) => {
   return JSON.parse(cleaned);
 };
 
-async function callGemini<T>(payload: any): Promise<T> {
+async function callGemini<T>(payload: any, signal?: AbortSignal): Promise<T> {
   const res = await fetch(GEMINI_PROXY_ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
+    signal,
   });
 
   const data = await res.json().catch(() => ({}));
@@ -69,13 +70,13 @@ async function countTokens(model: string, text: string): Promise<number> {
   return data.totalTokens ?? 0;
 }
 
-async function generateContent(model: string, contents: any, config?: any): Promise<string> {
+async function generateContent(model: string, contents: any, config?: any, signal?: AbortSignal): Promise<string> {
   const data = await callGemini<{ text: string }>({
     action: 'generateContent',
     model,
     contents,
     config,
-  });
+  }, signal);
   return data.text;
 }
 
@@ -196,7 +197,8 @@ export async function generateQuiz(
   documentContent: string,
   model: Model,
   quizType: 'mcq' | 'frq',
-  questionCount: number
+  questionCount: number,
+  signal?: AbortSignal
 ): Promise<QuizData | FRQData> {
   const diversityRules = `
 CRITICAL RULES — READ BEFORE GENERATING:
@@ -218,14 +220,15 @@ ${diversityRules}`;
   }
 
   const fullPrompt = `${prompt}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""`;
-  const text = await generateContent(model, fullPrompt, { temperature: 1.0 });
+  const text = await generateContent(model, fullPrompt, { temperature: 1.0 }, signal);
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }
 
 export async function generateFlashcards(
   documentContent: string,
   model: Model,
-  count: number
+  count: number,
+  signal?: AbortSignal
 ): Promise<Array<{ front: string; back: string }>> {
   const prompt = `Based on the DOCUMENT CONTENT provided, generate ${count} flashcards for active recall study.
 Return ONLY valid JSON: an array of objects, each with "front" (a clear question or term) and "back" (the concise answer or definition).
@@ -242,7 +245,7 @@ DOCUMENT CONTENT:
 ${documentContent}
 """`;
 
-  const text = await generateContent(model, prompt, { temperature: 1.0 });
+  const text = await generateContent(model, prompt, { temperature: 1.0 }, signal);
   const parsed = cleanAndParseJSON(text);
   if (!Array.isArray(parsed)) throw new Error('Unexpected flashcard response format');
   return parsed as Array<{ front: string; back: string }>;
@@ -314,7 +317,8 @@ export type SlideData = {
 
 export async function generateMindMap(
   documentContent: string,
-  model: Model
+  model: Model,
+  signal?: AbortSignal
 ): Promise<MindMapData> {
   const prompt = `Based on the DOCUMENT CONTENT, create a mind map.
 Return ONLY valid JSON: {"center": "Main Topic", "branches": [{"label": "Branch", "children": ["detail 1", "detail 2"]}]}
@@ -329,7 +333,7 @@ DOCUMENT CONTENT:
 """
 ${documentContent}
 """`;
-  const text = await generateContent(model, prompt, { temperature: 0.7 });
+  const text = await generateContent(model, prompt, { temperature: 0.7 }, signal);
   return cleanAndParseJSON(text) as MindMapData;
 }
 
@@ -393,17 +397,19 @@ function splitIntoChunks(text: string): string[] {
 export async function synthesizeSpeech(
   text: string,
   voice: string,
-  onProgress: (done: number, total: number) => void
+  onProgress: (done: number, total: number) => void,
+  signal?: AbortSignal
 ): Promise<Blob> {
   const chunks = splitIntoChunks(text);
   const pcmBuffers: Uint8Array[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     const data = await callGemini<{ audioData: string; mimeType: string }>({
       action: 'tts',
       text: chunks[i],
       voice,
-    });
+    }, signal);
     pcmBuffers.push(Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0)));
     onProgress(i + 1, chunks.length);
   }

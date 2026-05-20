@@ -302,7 +302,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     const quizTabData = document.quizTabData;
     const annotations = React.useMemo(() => {
         return (document.annotations ?? [])
-            .filter((annotation) => Boolean(annotation.content?.note?.trim()))
+            .filter((annotation) => annotation.kind === 'pen' || Boolean(annotation.content?.note?.trim()) || Boolean(annotation.anchor?.textQuote?.trim()))
             .slice()
             .sort((a, b) => {
             if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
@@ -679,6 +679,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                                     >
                                                         {annotation.kind === 'highlight' ? (
                                                             <HighlightIcon className="text-sm" style={{ color: annotation.content?.color ? '#b45309' : '#d97706' }} />
+                                                        ) : annotation.kind === 'pen' ? (
+                                                            <EditIcon className="text-sm text-purple-600" />
                                                         ) : (
                                                             <NoteIcon className="text-sm text-blue-600" />
                                                         )}
@@ -732,6 +734,9 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                                         </div>
                                                     ) : (
                                                         <React.Fragment>
+                                                            {annotation.kind === 'pen' && !annotation.anchor.textQuote && !annotation.content?.note && (
+                                                                <p className="text-xs text-purple-500 font-medium italic">Pen drawing</p>
+                                                            )}
                                                             {annotation.anchor.textQuote && (
                                                                 <blockquote className="text-xs text-slate-500 border-l-2 border-slate-200 pl-2 mb-1.5 italic line-clamp-2 group-hover:border-slate-300 transition-colors">
                                                                     "{annotation.anchor.textQuote}"

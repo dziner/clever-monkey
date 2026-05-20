@@ -4,6 +4,7 @@ import { generateSlides, SlideData } from '../services/geminiService';
 import { MenuIcon, SlideshowIcon, ChevronLeftIcon, ChevronRightIcon, AutoAwesomeIcon } from '../components/icons';
 import { Spinner } from '../components/Spinner';
 
+
 const SLIDE_COUNT_OPTIONS = [5, 8, 10, 12] as const;
 
 const SLIDE_THEMES = [

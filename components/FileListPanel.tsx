@@ -39,6 +39,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     
     const handleDeleteDocument = async (docId: string) => {
         const targetDoc = state.documents.find(doc => doc.id === docId);
+        if (!window.confirm(`Delete "${targetDoc?.fileName ?? 'this document'}"? This cannot be undone.`)) return;
         dispatch({ type: 'DELETE_DOCUMENT', payload: { docId } });
 
         const { data: { user }, error: userError } = await supabase.auth.getUser();

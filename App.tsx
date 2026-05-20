@@ -6,7 +6,6 @@ import { FileListPanel } from './components/FileListPanel';
 import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
 import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './components/icons';
-import { FileUploader } from './components/FileUploader';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
@@ -167,7 +166,6 @@ const App: React.FC = () => {
     return (
         <div className="flex h-full bg-slate-50 font-sans antialiased overflow-hidden">
             {authUI}
-            <FileUploader />
 
             {/* Sidebar — Mobile overlay */}
             <div className="md:hidden">
