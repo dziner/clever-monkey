@@ -198,16 +198,27 @@ export async function generateQuiz(
   quizType: 'mcq' | 'frq',
   questionCount: number
 ): Promise<QuizData | FRQData> {
+  const diversityRules = `
+CRITICAL RULES — READ BEFORE GENERATING:
+- Each question MUST test a completely different concept, fact, or section of the document. No two questions may share the same main topic.
+- Spread questions evenly across the ENTIRE document — cover the beginning, middle, and end, not just the most prominent parts.
+- Vary difficulty: mix easy recall, moderate comprehension, and at least one higher-order analysis question.
+- Before finalizing your output, verify that every question tests something unique. If any two questions overlap in topic, replace one with a question from an untested section.`;
+
   let prompt: string;
 
   if (quizType === 'mcq') {
-    prompt = `Based on the DOCUMENT CONTENT provided, generate a ${questionCount}-question multiple-choice quiz. Return ONLY valid JSON with keys: title (string), questions (array). Each question must contain: questionText (string), options (string[]), correctAnswerIndex (number), explanation (string). The quiz title must be engaging and MUST include a relevant emoji.`;
+    prompt = `Based on the DOCUMENT CONTENT provided, generate a ${questionCount}-question multiple-choice quiz. Return ONLY valid JSON with keys: title (string), questions (array). Each question must contain: questionText (string), options (array of exactly 4 strings), correctAnswerIndex (number 0-3), explanation (string). The quiz title must be engaging and MUST include a relevant emoji.
+
+${diversityRules}`;
   } else {
-    prompt = `Based on the DOCUMENT CONTENT provided, generate a ${questionCount}-question free-response quiz. Return ONLY valid JSON with keys: title (string), questions (array). Each question must contain: questionText (string), explanation (string; ideal answer for grading). The quiz title must be engaging and MUST include a relevant emoji.`;
+    prompt = `Based on the DOCUMENT CONTENT provided, generate a ${questionCount}-question free-response quiz. Return ONLY valid JSON with keys: title (string), questions (array). Each question must contain: questionText (string), explanation (string — the ideal reference answer used for grading). The quiz title must be engaging and MUST include a relevant emoji.
+
+${diversityRules}`;
   }
 
   const fullPrompt = `${prompt}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""`;
-  const text = await generateContent(model, fullPrompt);
+  const text = await generateContent(model, fullPrompt, { temperature: 1.0 });
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }
 
