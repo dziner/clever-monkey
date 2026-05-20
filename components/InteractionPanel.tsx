@@ -1,6 +1,6 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
-import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, QuizTabState, Annotation, AnnotationAnchor, AnnotationKind } from '../types';
+import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState, Annotation, AnnotationAnchor, AnnotationKind } from '../types';
 import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, NoteIcon, HighlightIcon, MoreVertIcon, TrashIcon, EditIcon, AddIcon, XIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatBubble } from './ChatBubble';
@@ -14,6 +14,7 @@ import { SelectionView } from './SelectionView';
 import { QuizGenerator } from './QuizGenerator';
 import { FRQuiz } from './FRQuiz';
 import { generateQuiz } from '../services/geminiService';
+import { saveQuizSession } from '../services/wrongAnswersService';
 import { getErrorMessage } from '../utils/errors';
 import { createAnnotation, deleteAnnotation, updateAnnotation } from '../services/annotationService';
 
@@ -238,23 +239,37 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const handleQuizTabStateChange = (newState: QuizTabState) => {
         if (document.quizTabData) {
+            const prevState = document.quizTabData.quizState;
             const updatedQuizTabData = {
                 ...document.quizTabData,
                 quizState: newState,
             };
 
             // When a finished quiz is restarted, clear the previous study tips.
-            if (document.quizTabData.quizState.isFinished && !newState.isFinished) {
+            if (prevState.isFinished && !newState.isFinished) {
                 delete updatedQuizTabData.studyTips;
+            }
+
+            // Save wrong answers on quiz completion (fire-and-forget)
+            const justFinishedMCQ = newState.type === 'mcq' && !prevState.isFinished && newState.isFinished;
+            const justFinishedFRQ = newState.type === 'frq' &&
+                newState.isFinished && !(newState as FRQQuizState).isGrading &&
+                !!(prevState as FRQQuizState).isGrading;
+
+            if (justFinishedMCQ || justFinishedFRQ) {
+                saveQuizSession(
+                    document.id,
+                    document.fileName,
+                    document.quizTabData.quizContent,
+                    newState
+                ).catch(err => console.error('Failed to save quiz session:', err));
             }
 
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {
                     docId: document.id,
-                    updates: {
-                        quizTabData: updatedQuizTabData
-                    }
+                    updates: { quizTabData: updatedQuizTabData }
                 }
             });
         }
