@@ -222,6 +222,32 @@ ${diversityRules}`;
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }
 
+export async function generateFlashcards(
+  documentContent: string,
+  model: Model,
+  count: number
+): Promise<Array<{ front: string; back: string }>> {
+  const prompt = `Based on the DOCUMENT CONTENT provided, generate ${count} flashcards for active recall study.
+Return ONLY valid JSON: an array of objects, each with "front" (a clear question or term) and "back" (the concise answer or definition).
+
+CRITICAL RULES:
+- Each card must cover a completely different concept from the document.
+- "front" should be a focused question or key term (not a yes/no question).
+- "back" should be the direct, concise answer — 1-3 sentences max.
+- Spread cards across the ENTIRE document, not just the beginning.
+- No two cards should test the same concept.
+
+DOCUMENT CONTENT:
+"""
+${documentContent}
+"""`;
+
+  const text = await generateContent(model, prompt, { temperature: 1.0 });
+  const parsed = cleanAndParseJSON(text);
+  if (!Array.isArray(parsed)) throw new Error('Unexpected flashcard response format');
+  return parsed as Array<{ front: string; back: string }>;
+}
+
 export async function evaluateFRQAnswer(
   question: string,
   referenceAnswer: string,
