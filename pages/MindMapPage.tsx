@@ -37,15 +37,34 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
   const [data, setData] = React.useState<MindMapData | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const abortRef = React.useRef<AbortController | null>(null);
+
+  // Body
+  const bodyRef = React.useRef<HTMLDivElement>(null);
+  const [canvasScale, setCanvasScale] = React.useState(1);
+
+  React.useEffect(() => {
+    const obs = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width - 32; // account for p-4
+        setCanvasScale(w < CANVAS_W ? w / CANVAS_W : 1);
+      }
+    });
+    if (bodyRef.current) obs.observe(bodyRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   const handleGenerate = React.useCallback(async () => {
     if (!activeDoc?.documentContent) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setLoading(true);
     setError(null);
     try {
-      const result = await generateMindMap(activeDoc.documentContent, activeDoc.model);
+      const result = await generateMindMap(activeDoc.documentContent, activeDoc.model, abortRef.current.signal);
       setData(result);
     } catch (e: any) {
+      if (e.name === 'AbortError') return;
       setError(e.message ?? 'Failed to generate mind map.');
     } finally {
       setLoading(false);
@@ -65,22 +84,27 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
           {activeDoc && <p className="text-xs text-slate-400 truncate max-w-xs">{activeDoc.fileName}</p>}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {activeDoc?.documentContent && (
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-            >
+          {loading ? (
+            <>
+              <button type="button" onClick={() => abortRef.current?.abort()} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+                Cancel
+              </button>
+              <button type="button" disabled className="flex items-center gap-2 px-4 py-2 bg-violet-600 opacity-50 text-white rounded-xl text-sm font-semibold cursor-not-allowed">
+                <AutoAwesomeIcon className="text-base" />
+                Generating…
+              </button>
+            </>
+          ) : activeDoc?.documentContent ? (
+            <button type="button" onClick={handleGenerate} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
               <AutoAwesomeIcon className="text-base" />
-              {loading ? 'Generating…' : data ? 'Regenerate' : 'Generate'}
+              {data ? 'Regenerate' : 'Generate'}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-4 flex items-center justify-center">
+      <div ref={bodyRef} className="flex-1 overflow-auto p-4 flex items-center justify-center">
         {!activeDoc ? (
           <div className="text-center text-slate-400">
             <AccountTreeIcon className="text-5xl mb-3 opacity-30" />
@@ -103,7 +127,9 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
-          <MindMapCanvas data={data} />
+          <div style={{ transform: `scale(${canvasScale})`, transformOrigin: 'top center', width: CANVAS_W, height: CANVAS_H * canvasScale }}>
+            <MindMapCanvas data={data} />
+          </div>
         )}
       </div>
     </div>

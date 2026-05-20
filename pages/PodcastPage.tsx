@@ -28,6 +28,9 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
   const [audioProgress, setAudioProgress] = React.useState<{ done: number; total: number } | null>(null);
   const [audioError, setAudioError] = React.useState<string | null>(null);
 
+  const scriptAbortRef = React.useRef<AbortController | null>(null);
+  const audioAbortRef = React.useRef<AbortController | null>(null);
+
   // Revoke previous blob URL on change/unmount
   React.useEffect(() => {
     return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); };
@@ -36,13 +39,16 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
   const handleGenerateScript = React.useCallback(async () => {
     if (!activeDoc?.documentContent) return;
     if (audioUrl) { URL.revokeObjectURL(audioUrl); setAudioUrl(null); }
+    scriptAbortRef.current?.abort();
+    scriptAbortRef.current = new AbortController();
     setScriptLoading(true);
     setScriptError(null);
     setAudioError(null);
     try {
-      const result = await generatePodcastScript(activeDoc.documentContent, activeDoc.model);
+      const result = await generatePodcastScript(activeDoc.documentContent, activeDoc.model, scriptAbortRef.current.signal);
       setScript(result);
     } catch (e: any) {
+      if (e.name === 'AbortError') return;
       setScriptError(e.message ?? 'Failed to generate script.');
     } finally {
       setScriptLoading(false);
@@ -52,15 +58,18 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
   const handleGenerateAudio = React.useCallback(async () => {
     if (!script) return;
     if (audioUrl) { URL.revokeObjectURL(audioUrl); setAudioUrl(null); }
+    audioAbortRef.current?.abort();
+    audioAbortRef.current = new AbortController();
     setAudioLoading(true);
     setAudioError(null);
     setAudioProgress(null);
     try {
       const blob = await synthesizeSpeech(script, voice, (done, total) => {
         setAudioProgress({ done, total });
-      });
+      }, audioAbortRef.current.signal);
       setAudioUrl(URL.createObjectURL(blob));
     } catch (e: any) {
+      if (e.name === 'AbortError') return;
       setAudioError(e.message ?? 'Audio generation failed.');
     } finally {
       setAudioLoading(false);
@@ -80,17 +89,29 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
           <h1 className="font-bold text-slate-800 text-base leading-tight">Podcast</h1>
           {activeDoc && <p className="text-xs text-slate-400 truncate max-w-xs">{activeDoc.fileName}</p>}
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           {activeDoc?.documentContent && (
-            <button
-              type="button"
-              onClick={handleGenerateScript}
-              disabled={scriptLoading || audioLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-            >
-              <AutoAwesomeIcon className="text-base" />
-              {scriptLoading ? 'Writing…' : script ? 'New Script' : 'Generate Script'}
-            </button>
+            scriptLoading ? (
+              <>
+                <button type="button" onClick={() => scriptAbortRef.current?.abort()} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+                  Cancel
+                </button>
+                <button type="button" disabled className="flex items-center gap-2 px-4 py-2 bg-emerald-600 opacity-50 text-white rounded-xl text-sm font-semibold cursor-not-allowed">
+                  <AutoAwesomeIcon className="text-base" />
+                  Writing…
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleGenerateScript}
+                disabled={audioLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              >
+                <AutoAwesomeIcon className="text-base" />
+                {script ? 'New Script' : 'Generate Script'}
+              </button>
+            )
           )}
         </div>
       </div>
@@ -150,11 +171,16 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
                     <span>Synthesizing audio…</span>
-                    {audioProgress && (
-                      <span className="font-semibold text-emerald-600">
-                        {audioProgress.done} / {audioProgress.total} segments
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {audioProgress && (
+                        <span className="font-semibold text-emerald-600">
+                          {audioProgress.done} / {audioProgress.total} segments
+                        </span>
+                      )}
+                      <button type="button" onClick={() => audioAbortRef.current?.abort()} className="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors">
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                   <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div

@@ -26,16 +26,22 @@ export const SlidesPage: React.FC<Props> = ({ onMenuClick }) => {
   const [slideCount, setSlideCount] = React.useState<number>(8);
   const [current, setCurrent] = React.useState(0);
   const [presenting, setPresenting] = React.useState(false);
+  const abortRef = React.useRef<AbortController | null>(null);
+  const dataRef = React.useRef(data);
+  React.useEffect(() => { dataRef.current = data; }, [data]);
 
   const handleGenerate = React.useCallback(async () => {
     if (!activeDoc?.documentContent) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setLoading(true);
     setError(null);
     try {
-      const result = await generateSlides(activeDoc.documentContent, activeDoc.model, slideCount);
+      const result = await generateSlides(activeDoc.documentContent, activeDoc.model, slideCount, abortRef.current.signal);
       setData(result);
       setCurrent(0);
     } catch (e: any) {
+      if (e.name === 'AbortError') return;
       setError(e.message ?? 'Failed to generate slides.');
     } finally {
       setLoading(false);
@@ -48,13 +54,13 @@ export const SlidesPage: React.FC<Props> = ({ onMenuClick }) => {
   React.useEffect(() => {
     if (!presenting) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next();
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prev();
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') setCurrent(c => dataRef.current ? Math.min(dataRef.current.slides.length - 1, c + 1) : c);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') setCurrent(c => Math.max(0, c - 1));
       if (e.key === 'Escape') setPresenting(false);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  });
+  }, [presenting]);
 
   const theme = SLIDE_THEMES[(current) % SLIDE_THEMES.length];
   const slide = data?.slides[current];
@@ -112,28 +118,42 @@ export const SlidesPage: React.FC<Props> = ({ onMenuClick }) => {
           {activeDoc && <p className="text-xs text-slate-400 truncate max-w-xs">{activeDoc.fileName}</p>}
         </div>
         <div className="ml-auto flex items-center gap-3">
-          {activeDoc?.documentContent && !loading && (
+          {activeDoc?.documentContent && (
             <>
-              <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
-                {SLIDE_COUNT_OPTIONS.map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setSlideCount(n)}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${slideCount === n ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {n}
+              {!loading && (
+                <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+                  {SLIDE_COUNT_OPTIONS.map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setSlideCount(n)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${slideCount === n ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {loading ? (
+                <>
+                  <button type="button" onClick={() => abortRef.current?.abort()} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+                    Cancel
                   </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={handleGenerate}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-              >
-                <AutoAwesomeIcon className="text-base" />
-                {data ? 'Regenerate' : 'Generate'}
-              </button>
+                  <button type="button" disabled className="flex items-center gap-2 px-4 py-2 bg-indigo-600 opacity-50 text-white rounded-xl text-sm font-semibold cursor-not-allowed">
+                    <AutoAwesomeIcon className="text-base" />
+                    Generating…
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                >
+                  <AutoAwesomeIcon className="text-base" />
+                  {data ? 'Regenerate' : 'Generate'}
+                </button>
+              )}
             </>
           )}
         </div>

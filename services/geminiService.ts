@@ -340,7 +340,8 @@ ${documentContent}
 export async function generateSlides(
   documentContent: string,
   model: Model,
-  slideCount: number
+  slideCount: number,
+  signal?: AbortSignal
 ): Promise<SlideData> {
   const prompt = `Based on the DOCUMENT CONTENT, create a ${slideCount}-slide presentation.
 Return ONLY valid JSON: {"title": "🎯 Presentation Title", "slides": [{"heading": "Slide Title", "emoji": "📌", "bullets": ["point 1", "point 2", "point 3"]}]}
@@ -356,7 +357,7 @@ DOCUMENT CONTENT:
 """
 ${documentContent}
 """`;
-  const text = await generateContent(model, prompt, { temperature: 0.8 });
+  const text = await generateContent(model, prompt, { temperature: 0.8 }, signal);
   return cleanAndParseJSON(text) as SlideData;
 }
 
@@ -432,7 +433,8 @@ export async function synthesizeSpeech(
 
 export async function generatePodcastScript(
   documentContent: string,
-  model: Model
+  model: Model,
+  signal?: AbortSignal
 ): Promise<string> {
   const prompt = `Write an engaging podcast-style audio script based on the DOCUMENT CONTENT.
 A single narrator presents the material in a conversational, educational style.
@@ -449,7 +451,7 @@ DOCUMENT CONTENT:
 """
 ${documentContent}
 """`;
-  return await generateContent(model, prompt, { temperature: 1.0 });
+  return await generateContent(model, prompt, { temperature: 1.0 }, signal);
 }
 
 export const geminiProxy = {
