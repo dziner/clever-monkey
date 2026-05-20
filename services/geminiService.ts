@@ -302,6 +302,82 @@ export async function generateStudyTips(
   return await generateContent(model, prompt);
 }
 
+export type MindMapData = {
+  center: string;
+  branches: Array<{ label: string; children: string[] }>;
+};
+
+export type SlideData = {
+  title: string;
+  slides: Array<{ heading: string; emoji: string; bullets: string[] }>;
+};
+
+export async function generateMindMap(
+  documentContent: string,
+  model: Model
+): Promise<MindMapData> {
+  const prompt = `Based on the DOCUMENT CONTENT, create a mind map.
+Return ONLY valid JSON: {"center": "Main Topic", "branches": [{"label": "Branch", "children": ["detail 1", "detail 2"]}]}
+
+Rules:
+- "center": the core topic of the document (3-6 words)
+- 5-7 branches, each a distinct major concept from the document
+- 2-4 children per branch (concise, under 10 words each)
+- Cover the entire document breadth, not just the beginning
+
+DOCUMENT CONTENT:
+"""
+${documentContent}
+"""`;
+  const text = await generateContent(model, prompt, { temperature: 0.7 });
+  return cleanAndParseJSON(text) as MindMapData;
+}
+
+export async function generateSlides(
+  documentContent: string,
+  model: Model,
+  slideCount: number
+): Promise<SlideData> {
+  const prompt = `Based on the DOCUMENT CONTENT, create a ${slideCount}-slide presentation.
+Return ONLY valid JSON: {"title": "🎯 Presentation Title", "slides": [{"heading": "Slide Title", "emoji": "📌", "bullets": ["point 1", "point 2", "point 3"]}]}
+
+Rules:
+- Presentation title must include a relevant emoji
+- Each slide: one heading, one emoji, 3-5 bullet points (max 15 words each)
+- Spread evenly across the full document — beginning, middle, end
+- No two slides should cover the same topic
+- Last slide must be a concise summary/takeaways slide
+
+DOCUMENT CONTENT:
+"""
+${documentContent}
+"""`;
+  const text = await generateContent(model, prompt, { temperature: 0.8 });
+  return cleanAndParseJSON(text) as SlideData;
+}
+
+export async function generatePodcastScript(
+  documentContent: string,
+  model: Model
+): Promise<string> {
+  const prompt = `Write an engaging podcast-style audio script based on the DOCUMENT CONTENT.
+A single narrator presents the material in a conversational, educational style.
+
+Rules:
+- Open with: "Welcome to today's study session. Today we're exploring..."
+- Natural transitions: "Moving on to...", "Here's something interesting...", "Let's now look at..."
+- Explain concepts clearly — assume the listener hasn't read the document
+- Close with a 2-sentence recap and sign-off
+- 400-500 words total
+- Plain prose only — absolutely no markdown, no headers, no bullet points
+
+DOCUMENT CONTENT:
+"""
+${documentContent}
+"""`;
+  return await generateContent(model, prompt, { temperature: 1.0 });
+}
+
 export const geminiProxy = {
   sendChatMessage,
   countTokens,

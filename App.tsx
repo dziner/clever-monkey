@@ -13,6 +13,9 @@ import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase }
 import { StudyPage } from './pages/StudyPage';
 import { WrongAnswersPage } from './pages/WrongAnswersPage';
 import { FlashcardsPage } from './pages/FlashcardsPage';
+import { MindMapPage } from './pages/MindMapPage';
+import { SlidesPage } from './pages/SlidesPage';
+import { PodcastPage } from './pages/PodcastPage';
 
 const formatBytes = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0 B';
@@ -209,6 +212,9 @@ const App: React.FC = () => {
                     <Route path="/" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="/wrong-answers" element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="/flashcards" element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path="/mindmap" element={<MindMapPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path="/slides" element={<SlidesPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path="/podcast" element={<PodcastPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                 </Routes>
             </main>

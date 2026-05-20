@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
@@ -228,6 +228,9 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                     { path: '/', label: 'Study', icon: HomeIcon },
                     { path: '/wrong-answers', label: '오답노트', icon: ErrorOutlineIcon },
                     { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
+                    { path: '/mindmap', label: 'Mind Map', icon: AccountTreeIcon },
+                    { path: '/slides', label: 'Slides', icon: SlideshowIcon },
+                    { path: '/podcast', label: 'Podcast', icon: HeadphonesIcon },
                 ].map(item => (
                     <button
                         key={item.path}
