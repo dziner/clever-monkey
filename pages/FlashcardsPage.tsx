@@ -216,8 +216,8 @@ const GenerateModal: React.FC<{
 
       if (!deck) throw new Error('덱 생성에 실패했습니다.');
       onCreated(deck);
-    } catch (e: any) {
-      setError(e?.message || '생성에 실패했습니다. 다시 시도해 주세요.');
+    } catch (e: unknown) {
+      setError((e as { message?: string })?.message || '생성에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setIsGenerating(false);
     }

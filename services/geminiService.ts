@@ -45,7 +45,14 @@ const cleanAndParseJSON = (text: string) => {
   return JSON.parse(cleaned);
 };
 
-async function callGemini<T>(payload: any, signal?: AbortSignal): Promise<T> {
+type GeminiPayload =
+  | { action: 'countTokens'; model: string; text: string }
+  | { action: 'generateContent'; model: string; contents: unknown; config?: unknown }
+  | { action: 'chat'; model: string; systemInstruction: string; history: unknown; message: string }
+  | { action: 'extractText'; model: string; inlineData: unknown }
+  | { action: 'tts'; text: string; voice: string };
+
+async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Promise<T> {
   const res = await fetch(GEMINI_PROXY_ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -53,9 +60,9 @@ async function callGemini<T>(payload: any, signal?: AbortSignal): Promise<T> {
     signal,
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => ({})) as { error?: string };
   if (!res.ok) {
-    const msg = (data as any)?.error || `Gemini request failed (${res.status})`;
+    const msg = data?.error || `Gemini request failed (${res.status})`;
     throw new Error(msg);
   }
   return data as T;
@@ -70,7 +77,7 @@ async function countTokens(model: string, text: string): Promise<number> {
   return data.totalTokens ?? 0;
 }
 
-async function generateContent(model: string, contents: any, config?: any, signal?: AbortSignal): Promise<string> {
+async function generateContent(model: string, contents: unknown, config?: { temperature?: number }, signal?: AbortSignal): Promise<string> {
   const data = await callGemini<{ text: string }>({
     action: 'generateContent',
     model,
@@ -143,7 +150,7 @@ async function extractTextFromDocument(file: File, model: ProcessingModel): Prom
   const data = await callGemini<{ text: string }>({
     action: 'extractText',
     model,
-    inlineData: (documentPart as any).inlineData,
+    inlineData: (documentPart as { inlineData: unknown }).inlineData,
   });
 
   return data.text;

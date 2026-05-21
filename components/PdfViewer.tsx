@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Spinner } from './Spinner';
 import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon, EditIcon, PreviewIcon, VisibilityOffIcon } from './icons';
-import type { AnnotationAnchor, Annotation, Point } from '../types';
+import type { AnnotationAnchor, Annotation, Point, PDFDocumentProxy, PDFPageViewport } from '../types';
 import { PenToolbar } from './PenToolbar';
 
 interface PdfViewerProps {
@@ -17,9 +17,14 @@ interface PdfViewerProps {
     onHighlightCreate?: (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => void;
 }
 
+interface RenderTask {
+    promise?: Promise<void>;
+    cancel(): void;
+}
+
 // A memoized component to render a single page of a PDF.
 const PdfPage: React.FC<{
-    pdfDoc: any;
+    pdfDoc: PDFDocumentProxy | null;
     pageNum: number;
     renderScale: number;
     viewScale: number;
@@ -31,9 +36,9 @@ const PdfPage: React.FC<{
     showAnnotations?: boolean;
 }> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, penMode, pageAnnotations, currentStroke, strokeColor, strokeWidth, showAnnotations = true }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
-    const renderTaskRef = React.useRef<any>(null);
+    const renderTaskRef = React.useRef<RenderTask | null>(null);
     const textLayerRef = React.useRef<HTMLDivElement>(null);
-    const textRenderTaskRef = React.useRef<any>(null);
+    const textRenderTaskRef = React.useRef<RenderTask | null>(null);
 
     // Effect to render the PDF content to the main canvas
     React.useEffect(() => {
@@ -44,7 +49,7 @@ const PdfPage: React.FC<{
 
             if (renderTaskRef.current) {
                 try {
-                    (renderTaskRef.current as any).cancel();
+                    renderTaskRef.current.cancel();
                 } catch (e) { }
                 renderTaskRef.current = null;
             }
@@ -79,14 +84,13 @@ const PdfPage: React.FC<{
                 canvas.width = renderViewport.width;
                 context.drawImage(tempCanvas, 0, 0);
 
-            } catch (err: any) {
-                if (err.name !== 'RenderingCancelledException') {
+            } catch (err: unknown) {
+                const e = err as { name?: string; message?: string };
+                if (e.name !== 'RenderingCancelledException') {
                     console.error(`Error rendering page ${pageNum}:`, err);
                 }
             } finally {
-                if (renderTaskRef.current?.promise?.state === 'resolved' || renderTaskRef.current?.promise?.state === 'rejected') {
-                    renderTaskRef.current = null;
-                }
+                renderTaskRef.current = null;
             }
         };
 
@@ -96,7 +100,7 @@ const PdfPage: React.FC<{
             isCancelled = true;
             if (renderTaskRef.current) {
                 try {
-                    (renderTaskRef.current as any).cancel();
+                    renderTaskRef.current.cancel();
                 } catch (e) { }
             }
         };
@@ -131,8 +135,9 @@ const PdfPage: React.FC<{
                 if (task?.promise) {
                     await task.promise;
                 }
-            } catch (err: any) {
-                if (err?.name !== 'RenderingCancelledException') {
+            } catch (err: unknown) {
+                const e = err as { name?: string };
+                if (e?.name !== 'RenderingCancelledException') {
                     console.error(`Error rendering text layer ${pageNum}:`, err);
                 }
             }
@@ -244,9 +249,9 @@ const MAX_ZOOM = 4.0;
 
 export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotations = [], currentPage: externalCurrentPage, onSelection, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
-    const [pdfDoc, setPdfDoc] = React.useState<any>(null);
+    const [pdfDoc, setPdfDoc] = React.useState<PDFDocumentProxy | null>(null);
     const [numPages, setNumPages] = React.useState(0);
-    const [pageViewports, setPageViewports] = React.useState<any[]>([]);
+    const [pageViewports, setPageViewports] = React.useState<PDFPageViewport[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
     const [internalCurrentPage, setInternalCurrentPage] = React.useState(1);
@@ -357,9 +362,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
 
                 pageRefs.current = Array(doc.numPages).fill(null);
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Error loading PDF:", err);
-                setError(err.message || 'Failed to load PDF.');
+                setError((err as { message?: string }).message || 'Failed to load PDF.');
             } finally {
                 setIsLoading(false);
             }

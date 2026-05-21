@@ -8,8 +8,9 @@ import { useFileHandler } from './hooks/useFileHandler';
 import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './components/icons';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
-import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
+import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
 import { CleverMonkeyIcon } from './components/icons';
+import { useUser } from './contexts/UserContext';
 import { ROUTES } from './routes';
 
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
@@ -54,8 +55,7 @@ const App: React.FC = () => {
     const location = useLocation();
 
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
-    const [userEmail, setUserEmail] = React.useState<string | null>(null);
-    const [isAuthLoading, setIsAuthLoading] = React.useState(true);
+    const { userEmail, isAuthLoading } = useUser();
 
     const handleSignIn = React.useCallback(async () => {
         const { error } = await signInWithGoogle();
@@ -80,26 +80,6 @@ const App: React.FC = () => {
     React.useEffect(() => {
         if (window.innerWidth < 768) setIsPanelCollapsed(true);
         else setIsPanelCollapsed(false);
-    }, []);
-
-    React.useEffect(() => {
-        let isMounted = true;
-        supabase.auth.getSession().then(({ data, error }) => {
-            if (!isMounted) return;
-            if (error) console.error('Failed to load session', error);
-            setUserEmail(data.session?.user?.email ?? null);
-            setIsAuthLoading(false);
-        });
-
-        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUserEmail(session?.user?.email ?? null);
-            setIsAuthLoading(false);
-        });
-
-        return () => {
-            isMounted = false;
-            data.subscription.unsubscribe();
-        };
     }, []);
 
     React.useEffect(() => {
@@ -189,8 +169,6 @@ const App: React.FC = () => {
                     <FileListPanel
                         onFileSelected={handleFileSelected}
                         setIsPanelCollapsed={setIsPanelCollapsed}
-                        userEmail={userEmail}
-                        planName={planName}
                         onProfileClick={() => navigate(ROUTES.PROFILE)}
                         onSignOut={handleSignOut}
                     />
@@ -233,8 +211,6 @@ const App: React.FC = () => {
                         isDesktop={true}
                         onFileSelected={handleFileSelected}
                         setIsPanelCollapsed={setIsPanelCollapsed}
-                        userEmail={userEmail}
-                        planName={planName}
                         onProfileClick={() => navigate(ROUTES.PROFILE)}
                         onSignOut={handleSignOut}
                     />

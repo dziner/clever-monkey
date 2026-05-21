@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -14,14 +15,14 @@ interface FileListPanelProps {
     onFileSelected: (file: File) => void;
     setIsPanelCollapsed: (isCollapsed: boolean) => void;
     isDesktop?: boolean;
-    userEmail: string | null;
-    planName: string;
     onProfileClick: () => void;
     onSignOut: () => void;
 }
 
-export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, userEmail, planName, onProfileClick, onSignOut }) => {
+export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut }) => {
     const { state, dispatch } = useDocuments();
+    const { userEmail } = useUser();
+    const planName = 'Free';
     const navigate = useNavigate();
     const location = useLocation();
     const { showToast } = useToast();

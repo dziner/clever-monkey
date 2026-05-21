@@ -22,6 +22,34 @@ export interface Folder {
   name: string;
 }
 
+export interface PDFPageViewport {
+  width: number;
+  height: number;
+}
+
+export interface PDFRenderContext {
+  canvasContext: CanvasRenderingContext2D;
+  viewport: PDFPageViewport;
+  background?: string;
+}
+
+export interface PDFRenderTask {
+  promise: Promise<void>;
+  cancel(): void;
+}
+
+export interface PDFPageProxy {
+  getViewport(options: { scale: number }): PDFPageViewport;
+  render(options: PDFRenderContext): PDFRenderTask;
+  getTextContent(): Promise<unknown>;
+}
+
+export interface PDFDocumentProxy {
+  numPages: number;
+  getPage(pageNumber: number): Promise<PDFPageProxy>;
+  destroy(): void;
+}
+
 // State for Multiple Choice Quizzes
 export interface MCQQuizState {
   type: 'mcq';
@@ -71,7 +99,7 @@ export interface DocumentData {
   tokenCount?: number;
   fileType: 'pdf' | 'image' | 'text';
   storagePath?: string;
-  pdfDoc?: any; // pdf.js document object
+  pdfDoc?: PDFDocumentProxy;
   imageUrl?: string; // for images
   summary: string;
   // Gemini chat is stateless; we reconstruct context from chatHistory + documentContent
