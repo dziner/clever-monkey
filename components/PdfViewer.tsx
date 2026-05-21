@@ -155,6 +155,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
     const [visiblePages, setVisiblePages] = React.useState<number[]>([]);
     const effectiveScale = fitScale * zoomFactor;
 
+    // Tracks the last page reached by user scrolling so the scrollIntoView effect
+    // doesn't fire back in response to onPageChange updates we just triggered.
+    const lastUserScrollPageRef = React.useRef(1);
     const activePointers = React.useRef(new Map<number, { x: number; y: number }>()).current;
     const pinchStateRef = React.useRef<{
         startScale: number;
@@ -163,18 +166,21 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
         viewportOrigin: { x: number; y: number };
     } | null>(null);
 
+    // Only scroll to a page when externalCurrentPage changes due to external navigation,
+    // not when we ourselves reported the position via onPageChange. Compare against
+    // lastUserScrollPageRef to tell them apart.
     React.useEffect(() => {
-        if (externalCurrentPage && externalCurrentPage !== internalCurrentPage) {
-            const pageEl = pageRefs.current[externalCurrentPage - 1];
-            if (pageEl && containerRef.current) {
-                const rect = pageEl.getBoundingClientRect();
-                const containerRect = containerRef.current.getBoundingClientRect();
-                const isVisible = rect.top >= containerRect.top && rect.bottom <= containerRect.bottom;
-                if (!isVisible) pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                setInternalCurrentPage(externalCurrentPage);
-            }
+        if (!externalCurrentPage || externalCurrentPage === lastUserScrollPageRef.current) return;
+        const pageEl = pageRefs.current[externalCurrentPage - 1];
+        if (pageEl && containerRef.current) {
+            const rect = pageEl.getBoundingClientRect();
+            const containerRect = containerRef.current.getBoundingClientRect();
+            const isVisible = rect.top >= containerRect.top && rect.bottom <= containerRect.bottom;
+            if (!isVisible) pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            lastUserScrollPageRef.current = externalCurrentPage;
+            setInternalCurrentPage(externalCurrentPage);
         }
-    }, [externalCurrentPage, internalCurrentPage]);
+    }, [externalCurrentPage]);
 
     React.useEffect(() => {
         setIsLoading(true);
@@ -309,6 +315,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
             if (dist < minDist) { minDist = dist; closest = i; }
         });
         const page = closest + 1;
+        lastUserScrollPageRef.current = page;
         setInternalCurrentPage(page);
         onPageChange?.(page);
     }, [onPageChange]);
