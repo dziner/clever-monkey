@@ -316,7 +316,7 @@ export async function generateStudyTips(
       .join('\n');
   }
 
-  const allCorrect = userAnswers.every((a) => (a as UserAnswer).isCorrect === true || (a as FRUserAnswer).score! >= 70);
+  const allCorrect = userAnswers.every((a) => (a as UserAnswer).isCorrect === true || ((a as FRUserAnswer).score !== undefined && (a as FRUserAnswer).score! >= 70));
   if (allCorrect) {
     return '### 🎯 All Correct!\n\nExcellent work! You\'ve demonstrated a strong understanding of the material. No review needed for this quiz.';
   }

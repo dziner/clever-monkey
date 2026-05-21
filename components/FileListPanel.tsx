@@ -1,4 +1,3 @@
-// Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { useDocuments } from '../contexts/DocumentContext';

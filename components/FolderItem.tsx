@@ -1,4 +1,3 @@
-// Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { DocumentData, Folder } from '../types';
@@ -13,7 +12,7 @@ interface FolderItemProps {
     isDesktop?: boolean;
     onDeleteDocument: (docId: string) => void;
     onDragStart: (e: React.DragEvent, docId: string) => void;
-    onDragEnd: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
     onDragOver: (e: React.DragEvent, folderId: string | null) => void;
     onDrop: (e: React.DragEvent, folderId: string | null) => void;
     onDragLeave: () => void;

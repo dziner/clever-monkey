@@ -1,4 +1,3 @@
-// Fix: Corrected typo in React import to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import { DocumentData } from '../types';
 import { DocumentIcon, TrashIcon } from './icons';
@@ -18,7 +17,7 @@ interface FileListItemProps {
     onClick: () => void,
     onDelete: () => void;
     onDragStart: (e: React.DragEvent, docId: string) => void;
-    onDragEnd: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
 }
 
 export const FileListItem: React.FC<FileListItemProps> = React.memo(({ doc, isActive, onClick, onDelete, onDragStart, onDragEnd }) => (
