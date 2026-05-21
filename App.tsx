@@ -84,7 +84,7 @@ const App: React.FC = () => {
     }, []);
 
     React.useEffect(() => {
-        if (window.innerWidth < 768) setIsPanelCollapsed(true);
+        if (window.innerWidth < 1024) setIsPanelCollapsed(true);
         else setIsPanelCollapsed(false);
     }, []);
 
@@ -182,7 +182,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Sidebar — Desktop collapsible */}
-            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-14' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
+            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-14' : 'md:w-60 lg:w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
                     <div className="flex flex-col items-center py-4 gap-1 h-full">
                         <button

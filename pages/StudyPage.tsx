@@ -36,10 +36,12 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const { state, dispatch } = useDocuments();
     const [isPdfVisible, setIsPdfVisible] = React.useState(false);
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
-    const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(450, 350, 800, 'right');
+    const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(400, 280, 700, 'right');
     const [penMode, setPenMode] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState<ActiveTab>('summary');
-    const [isRightPanelCollapsed, setIsRightPanelCollapsed] = React.useState(false);
+    const [isRightPanelCollapsed, setIsRightPanelCollapsed] = React.useState(
+        typeof window !== 'undefined' && window.innerWidth < 1024
+    );
 
     const [sheetTranslateY, setSheetTranslateY] = React.useState(0);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -270,7 +272,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
 
             {/* Interaction Panel — Mobile (full width) */}
             <section
-                className="min-h-0 w-full md:hidden bg-white border-l border-slate-200 shadow-xl z-10"
+                className="min-h-0 h-full w-full md:hidden bg-white border-l border-slate-200 shadow-xl z-10"
             >
                 <InteractionPanel
                     key={`mobile-${activeDocument.id}`}
