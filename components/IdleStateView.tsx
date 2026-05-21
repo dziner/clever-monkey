@@ -1,6 +1,6 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
-import { UploadIcon, CleverMonkeyIcon } from './icons';
+import { UploadIcon, CleverMonkeyIcon, HomeIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, ErrorOutlineIcon } from './icons';
 
 interface IdleStateViewProps {
     onFileSelected: (file: File) => void;
@@ -98,6 +98,45 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
                 />
             </div>
             
+            {/* How it works */}
+            <div className="w-full max-w-lg mt-8">
+                <h2 className="text-center text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">How it works</h2>
+                <div className="flex items-start gap-4">
+                    {[
+                        { step: '1', label: 'Upload a PDF or text file', desc: 'Drop any study material into the upload area above.' },
+                        { step: '2', label: 'Ask questions or start a quiz', desc: 'Chat with Clever Monkey or test yourself with flashcards.' },
+                        { step: '3', label: 'Master the content', desc: 'Use MindMap, Slides, and Podcast to reinforce what you learned.' },
+                    ].map(({ step, label, desc }) => (
+                        <div key={step} className="flex-1 flex flex-col items-center text-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">{step}</div>
+                            <p className="text-xs font-semibold text-slate-700">{label}</p>
+                            <p className="text-xs text-slate-500">{desc}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Feature preview */}
+            <div className="w-full max-w-lg mt-6">
+                <h2 className="text-center text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Features unlocked after upload</h2>
+                <div className="grid grid-cols-3 gap-3 md:grid-cols-6 md:gap-2">
+                    {[
+                        { icon: HomeIcon, label: 'Study' },
+                        { icon: StyleIcon, label: 'Flashcards' },
+                        { icon: AccountTreeIcon, label: 'MindMap' },
+                        { icon: SlideshowIcon, label: 'Slides' },
+                        { icon: HeadphonesIcon, label: 'Podcast' },
+                        { icon: ErrorOutlineIcon, label: 'Wrong Answers' },
+                    ].map(({ icon: Icon, label }) => (
+                        <div key={label} className="relative flex flex-col items-center gap-1.5 p-3 bg-white border border-slate-200 rounded-xl opacity-50 select-none">
+                            <Icon className="text-2xl text-slate-400" />
+                            <span className="text-[10px] font-semibold text-slate-500 text-center leading-tight">{label}</span>
+                            <div className="absolute inset-0 rounded-xl bg-slate-100/40" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <p className="text-center text-slate-500 mt-6 md:mt-8">
                 Clever Monkey will analyze your document and help you understand it
                 <br />

@@ -3,7 +3,7 @@ import * as React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, SearchIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
@@ -28,6 +28,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     const { showToast } = useToast();
     const inputRef = React.useRef<HTMLInputElement>(null);
 
+    const [searchQuery, setSearchQuery] = React.useState('');
     const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = React.useState<string | null>(null);
     const deletingIdsRef = React.useRef(new Set<string>());
@@ -185,6 +186,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         return state.documents.filter(doc => !doc.folderId);
     }, [state.documents]);
 
+    const filteredDocs = React.useMemo(() => {
+        if (!searchQuery.trim()) return null;
+        const q = searchQuery.toLowerCase();
+        return state.documents.filter(doc => doc.fileName.toLowerCase().includes(q));
+    }, [state.documents, searchQuery]);
+
 
     return (
         <div className="flex flex-col h-full bg-white">
@@ -248,6 +255,25 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 </div>
             </div>
 
+            {/* Search */}
+            <div className="px-5 pb-3 flex-shrink-0">
+                <div className="relative">
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base" />
+                    <input
+                        type="text"
+                        placeholder="Search documents..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-slate-700 placeholder-slate-400"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <XIcon className="text-base" />
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {/* Tools Navigation */}
             <div className="px-3 pb-3 flex-shrink-0">
                 <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Tools</div>
@@ -277,30 +303,11 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             {/* File List */}
             <div className="flex-1 overflow-y-auto px-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
                  <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">My Library</div>
-                 {state.folders.map(folder => (
-                    <FolderItem
-                        key={folder.id}
-                        folder={folder}
-                        documents={docsByFolder.get(folder.id) || []}
-                        isDropTarget={dropTargetId === folder.id}
-                        isDesktop={isDesktop}
-                        onDeleteDocument={handleDeleteDocument}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop}
-                        onDragLeave={handleDragLeave}
-                        setIsPanelCollapsed={setIsPanelCollapsed}
-                    />
-                 ))}
-                 {unfiledDocs.length > 0 && (
-                    <div
-                        onDragOver={(e) => handleDragOver(e, null)}
-                        onDrop={(e) => handleDrop(e, null)}
-                        onDragLeave={handleDragLeave}
-                        className={`rounded-lg transition-colors ${dropTargetId === null && draggedItemId ? 'bg-blue-100' : ''}`}
-                    >
-                        {unfiledDocs.map(doc => (
+                 {filteredDocs !== null ? (
+                    filteredDocs.length === 0 ? (
+                        <div className="px-2 py-4 text-sm text-slate-400 text-center">No results</div>
+                    ) : (
+                        filteredDocs.map(doc => (
                             <FileListItem
                                 key={doc.id}
                                 doc={doc}
@@ -313,8 +320,50 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
                             />
+                        ))
+                    )
+                 ) : (
+                    <>
+                        {state.folders.map(folder => (
+                            <FolderItem
+                                key={folder.id}
+                                folder={folder}
+                                documents={docsByFolder.get(folder.id) || []}
+                                isDropTarget={dropTargetId === folder.id}
+                                isDesktop={isDesktop}
+                                onDeleteDocument={handleDeleteDocument}
+                                onDragStart={handleDragStart}
+                                onDragEnd={handleDragEnd}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                                onDragLeave={handleDragLeave}
+                                setIsPanelCollapsed={setIsPanelCollapsed}
+                            />
                         ))}
-                    </div>
+                        {unfiledDocs.length > 0 && (
+                            <div
+                                onDragOver={(e) => handleDragOver(e, null)}
+                                onDrop={(e) => handleDrop(e, null)}
+                                onDragLeave={handleDragLeave}
+                                className={`rounded-lg transition-colors ${dropTargetId === null && draggedItemId ? 'bg-blue-100' : ''}`}
+                            >
+                                {unfiledDocs.map(doc => (
+                                    <FileListItem
+                                        key={doc.id}
+                                        doc={doc}
+                                        isActive={doc.id === state.activeDocumentId}
+                                        onClick={() => {
+                                            dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
+                                            if (!isDesktop) setIsPanelCollapsed(true);
+                                        }}
+                                        onDelete={() => handleDeleteDocument(doc.id)}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </>
                  )}
             </div>
             

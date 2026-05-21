@@ -12,6 +12,7 @@ import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './s
 import { CleverMonkeyIcon } from './components/icons';
 import { useUser } from './contexts/UserContext';
 import { ROUTES } from './routes';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
 const WrongAnswersPage = React.lazy(() => import('./pages/WrongAnswersPage').then(m => ({ default: m.WrongAnswersPage })));
@@ -56,6 +57,11 @@ const App: React.FC = () => {
 
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
     const { userEmail, isAuthLoading } = useUser();
+
+    useKeyboardShortcuts([
+        { key: 'Escape', handler: () => setIsPanelCollapsed(true) },
+        { key: 'b', handler: () => setIsPanelCollapsed(prev => !prev) },
+    ]);
 
     const handleSignIn = React.useCallback(async () => {
         const { error } = await signInWithGoogle();
