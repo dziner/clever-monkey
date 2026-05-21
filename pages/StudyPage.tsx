@@ -4,7 +4,7 @@ import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
 import { Spinner } from '../components/Spinner';
-import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, ChevronLeftIcon } from '../components/icons';
+import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { fetchAnnotationsForDocument, createAnnotation } from '../services/annotationService';
 import type { DocumentProcessingState, Annotation, AnnotationAnchor, Point } from '../types';
@@ -227,10 +227,10 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         <button
                             type="button"
                             onClick={() => setIsRightPanelCollapsed(false)}
-                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl"
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                             title="Expand tools panel"
                         >
-                            <ChevronLeftIcon className="text-xl" />
+                            <PanelRightCloseIcon />
                         </button>
                         <div className="w-8 h-px bg-slate-200 mb-1" />
                         {([
@@ -245,7 +245,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                                 key={tab.id}
                                 type="button"
                                 onClick={() => { setIsRightPanelCollapsed(false); setActiveTab(tab.id); }}
-                                className={`p-3 rounded-xl transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+                                className={`p-2 rounded-lg transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
                                 title={tab.label}
                             >
                                 <tab.icon className="text-xl" />

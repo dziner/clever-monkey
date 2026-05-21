@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, SearchIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
@@ -199,16 +199,16 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                     </div>
                     <div>
                         <span className="block font-bold text-slate-900 text-lg font-outfit leading-tight tracking-tight">Clever Monkey</span>
-                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Study Companion</p>
+                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Sources</p>
                     </div>
                 </div>
                 <button
                     onClick={() => setIsPanelCollapsed(true)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                    title="Collapse file list"
-                    aria-label="Collapse file list"
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                    title="Collapse sources panel"
+                    aria-label="Collapse sources panel"
                 >
-                    {isDesktop ? <ChevronLeftIcon className="text-xl" /> : <XIcon className="text-xl" />}
+                    {isDesktop ? <PanelLeftCloseIcon /> : <XIcon className="text-xl" />}
                 </button>
             </div>
 

@@ -5,7 +5,7 @@ import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
-import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './components/icons';
+import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelLeftCloseIcon } from './components/icons';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
@@ -182,17 +182,17 @@ const App: React.FC = () => {
             </div>
 
             {/* Sidebar — Desktop collapsible */}
-            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-16' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
+            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-14' : 'w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
                     <div className="flex flex-col items-center py-4 gap-1 h-full">
                         <button
                             type="button"
                             onClick={() => setIsPanelCollapsed(false)}
-                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                             title="Expand sources panel"
                             aria-label="Expand sources panel"
                         >
-                            <MenuIcon className="text-2xl" />
+                            <PanelLeftCloseIcon />
                         </button>
                     </div>
                 ) : (

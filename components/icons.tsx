@@ -244,6 +244,24 @@ export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props)
 </svg>
 )
 
+export const PanelLeftCloseIcon: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
+  <span className={className} {...props} style={{ display: 'inline-flex', alignItems: 'center', ...((props as React.HTMLAttributes<HTMLSpanElement> & { style?: React.CSSProperties }).style) }}>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="3" width="6" height="14" rx="1.5" fill="currentColor" opacity="0.9"/>
+      <rect x="9.5" y="3" width="8.5" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>
+  </span>
+);
+
+export const PanelRightCloseIcon: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
+  <span className={className} {...props} style={{ display: 'inline-flex', alignItems: 'center', ...((props as React.HTMLAttributes<HTMLSpanElement> & { style?: React.CSSProperties }).style) }}>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="3" width="8" height="14" rx="1.5" fill="currentColor" opacity="0.9"/>
+      <rect x="2" y="3" width="8.5" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>
+  </span>
+);
+
 export const ExitedMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
 	 width="100%" viewBox="260 260 500 500" enableBackground="new 0 0 1024 1024" xmlSpace="preserve" {...props}>
