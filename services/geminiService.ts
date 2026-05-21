@@ -4,6 +4,12 @@ import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 
+const repairJSON = (text: string): string =>
+  text
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/,(\s*[}\]])/g, '$1');
+
 // Utility to safely parse JSON from LLM output which might contain Markdown code blocks or extra text
 const cleanAndParseJSON = (text: string) => {
   const firstOpenBrace = text.indexOf('{');
@@ -35,14 +41,22 @@ const cleanAndParseJSON = (text: string) => {
       const candidate = text.substring(startIndex, endIndex + 1);
       try {
         return JSON.parse(candidate);
-      } catch (e) {
-        // fall through
+      } catch {
+        try {
+          return JSON.parse(repairJSON(candidate));
+        } catch {
+          // fall through
+        }
       }
     }
   }
 
-  const cleaned = text.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(cleaned);
+  const stripped = text.replace(/^```json\s*/m, '').replace(/^```\s*/m, '').replace(/```$/m, '').trim();
+  try {
+    return JSON.parse(stripped);
+  } catch {
+    return JSON.parse(repairJSON(stripped));
+  }
 };
 
 type GeminiPayload =
@@ -77,7 +91,7 @@ async function countTokens(model: string, text: string): Promise<number> {
   return data.totalTokens ?? 0;
 }
 
-async function generateContent(model: string, contents: unknown, config?: { temperature?: number }, signal?: AbortSignal): Promise<string> {
+async function generateContent(model: string, contents: unknown, config?: { temperature?: number; responseMimeType?: string }, signal?: AbortSignal): Promise<string> {
   const data = await callGemini<{ text: string }>({
     action: 'generateContent',
     model,
@@ -227,7 +241,7 @@ ${diversityRules}`;
   }
 
   const fullPrompt = `${prompt}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""`;
-  const text = await generateContent(model, fullPrompt, { temperature: 1.0 }, signal);
+  const text = await generateContent(model, fullPrompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal);
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }
 
@@ -252,7 +266,7 @@ DOCUMENT CONTENT:
 ${documentContent}
 """`;
 
-  const text = await generateContent(model, prompt, { temperature: 1.0 }, signal);
+  const text = await generateContent(model, prompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal);
   const parsed = cleanAndParseJSON(text);
   if (!Array.isArray(parsed)) throw new Error('Unexpected flashcard response format');
   return parsed as Array<{ front: string; back: string }>;
@@ -266,7 +280,7 @@ export async function evaluateFRQAnswer(
 ): Promise<{ score: number; feedback: string }> {
   const prompt = `A user was asked a question based on a document. Please evaluate their answer.\n\nQuestion: "${question}"\nIdeal Answer (for reference): "${referenceAnswer}"\nUser's Answer: "${userAnswer}"\n\nProvide a score from 0 to 100 and brief, constructive feedback. Respond ONLY with valid JSON: {"score": number, "feedback": string}.`;
 
-  const text = await generateContent(model, prompt);
+  const text = await generateContent(model, prompt, { responseMimeType: 'application/json' });
   return cleanAndParseJSON(text);
 }
 
@@ -332,7 +346,7 @@ DOCUMENT CONTENT:
 """
 ${documentContent}
 """`;
-  const text = await generateContent(model, prompt, { temperature: 0.7 }, signal);
+  const text = await generateContent(model, prompt, { temperature: 0.7, responseMimeType: 'application/json' }, signal);
   return cleanAndParseJSON(text) as MindMapData;
 }
 
@@ -356,7 +370,7 @@ DOCUMENT CONTENT:
 """
 ${documentContent}
 """`;
-  const text = await generateContent(model, prompt, { temperature: 0.8 }, signal);
+  const text = await generateContent(model, prompt, { temperature: 0.8, responseMimeType: 'application/json' }, signal);
   return cleanAndParseJSON(text) as SlideData;
 }
 
