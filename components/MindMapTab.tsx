@@ -182,7 +182,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden relative">
       {/* Actions bar */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
       </div>
 
       {/* Body */}
-      <div ref={bodyRef} className="flex-1 overflow-auto relative">
+      <div ref={bodyRef} className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex flex-col items-center gap-3 text-slate-500 mt-8">
             <Spinner />
@@ -240,75 +240,74 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
-          <>
-            {/* Scroll area sized to match visual canvas */}
+          <div
+            className="flex items-start justify-center p-4 pb-16"
+            style={{ minWidth: 'fit-content' }}
+          >
             <div
-              className="flex items-start justify-center p-4"
-              style={{ minWidth: 'fit-content' }}
+              style={{
+                width: CANVAS_W * effectiveScale,
+                height: CANVAS_H * effectiveScale,
+                position: 'relative',
+                flexShrink: 0,
+              }}
             >
               <div
                 style={{
-                  width: CANVAS_W * effectiveScale,
-                  height: CANVAS_H * effectiveScale,
-                  position: 'relative',
-                  flexShrink: 0,
+                  width: CANVAS_W,
+                  height: CANVAS_H,
+                  transform: `scale(${effectiveScale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
                 }}
               >
-                <div
-                  style={{
-                    width: CANVAS_W,
-                    height: CANVAS_H,
-                    transform: `scale(${effectiveScale})`,
-                    transformOrigin: 'top left',
-                    position: 'absolute',
-                  }}
-                >
-                  <MindMapCanvas data={displayData} />
-                </div>
+                <MindMapCanvas data={displayData} />
               </div>
             </div>
-
-            {/* Zoom controls — floating bottom-right */}
-            <div className="absolute bottom-4 right-4 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-              <button
-                type="button"
-                onClick={zoomOut}
-                disabled={userZoom <= ZOOM_MIN}
-                title="Zoom out"
-                className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ZoomOutIcon className="text-lg" />
-              </button>
-              <button
-                type="button"
-                onClick={zoomFit}
-                title="Fit to window"
-                className="px-2 py-2 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100 transition-colors min-w-[46px] text-center border-x border-slate-200"
-              >
-                {Math.round(effectiveScale * 100)}%
-              </button>
-              <button
-                type="button"
-                onClick={zoomIn}
-                disabled={userZoom >= ZOOM_MAX}
-                title="Zoom in"
-                className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ZoomInIcon className="text-lg" />
-              </button>
-              <div className="w-px h-5 bg-slate-200 mx-0.5" />
-              <button
-                type="button"
-                onClick={zoomFit}
-                title="Reset zoom"
-                className="p-2 text-slate-500 hover:bg-slate-100 transition-colors"
-              >
-                <FitScreenIcon className="text-lg" />
-              </button>
-            </div>
-          </>
+          </div>
         )}
       </div>
+
+      {/* Zoom controls — anchored to the panel (not the scroll area), centered */}
+      {displayData && !loading && !error && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={zoomOut}
+            disabled={userZoom <= ZOOM_MIN}
+            title="Zoom out"
+            className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ZoomOutIcon className="text-lg" />
+          </button>
+          <button
+            type="button"
+            onClick={zoomFit}
+            title="Fit to window"
+            className="px-2 py-2 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100 transition-colors min-w-[46px] text-center border-x border-slate-200"
+          >
+            {Math.round(effectiveScale * 100)}%
+          </button>
+          <button
+            type="button"
+            onClick={zoomIn}
+            disabled={userZoom >= ZOOM_MAX}
+            title="Zoom in"
+            className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ZoomInIcon className="text-lg" />
+          </button>
+          <div className="w-px h-5 bg-slate-200 mx-0.5" />
+          <button
+            type="button"
+            onClick={zoomFit}
+            title="Reset zoom"
+            className="p-2 text-slate-500 hover:bg-slate-100 transition-colors"
+          >
+            <FitScreenIcon className="text-lg" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
