@@ -1,4 +1,3 @@
-// Fix: Use namespace import for React for consistency.
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { processDocument } from '../services/geminiService';

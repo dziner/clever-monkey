@@ -311,7 +311,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
         const page = closest + 1;
         setInternalCurrentPage(page);
         onPageChange?.(page);
-    }, [numPages, onPageChange]);
+    }, [onPageChange]);
 
     const handleWheel = React.useCallback((e: WheelEvent) => {
         if (!e.ctrlKey && !e.metaKey) return;

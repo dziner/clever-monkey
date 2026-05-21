@@ -1,4 +1,3 @@
-// Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
 import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon } from './icons';
@@ -223,6 +222,18 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     const handleStartNewQuizInTab = () => {
         setQuizError(null);
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: document.id, updates: { quizTabData: null } } });
+    };
+
+    const handleStudyTipsGenerated = (tips: string) => {
+        if (document.quizTabData) {
+            dispatch({
+                type: 'UPDATE_DOCUMENT',
+                payload: {
+                    docId: document.id,
+                    updates: { quizTabData: { ...document.quizTabData, studyTips: tips } }
+                }
+            });
+        }
     };
 
     const handleQuizTabStateChange = (newState: QuizTabState) => {
@@ -531,17 +542,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                         documentContent={document.documentContent}
                                         onRestartWithNewData={handleRestartQuizWithNewData}
                                         studyTips={quizTabData.studyTips}
-                                        onStudyTipsGenerated={(tips: string) => {
-                                            if (document.quizTabData) {
-                                                dispatch({
-                                                    type: 'UPDATE_DOCUMENT',
-                                                    payload: {
-                                                        docId: document.id,
-                                                        updates: { quizTabData: { ...document.quizTabData, studyTips: tips } }
-                                                    }
-                                                });
-                                            }
-                                        }}
+                                        onStudyTipsGenerated={handleStudyTipsGenerated}
                                     />
                                 ) : (
                                     <FRQuiz
@@ -553,17 +554,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                         documentContent={document.documentContent}
                                         onRestartWithNewData={handleRestartQuizWithNewData}
                                         studyTips={quizTabData.studyTips}
-                                        onStudyTipsGenerated={(tips: string) => {
-                                            if (document.quizTabData) {
-                                                dispatch({
-                                                    type: 'UPDATE_DOCUMENT',
-                                                    payload: {
-                                                        docId: document.id,
-                                                        updates: { quizTabData: { ...document.quizTabData, studyTips: tips } }
-                                                    }
-                                                });
-                                            }
-                                        }}
+                                        onStudyTipsGenerated={handleStudyTipsGenerated}
                                     />
                                 )}
                             </div>
