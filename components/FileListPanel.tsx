@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
@@ -27,6 +27,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     const [searchQuery, setSearchQuery] = React.useState('');
     const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = React.useState<string | null>(null);
+    const [confirmDelete, setConfirmDelete] = React.useState<{ docId: string; fileName: string } | null>(null);
     const deletingIdsRef = React.useRef(new Set<string>());
     const isCreatingFolderRef = React.useRef(false);
     
@@ -41,7 +42,14 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         }
     };
     
+    const requestDeleteDocument = (docId: string) => {
+        const doc = state.documents.find(d => d.id === docId);
+        if (!doc) return;
+        setConfirmDelete({ docId, fileName: doc.fileName });
+    };
+
     const handleDeleteDocument = async (docId: string) => {
+        setConfirmDelete(null);
         if (deletingIdsRef.current.has(docId)) return;
         const targetDoc = state.documents.find(doc => doc.id === docId);
         deletingIdsRef.current.add(docId);
@@ -190,6 +198,47 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
 
     return (
+        <>
+        {/* Delete confirmation modal */}
+        {confirmDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <button
+                    type="button"
+                    className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                    onClick={() => setConfirmDelete(null)}
+                    aria-label="Cancel"
+                />
+                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <TrashIcon className="text-red-600 text-xl" />
+                        </div>
+                        <div>
+                            <p className="font-bold text-slate-800 text-sm">Delete document?</p>
+                            <p className="text-slate-500 text-xs mt-0.5 leading-snug">
+                                This will permanently delete <span className="font-semibold text-slate-700">"{confirmDelete.fileName}"</span> and all associated data.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setConfirmDelete(null)}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(confirmDelete.docId)}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         <div className="flex flex-col h-full bg-white">
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-6 flex-shrink-0">
@@ -284,7 +333,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                     dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
                                     if (!isDesktop) setIsPanelCollapsed(true);
                                 }}
-                                onDelete={() => handleDeleteDocument(doc.id)}
+                                onDelete={() => requestDeleteDocument(doc.id)}
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
                             />
@@ -299,7 +348,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                 documents={docsByFolder.get(folder.id) || []}
                                 isDropTarget={dropTargetId === folder.id}
                                 isDesktop={isDesktop}
-                                onDeleteDocument={handleDeleteDocument}
+                                onDeleteDocument={requestDeleteDocument}
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
                                 onDragOver={handleDragOver}
@@ -324,7 +373,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                             dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
                                             if (!isDesktop) setIsPanelCollapsed(true);
                                         }}
-                                        onDelete={() => handleDeleteDocument(doc.id)}
+                                        onDelete={() => requestDeleteDocument(doc.id)}
                                         onDragStart={handleDragStart}
                                         onDragEnd={handleDragEnd}
                                     />
@@ -365,5 +414,6 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 onChange={handleFileChange}
             />
         </div>
+        </>
     );
 };
