@@ -87,7 +87,7 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
         <HeadphonesIcon className="text-2xl text-emerald-500" />
         <div>
           <h1 className="font-bold text-slate-800 text-base leading-tight">Podcast</h1>
-          {activeDoc && <p className="text-xs text-slate-400 truncate max-w-xs">{activeDoc.fileName}</p>}
+          <p className="text-xs text-slate-400 truncate max-w-xs">{activeDoc ? activeDoc.fileName : 'No document selected'}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {activeDoc?.documentContent && (

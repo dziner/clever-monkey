@@ -6,7 +6,9 @@ import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogO
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
+import { FileListItem } from './FileListItem';
 import { ROUTES } from '../routes';
+import { useToast } from './Toast';
 
 interface FileListPanelProps {
     onFileSelected: (file: File) => void;
@@ -22,8 +24,9 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     const { state, dispatch } = useDocuments();
     const navigate = useNavigate();
     const location = useLocation();
+    const { showToast } = useToast();
     const inputRef = React.useRef<HTMLInputElement>(null);
-    
+
     const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = React.useState<string | null>(null);
     const deletingIdsRef = React.useRef(new Set<string>());
@@ -43,35 +46,43 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     const handleDeleteDocument = async (docId: string) => {
         if (deletingIdsRef.current.has(docId)) return;
         const targetDoc = state.documents.find(doc => doc.id === docId);
-        if (!window.confirm(`Delete "${targetDoc?.fileName ?? 'this document'}"? This cannot be undone.`)) return;
         deletingIdsRef.current.add(docId);
         dispatch({ type: 'DELETE_DOCUMENT', payload: { docId } });
 
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-            console.error('사용자 정보를 불러오지 못했습니다:', userError);
-        }
-        if (!user) {
-            console.error('로그인이 필요합니다.');
-            return;
-        }
-
-        const storagePath = targetDoc?.storagePath || (targetDoc ? `${user.id}/${targetDoc.fileName}` : null);
-        if (storagePath) {
-            const { error: storageError } = await supabase.storage.from('docs').remove([storagePath]);
-            if (storageError) {
-                console.error('스토리지 파일 삭제에 실패했습니다:', storageError);
+        try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError) {
+                console.error('사용자 정보를 불러오지 못했습니다:', userError);
             }
-        }
+            if (!user) {
+                console.error('로그인이 필요합니다.');
+                showToast('Failed to delete document', 'error');
+                deletingIdsRef.current.delete(docId);
+                return;
+            }
 
-        const { error: deleteError } = await supabase
-            .from('documents')
-            .delete()
-            .eq('id', docId)
-            .eq('user_id', user.id);
+            const storagePath = targetDoc?.storagePath || (targetDoc ? `${user.id}/${targetDoc.fileName}` : null);
+            if (storagePath) {
+                const { error: storageError } = await supabase.storage.from('docs').remove([storagePath]);
+                if (storageError) {
+                    console.error('스토리지 파일 삭제에 실패했습니다:', storageError);
+                }
+            }
 
-        if (deleteError) {
-            console.error('문서 메타데이터 삭제에 실패했습니다:', deleteError);
+            const { error: deleteError } = await supabase
+                .from('documents')
+                .delete()
+                .eq('id', docId)
+                .eq('user_id', user.id);
+
+            if (deleteError) {
+                console.error('문서 메타데이터 삭제에 실패했습니다:', deleteError);
+                showToast('Failed to delete document', 'error');
+            } else {
+                showToast('Document deleted', 'success');
+            }
+        } catch {
+            showToast('Failed to delete document', 'error');
         }
         deletingIdsRef.current.delete(docId);
     };
@@ -168,6 +179,10 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         });
         return map;
     }, [state.documents, state.folders]);
+
+    const unfiledDocs = React.useMemo(() => {
+        return state.documents.filter(doc => !doc.folderId);
+    }, [state.documents]);
 
 
     return (
@@ -277,6 +292,29 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         setIsPanelCollapsed={setIsPanelCollapsed}
                     />
                  ))}
+                 {unfiledDocs.length > 0 && (
+                    <div
+                        onDragOver={(e) => handleDragOver(e, null)}
+                        onDrop={(e) => handleDrop(e, null)}
+                        onDragLeave={handleDragLeave}
+                        className={`rounded-lg transition-colors ${dropTargetId === null && draggedItemId ? 'bg-blue-100' : ''}`}
+                    >
+                        {unfiledDocs.map(doc => (
+                            <FileListItem
+                                key={doc.id}
+                                doc={doc}
+                                isActive={doc.id === state.activeDocumentId}
+                                onClick={() => {
+                                    dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
+                                    if (!isDesktop) setIsPanelCollapsed(true);
+                                }}
+                                onDelete={() => handleDeleteDocument(doc.id)}
+                                onDragStart={handleDragStart}
+                                onDragEnd={handleDragEnd}
+                            />
+                        ))}
+                    </div>
+                 )}
             </div>
             
             <div className="flex-shrink-0 p-5 border-t border-slate-100 bg-slate-50/50 space-y-4">

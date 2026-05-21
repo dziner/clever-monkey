@@ -3,6 +3,7 @@ import { MenuIcon, StyleIcon, TrashIcon, BrainIcon, ChevronRightIcon, CheckIcon,
 import { Spinner } from '../components/Spinner';
 import { supabase } from '../services/supabaseClient';
 import { useDocuments } from '../contexts/DocumentContext';
+
 import { generateFlashcards } from '../services/geminiService';
 import {
   fetchDecks, fetchDueCards, reviewCard, createDeck, createDeckFromWrongAnswers, deleteDeck,
@@ -334,6 +335,8 @@ const GenerateModal: React.FC<{
 
 // ─── Deck List ────────────────────────────────────────────────
 export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) => {
+  const { state: docState } = useDocuments();
+  const activeDoc = docState.documents.find(d => d.id === docState.activeDocumentId);
   const [decks, setDecks] = React.useState<FlashcardDeck[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
