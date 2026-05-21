@@ -188,29 +188,12 @@ const App: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setIsPanelCollapsed(false)}
-                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors mb-1"
-                            title="Expand sidebar"
-                            aria-label="Expand sidebar"
+                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                            title="Expand sources panel"
+                            aria-label="Expand sources panel"
                         >
                             <MenuIcon className="text-2xl" />
                         </button>
-                        <div className="w-8 h-px bg-slate-100 mb-1" />
-                        {NAV_ITEMS.map(item => (
-                            <button
-                                key={item.path}
-                                type="button"
-                                onClick={() => navigate(item.path)}
-                                className={`p-3 rounded-xl transition-colors ${
-                                    location.pathname === item.path
-                                        ? 'bg-blue-50 text-blue-700'
-                                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                                }`}
-                                title={item.label}
-                                aria-label={item.label}
-                            >
-                                <item.icon className="text-2xl" />
-                            </button>
-                        ))}
                     </div>
                 ) : (
                     <FileListPanel

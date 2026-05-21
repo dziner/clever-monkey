@@ -13,7 +13,6 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { Spinner } from './Spinner';
 import { useChat } from '../hooks/useChat';
 import { ChatInput } from './ChatInput';
-import { SelectionView } from './SelectionView';
 import { QuizGenerator } from './QuizGenerator';
 import { FRQuiz } from './FRQuiz';
 import { generateQuiz } from '../services/geminiService';
@@ -50,8 +49,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onTabChange,
 }) => {
     const { dispatch } = useDocuments();
-    const [view, setView] = React.useState<'selection' | 'content'>('selection');
-    // activeTab is now controlled by prop
+    // activeTab is controlled by prop from StudyPage
 
     const [showCopyToast, setShowCopyToast] = React.useState(false);
     const [isPresetQuestionsOpen, setIsPresetQuestionsOpen] = React.useState(false);
@@ -81,10 +79,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         handleMonkeyModeChange,
     } = useChat(document, onChatHistoryChange);
 
-    // Reset view when document changes, but persist quiz state
     React.useEffect(() => {
-        setView('selection');
-        // Reset local states on doc change
         setQuizError(null);
     }, [document.id]);
 
@@ -352,16 +347,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     );
 
     const MainContent = () => {
-        if (view === 'selection') {
-            return (
-                <SelectionView
-                    onSelect={(selection) => {
-                        setView('content');
-                        onTabChange(selection as ActiveTab);
-                    }}
-                />
-            );
-        }
         return (
             <React.Fragment>
                 <div className="hidden md:flex p-4 border-b border-slate-200 bg-white flex-shrink-0">
@@ -574,16 +559,11 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                         {isPdfViewerCollapsed ? <ChevronRightIcon className="text-2xl" /> : <ChevronLeftIcon className="text-2xl" />}
                     </button>
 
-                    {/* Center: File name / Back to selection */}
+                    {/* Center: File name */}
                     <div className="flex-1 min-w-0 text-center">
-                        <button
-                            onClick={() => setView('selection')}
-                            className="w-full max-w-xs mx-auto text-center font-semibold text-slate-700 truncate px-2 hover:bg-slate-100 rounded-md py-1 transition-colors disabled:hover:bg-transparent disabled:cursor-default"
-                            disabled={view === 'selection'}
-                            title={document.fileName}
-                        >
+                        <p className="font-semibold text-slate-700 truncate px-2" title={document.fileName}>
                             {document.fileName}
-                        </button>
+                        </p>
                     </div>
 
                     {/* Right side: Preview for mobile */}
@@ -608,7 +588,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                         <div className="hidden md:inline-flex w-10 h-10"></div>
                     )}
                 </div>
-                {!isProcessing && view === 'content' && (
+                {!isProcessing && (
                     <div className="px-2 pb-2 md:hidden">
                         <TabsComponent />
                     </div>

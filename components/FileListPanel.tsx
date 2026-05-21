@@ -1,14 +1,12 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, ErrorOutlineIcon, StyleIcon, HomeIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, SearchIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogOutIcon, SearchIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
 import { FileListItem } from './FileListItem';
-import { ROUTES } from '../routes';
 import { useToast } from './Toast';
 
 interface FileListPanelProps {
@@ -23,8 +21,6 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     const { state, dispatch } = useDocuments();
     const { userEmail } = useUser();
     const planName = 'Free';
-    const navigate = useNavigate();
-    const location = useLocation();
     const { showToast } = useToast();
     const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -272,32 +268,6 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         </button>
                     )}
                 </div>
-            </div>
-
-            {/* Tools Navigation */}
-            <div className="px-3 pb-3 flex-shrink-0">
-                <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Tools</div>
-                {[
-                    { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
-                    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
-                    { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
-                    { path: ROUTES.MINDMAP, label: 'Mind Map', icon: AccountTreeIcon },
-                    { path: ROUTES.SLIDES, label: 'Slides', icon: SlideshowIcon },
-                    { path: ROUTES.PODCAST, label: 'Podcast', icon: HeadphonesIcon },
-                ].map(item => (
-                    <button
-                        key={item.path}
-                        onClick={() => { navigate(item.path); if (!isDesktop) setIsPanelCollapsed(true); }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors mb-0.5 ${
-                            location.pathname === item.path
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'text-slate-600 hover:bg-slate-50'
-                        }`}
-                    >
-                        <item.icon className="text-xl flex-shrink-0" />
-                        {item.label}
-                    </button>
-                ))}
             </div>
 
             {/* File List */}
