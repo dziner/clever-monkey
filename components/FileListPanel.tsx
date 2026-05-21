@@ -1,5 +1,6 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon } from './icons';
@@ -199,12 +200,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
     return (
         <>
-        {/* Delete confirmation modal */}
-        {confirmDelete && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Delete confirmation modal — portalled to document.body to escape stacking contexts */}
+        {confirmDelete && ReactDOM.createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                 <button
                     type="button"
-                    className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                    className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                     onClick={() => setConfirmDelete(null)}
                     aria-label="Cancel"
                 />
@@ -237,7 +238,8 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         </button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
         <div className="flex flex-col h-full bg-white">
             {/* Header */}
