@@ -30,6 +30,7 @@ export const ChatIcon = createIcon('forum');
 export const CopyIcon = createIcon('content_copy');
 export const DownloadIcon = createIcon('download');
 export const PreviewIcon = createIcon('visibility');
+export const VisibilityOffIcon = createIcon('visibility_off');
 export const AssignmentIcon = createIcon('assignment');
 export const BrainIcon = createIcon('psychology');
 export const AddIcon = createIcon('add');

@@ -37,8 +37,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
     const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(450, 350, 800, 'right');
     const [penMode, setPenMode] = React.useState(false);
-    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz' | 'annotations'>('summary');
-    const [editingAnnotationId, setEditingAnnotationId] = React.useState<string | null>(null);
+    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz'>('summary');
 
     const [sheetTranslateY, setSheetTranslateY] = React.useState(0);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -69,7 +68,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
 
     const handleAnnotationCreate = React.useCallback(async (
         anchor: AnnotationAnchor,
-        note?: string,
+        _note?: string,
         color?: string,
         paths?: Point[][],
         penWidth?: number
@@ -82,17 +81,14 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
         };
 
         const kind = paths && paths.length > 0 ? 'pen' : 'highlight';
-        const content: { color?: string; note?: string; paths?: Point[][]; penWidth?: number } = {};
-        const trimmedNote = note?.trim();
+        const content: { color?: string; paths?: Point[][]; penWidth?: number } = {};
 
         if (kind === 'highlight') {
             content.color = color || '#FDE68A';
-            if (trimmedNote) content.note = trimmedNote;
         } else {
             content.paths = paths;
             content.penWidth = penWidth;
             content.color = color || '#000000';
-            if (trimmedNote) content.note = trimmedNote;
         }
 
         const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -123,10 +119,6 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 type: 'UPDATE_DOCUMENT',
                 payload: { docId: activeDocument.id, updates: { annotations: nextAnnotations } },
             });
-            if (trimmedNote) {
-                setActiveTab('annotations');
-                setEditingAnnotationId(created.id);
-            }
         } else {
             const nextAnnotations = getCurrentAnnotations().filter(a => a.id !== tempId);
             dispatch({
@@ -236,8 +228,6 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                     onTogglePdfViewer={() => setIsPdfViewerCollapsed(v => !v)}
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
-                    editingAnnotationId={editingAnnotationId}
-                    onEditingAnnotationChange={setEditingAnnotationId}
                 />
             </section>
 

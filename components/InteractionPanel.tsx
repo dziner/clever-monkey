@@ -1,7 +1,7 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
-import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState, Annotation, AnnotationAnchor, AnnotationKind } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, NoteIcon, HighlightIcon, MoreVertIcon, TrashIcon, EditIcon, AddIcon, XIcon } from './icons';
+import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
@@ -16,7 +16,6 @@ import { FRQuiz } from './FRQuiz';
 import { generateQuiz } from '../services/geminiService';
 import { saveQuizSession } from '../services/wrongAnswersService';
 import { getErrorMessage } from '../utils/errors';
-import { createAnnotation, deleteAnnotation, updateAnnotation } from '../services/annotationService';
 
 // Assuming jspdf and html2canvas are loaded from CDN
 declare const jspdf: any;
@@ -29,10 +28,8 @@ interface InteractionPanelProps {
     isPdfViewerCollapsed: boolean;
     onTogglePdfViewer: () => void;
 
-    activeTab: 'summary' | 'chat' | 'quiz' | 'annotations';
-    onTabChange: (tab: 'summary' | 'chat' | 'quiz' | 'annotations') => void;
-    editingAnnotationId: string | null;
-    onEditingAnnotationChange: (id: string | null) => void;
+    activeTab: 'summary' | 'chat' | 'quiz';
+    onTabChange: (tab: 'summary' | 'chat' | 'quiz') => void;
 }
 
 export const InteractionPanel: React.FC<InteractionPanelProps> = ({
@@ -44,8 +41,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onTogglePdfViewer,
     activeTab,
     onTabChange,
-    editingAnnotationId,
-    onEditingAnnotationChange
 }) => {
     const { dispatch } = useDocuments();
     const [view, setView] = React.useState<'selection' | 'content'>('selection');
@@ -53,12 +48,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const [showCopyToast, setShowCopyToast] = React.useState(false);
     const [isPresetQuestionsOpen, setIsPresetQuestionsOpen] = React.useState(false);
-    const [annotationDraft, setAnnotationDraft] = React.useState('');
-    const [annotationColor, setAnnotationColor] = React.useState('#FDE68A');
-    const [annotationKind, setAnnotationKind] = React.useState<AnnotationKind>('note');
-    const [annotationAnchor, setAnnotationAnchor] = React.useState<AnnotationAnchor | null>(null);
-    const [annotationError, setAnnotationError] = React.useState<string | null>(null);
-    const [isSavingAnnotation, setIsSavingAnnotation] = React.useState(false);
 
     // State for quiz generation status in the quiz tab
     const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false);
@@ -90,9 +79,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         setView('selection');
         // Reset local states on doc change
         setQuizError(null);
-        setAnnotationDraft('');
-        setAnnotationAnchor(null);
-        setAnnotationError(null);
     }, [document.id]);
 
     // Effect to manage the initial chat sequence and preset questions visibility
@@ -300,93 +286,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const isProcessing = document.processingState !== 'done' && document.processingState !== 'error';
     const quizTabData = document.quizTabData;
-    const annotations = React.useMemo(() => {
-        return (document.annotations ?? [])
-            .filter((annotation) => annotation.kind === 'pen' || Boolean(annotation.content?.note?.trim()) || Boolean(annotation.anchor?.textQuote?.trim()))
-            .slice()
-            .sort((a, b) => {
-            if (a.pageNumber !== b.pageNumber) return a.pageNumber - b.pageNumber;
-            if (!a.createdAt || !b.createdAt) return 0;
-            return a.createdAt.localeCompare(b.createdAt);
-        });
-    }, [document.annotations]);
-
-    const currentPage = document.currentPage ?? 1;
 
 
-
-    const handleSaveAnnotation = async () => {
-        setAnnotationError(null);
-        if (!annotationDraft.trim() && !annotationAnchor?.textQuote) {
-            setAnnotationError('Please add a note or capture a selection before saving.');
-            return;
-        }
-
-        setIsSavingAnnotation(true);
-        const anchor: AnnotationAnchor = annotationAnchor ?? {
-            page: currentPage,
-            rects: [],
-            textQuote: annotationDraft.trim() || undefined,
-        };
-
-        const created = await createAnnotation({
-            documentId: document.id,
-            pageNumber: anchor.page,
-            kind: annotationKind,
-            anchor,
-            content: {
-                note: annotationDraft.trim() || undefined,
-                color: annotationColor,
-            },
-        });
-
-        if (created) {
-            dispatch({
-                type: 'UPDATE_DOCUMENT',
-                payload: {
-                    docId: document.id,
-                    updates: { annotations: [...(document.annotations ?? []), created] },
-                },
-            });
-            setAnnotationDraft('');
-            setAnnotationAnchor(null);
-            setAnnotationKind('note');
-        } else {
-            setAnnotationError('Failed to save annotation.');
-        }
-
-        setIsSavingAnnotation(false);
-    };
-
-    const handleUpdateAnnotation = async (id: string, content: { note?: string, color?: string }) => {
-        const updated = await updateAnnotation(id, { content });
-        if (updated) {
-            dispatch({
-                type: 'UPDATE_DOCUMENT',
-                payload: {
-                    docId: document.id,
-                    updates: {
-                        annotations: (document.annotations ?? []).map(a => a.id === id ? updated : a)
-                    }
-                }
-            });
-            onEditingAnnotationChange(null);
-        }
-    };
-
-    const handleDeleteAnnotation = async (annotation: Annotation) => {
-        const deleted = await deleteAnnotation(annotation.id);
-        if (!deleted) return;
-        dispatch({
-            type: 'UPDATE_DOCUMENT',
-            payload: {
-                docId: document.id,
-                updates: {
-                    annotations: (document.annotations ?? []).filter(item => item.id !== annotation.id),
-                },
-            },
-        });
-    };
 
     const MonkeyModeToggle = () => (
         <div className="flex items-center justify-end gap-2 text-sm text-slate-600" title="Toggle mischievous monkey mode">
@@ -424,7 +325,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 { id: 'summary', icon: CopyIcon, label: 'Summary' },
                 { id: 'chat', icon: ChatIcon, label: 'Chat' },
                 { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
-                { id: 'annotations', icon: NoteIcon, label: 'Notes' }
             ].map(tab => (
                 <button
                     key={tab.id}
@@ -630,259 +530,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     </div>
                 </div>
 
-                <div className={`flex-1 flex flex-col md:flex-row bg-white overflow-hidden ${activeTab === 'annotations' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-1 md:flex-none md:w-[420px] flex flex-col border-r border-slate-200 bg-white h-full">
-                        <div className="flex-shrink-0 p-4 border-b border-slate-100 flex items-center justify-between bg-white z-10">
-                            <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                                <NoteIcon className="text-blue-500" />
-                                <span>Notes</span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">{annotations.length}</span>
-                            </h4>
-
-                        </div>
-
-
-
-                        <div className="flex-1 overflow-y-auto min-h-0 bg-white scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                            {annotations.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-48 text-center p-6">
-                                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
-                                        <HighlightIcon className="text-slate-300 text-xl" />
-                                    </div>
-                                    <p className="text-sm font-medium text-slate-600">No notes yet</p>
-                                    <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Add a note to see it listed here.</p>
-                                </div>
-                            ) : (
-                                <div className="divide-y divide-slate-100">
-                                    {annotations.map(annotation => {
-                                        const isEditing = annotation.id === editingAnnotationId;
-                                        return (
-                                            <div
-                                                key={annotation.id}
-                                                className={`group relative flex gap-4 p-4 transition-colors ${isEditing ? 'bg-blue-50/50' : 'hover:bg-slate-50 cursor-pointer'}`}
-                                                onClick={() => {
-                                                    if (!isEditing) {
-                                                        dispatch({
-                                                            type: 'UPDATE_DOCUMENT',
-                                                            payload: { docId: document.id, updates: { currentPage: annotation.pageNumber } }
-                                                        });
-                                                    }
-                                                }}
-                                            >
-                                                <div className="flex flex-col items-center gap-2 pt-1 flex-shrink-0 w-10">
-                                                    <span className="text-[10px] font-black text-slate-300 group-hover:text-slate-400 transition-colors uppercase tracking-wider">
-                                                        PG {annotation.pageNumber}
-                                                    </span>
-                                                    <div
-                                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
-                                                        style={{ backgroundColor: `${annotation.content?.color || '#FDE68A'}30` }}
-                                                    >
-                                                        {annotation.kind === 'highlight' ? (
-                                                            <HighlightIcon className="text-sm" style={{ color: annotation.content?.color ? '#b45309' : '#d97706' }} />
-                                                        ) : annotation.kind === 'pen' ? (
-                                                            <EditIcon className="text-sm text-purple-600" />
-                                                        ) : (
-                                                            <NoteIcon className="text-sm text-blue-600" />
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex-1 min-w-0 pt-0.5">
-                                                    {isEditing ? (
-                                                        <div className="animate-in fade-in zoom-in-95 duration-200">
-                                                            <textarea
-                                                                autoFocus
-                                                                defaultValue={annotation.content?.note || ''}
-                                                                className="w-full p-3 rounded-lg border border-blue-200 bg-white text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none mb-2"
-                                                                rows={3}
-                                                                placeholder="Enter your note..."
-                                                                id={`edit-note-${annotation.id}`}
-                                                            />
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex gap-2">
-                                                                    {['#FDE68A', '#BBF7D0', '#BFDBFE', '#FBCFE8', '#E9D5FF'].map(c => (
-                                                                        <button
-                                                                            key={c}
-                                                                            onClick={() => {
-                                                                                const note = (window.document.getElementById(`edit-note-${annotation.id}`) as HTMLTextAreaElement).value;
-                                                                                handleUpdateAnnotation(annotation.id, { note, color: c });
-                                                                            }}
-                                                                            className={`w-5 h-5 rounded-full border border-slate-200 ${annotation.content?.color === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
-                                                                            style={{ backgroundColor: c }}
-                                                                        />
-                                                                    ))}
-                                                                </div>
-                                                                <div className="flex gap-2">
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); onEditingAnnotationChange(null); }}
-                                                                        className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg"
-                                                                    >
-                                                                        Cancel
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            const note = (window.document.getElementById(`edit-note-${annotation.id}`) as HTMLTextAreaElement).value;
-                                                                            handleUpdateAnnotation(annotation.id, { note, color: annotation.content?.color });
-                                                                        }}
-                                                                        className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 rounded-lg shadow-sm"
-                                                                    >
-                                                                        Save
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <React.Fragment>
-                                                            {annotation.kind === 'pen' && !annotation.anchor.textQuote && !annotation.content?.note && (
-                                                                <p className="text-xs text-purple-500 font-medium italic">Pen drawing</p>
-                                                            )}
-                                                            {annotation.anchor.textQuote && (
-                                                                <blockquote className="text-xs text-slate-500 border-l-2 border-slate-200 pl-2 mb-1.5 italic line-clamp-2 group-hover:border-slate-300 transition-colors">
-                                                                    "{annotation.anchor.textQuote}"
-                                                                </blockquote>
-                                                            )}
-                                                            {annotation.content?.note ? (
-                                                                <p className="text-sm font-medium text-slate-800 leading-snug cursor-text" onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    onEditingAnnotationChange(annotation.id);
-                                                                }}>
-                                                                    {annotation.content.note}
-                                                                </p>
-                                                            ) : (
-                                                                !annotation.anchor.textQuote && (
-                                                                    <p className="text-sm text-slate-400 italic cursor-pointer hover:text-blue-500 hover:underline" onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        onEditingAnnotationChange(annotation.id);
-                                                                    }}>
-                                                                        Add a note...
-                                                                    </p>
-                                                                )
-                                                            )}
-
-                                                            <div className="mt-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <span className="text-[10px] text-slate-400 font-medium">
-                                                                    {new Date(annotation.createdAt || '').toLocaleDateString()}
-                                                                </span>
-                                                                <div className="flex-1" />
-                                                                <button
-                                                                    className="p-1 px-2 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        onEditingAnnotationChange(annotation.id);
-                                                                    }}
-                                                                >
-                                                                    Edit
-                                                                </button>
-                                                                <button
-                                                                    className="p-1.5 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded transition-colors"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDeleteAnnotation(annotation);
-                                                                    }}
-                                                                    title="Delete annotation"
-                                                                >
-                                                                    <TrashIcon className="text-sm" />
-                                                                </button>
-                                                            </div>
-                                                        </React.Fragment>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="hidden md:flex flex-1 bg-slate-50 flex-col h-full overflow-y-auto relative items-center justify-center p-8">
-                        {annotationAnchor ? (
-                            <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6 animate-in fade-in zoom-in-95 duration-200">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-bold text-slate-800">
-                                        Add Note
-                                    </h3>
-                                    <button
-                                        onClick={() => {
-                                            setAnnotationAnchor(null);
-                                            setAnnotationDraft('');
-                                            setAnnotationError(null);
-                                        }}
-                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                                    >
-                                        <XIcon className="text-xl" />
-                                    </button>
-                                </div>
-
-                                <div className="flex gap-2 mb-4 p-1 bg-slate-100 rounded-xl">
-                                    <button
-                                        type="button"
-                                        onClick={() => setAnnotationKind('note')}
-                                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${annotationKind === 'note' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <NoteIcon className="text-sm inline mr-2 mb-0.5" />
-                                        Note
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setAnnotationKind('highlight')}
-                                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${annotationKind === 'highlight' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                                    >
-                                        <HighlightIcon className="text-sm inline mr-2 mb-0.5" />
-                                        Highlight
-                                    </button>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="relative">
-                                        <textarea
-                                            placeholder={annotationKind === 'highlight' ? 'Add an optional note to your highlight...' : 'Type your note content here...'}
-                                            className="w-full h-32 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all placeholder:text-slate-400"
-                                            value={annotationDraft}
-                                            onChange={(event) => setAnnotationDraft(event.target.value)}
-                                            autoFocus
-                                        ></textarea>
-                                        <div className="absolute bottom-3 right-3">
-                                            <input
-                                                type="color"
-                                                value={annotationColor}
-                                                onChange={(event) => setAnnotationColor(event.target.value)}
-                                                className="h-8 w-8 rounded-lg border border-slate-200 bg-white cursor-pointer shadow-sm hover:scale-105 transition-transform"
-                                                title="Change Color"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {annotationError && (
-                                        <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-                                            {annotationError}
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={handleSaveAnnotation}
-                                        disabled={isSavingAnnotation}
-                                        className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        {isSavingAnnotation ? <Spinner /> : <React.Fragment><AddIcon className="text-lg" /> Save Annotation</React.Fragment>}
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center p-8 max-w-sm mx-auto opacity-60">
-                                <div className="w-24 h-24 bg-slate-200/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <NoteIcon className="text-4xl text-slate-400" />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-700 mb-2">No Selection</h3>
-                                <p className="text-slate-500">
-                                    Select text on the document to add a highlight or note, or click the <span className="inline-flex items-center justify-center w-5 h-5 bg-slate-200 rounded text-xs mx-1"><AddIcon className="text-xs" /></span> button to add a standalone note.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </React.Fragment>
         )
     }

@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Spinner } from './Spinner';
-import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon, EditIcon } from './icons';
+import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon, EditIcon, PreviewIcon, VisibilityOffIcon } from './icons';
 import type { AnnotationAnchor, Annotation, Point } from '../types';
-import { AnnotationPopover } from './AnnotationPopover';
 import { PenToolbar } from './PenToolbar';
 
 interface PdfViewerProps {
@@ -29,7 +28,8 @@ const PdfPage: React.FC<{
     currentStroke?: Point[];
     strokeColor?: string;
     strokeWidth?: number;
-}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, penMode, pageAnnotations, currentStroke, strokeColor, strokeWidth }) => {
+    showAnnotations?: boolean;
+}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, penMode, pageAnnotations, currentStroke, strokeColor, strokeWidth, showAnnotations = true }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
     const renderTaskRef = React.useRef<any>(null);
     const textLayerRef = React.useRef<HTMLDivElement>(null);
@@ -178,53 +178,55 @@ const PdfPage: React.FC<{
             <canvas ref={pdfCanvasRef} className="w-full h-full block" />
 
             {/* Annotation Layers */}
-            <div className="absolute inset-0 pointer-events-none z-10 w-full h-full">
-                {/* Highlights */}
-                {pageAnnotations?.map((annotation) => {
-                    if (annotation.kind === 'highlight') {
-                        return annotation.anchor.rects.map((rect, rectIndex) => (
-                            <div
-                                key={`hl-${annotation.id}-${rectIndex}`}
-                                className="absolute mix-blend-multiply transition-opacity duration-200"
-                                style={{
-                                    left: `${rect.x * 100}%`,
-                                    top: `${rect.y * 100}%`,
-                                    width: `${rect.width * 100}%`,
-                                    height: `${rect.height * 100}%`,
-                                    backgroundColor: annotation.content?.color || '#FDE68A',
-                                    opacity: 0.4,
-                                    borderRadius: '2px',
-                                }}
-                            />
-                        ));
-                    }
-                    return null;
-                })}
-
-                {/* Pen Drawings */}
-                <svg
-                    className="absolute inset-0 w-full h-full overflow-visible"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                >
-                    <title>Pen annotations</title>
+            {showAnnotations && (
+                <div className="absolute inset-0 pointer-events-none z-10 w-full h-full">
+                    {/* Highlights */}
                     {pageAnnotations?.map((annotation) => {
-                        if (annotation.kind === 'pen' && annotation.content?.paths) {
-                            return annotation.content.paths.map((path, i) => (
-                                <React.Fragment key={`pen-${annotation.id}-${i}`}>
-                                    {renderPath(path, annotation.content?.color || 'black', annotation.content?.penWidth || 2)}
-                                </React.Fragment>
+                        if (annotation.kind === 'highlight') {
+                            return annotation.anchor.rects.map((rect, rectIndex) => (
+                                <div
+                                    key={`hl-${annotation.id}-${rectIndex}`}
+                                    className="absolute mix-blend-multiply transition-opacity duration-200"
+                                    style={{
+                                        left: `${rect.x * 100}%`,
+                                        top: `${rect.y * 100}%`,
+                                        width: `${rect.width * 100}%`,
+                                        height: `${rect.height * 100}%`,
+                                        backgroundColor: annotation.content?.color || '#FDE68A',
+                                        opacity: 0.4,
+                                        borderRadius: '2px',
+                                    }}
+                                />
                             ));
                         }
                         return null;
                     })}
-                    {/* Current Draft Stroke */}
-                    {currentStroke && currentStroke.length > 0 && (
-                        renderPath(currentStroke, strokeColor || 'red', strokeWidth || 2)
-                    )}
-                </svg>
-            </div>
+
+                    {/* Pen Drawings */}
+                    <svg
+                        className="absolute inset-0 w-full h-full overflow-visible"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                    >
+                        <title>Pen annotations</title>
+                        {pageAnnotations?.map((annotation) => {
+                            if (annotation.kind === 'pen' && annotation.content?.paths) {
+                                return annotation.content.paths.map((path, i) => (
+                                    <React.Fragment key={`pen-${annotation.id}-${i}`}>
+                                        {renderPath(path, annotation.content?.color || 'black', annotation.content?.penWidth || 2)}
+                                    </React.Fragment>
+                                ));
+                            }
+                            return null;
+                        })}
+                        {/* Current Draft Stroke */}
+                        {currentStroke && currentStroke.length > 0 && (
+                            renderPath(currentStroke, strokeColor || 'red', strokeWidth || 2)
+                        )}
+                    </svg>
+                </div>
+            )}
 
             <div
                 ref={textLayerRef}
@@ -263,7 +265,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     const setCurrentPage = setInternalCurrentPage;
 
     // Annotation & Pen State
-    const [activeSelection, setActiveSelection] = React.useState<{ anchor: AnnotationAnchor, position: { x: number, y: number } } | null>(null);
+    const [showAnnotations, setShowAnnotations] = React.useState(true);
     const [penColor, setPenColor] = React.useState('#000000');
     const [penTool, setPenTool] = React.useState<'pen' | 'highlighter'>('pen');
     const penWidth = penTool === 'pen' ? 2 : 14;
@@ -669,7 +671,6 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                     rects: [],
                 };
                 onHighlightCreate?.(anchor, undefined, penColor, [currentStroke.points], penWidth);
-                setActiveSelection(null);
             }
             setCurrentStroke(null);
             return;
@@ -683,30 +684,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     }, [activePointers, penMode, currentStroke, penColor, penWidth, onHighlightCreate]);
 
     const handleMouseUp = React.useCallback((e: React.MouseEvent) => {
-        // If drawing, ignore
         if (penMode) return;
 
-        // Selection logic
-        // Slight delay to let selection finalize in some browsers? usually immediate.
         const selection = window.getSelection();
-        if (!selection || selection.isCollapsed) {
-            // Also close popover if clicking elsewhere
-            // But check if we clicked INSIDE the popover? 
-            // The popover is rendered outside this container usually or on top. 
-            // If click bubble up to here, and it wasn't on selection, clear selection.
-            // But we need to check if target was the popover...
-            // For now, if no selection text, clear active selection
-            if (!e.defaultPrevented) { // if button clicked, it prevents default
-                setActiveSelection(null);
-            }
-            return;
-        }
+        if (!selection || selection.isCollapsed) return;
 
         const text = selection.toString().trim();
-        if (!text) {
-            setActiveSelection(null);
-            return;
-        }
+        if (!text) return;
 
         const anchorNode = selection.anchorNode as HTMLElement | null;
         const pageElement = anchorNode?.parentElement?.closest('[data-page]') as HTMLElement | null;
@@ -731,30 +715,10 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
 
         if (rects.length === 0) return;
 
-        const anchor: AnnotationAnchor = {
-            page: pageNumber,
-            rects,
-            textQuote: text,
-        };
-
-        // Instead of calling onSelection immediately, show popover
-        // Calculate popover position. e.clientY/X is mouse position.
-        // Or better, top of the selection?
-        // e.clientX/Y is easier and puts it near cursor.
-        setActiveSelection({
-            anchor,
-            position: { x: e.clientX, y: e.clientY }
-        });
-
-    }, [penMode]);
-
-    // Save handler for Popover
-    const handleAnnotationSave = (note: string, color: string) => {
-        if (!activeSelection) return;
-        onHighlightCreate?.(activeSelection.anchor, note, color);
-        setActiveSelection(null);
+        const anchor: AnnotationAnchor = { page: pageNumber, rects, textQuote: text };
+        onHighlightCreate?.(anchor, undefined, '#FDE68A');
         window.getSelection()?.removeAllRanges();
-    };
+    }, [penMode, onHighlightCreate]);
 
     if (isLoading) {
         return <div className="flex items-center justify-center h-full"><Spinner /></div>;
@@ -788,6 +752,20 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 </div>
 
                 <div className="flex justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setShowAnnotations(v => !v)}
+                        className={`p-2 rounded-lg transition-colors active:scale-95 ${
+                            showAnnotations
+                                ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100'
+                                : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                        }`}
+                        title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
+                        aria-label={showAnnotations ? 'Hide annotations' : 'Show annotations'}
+                        aria-pressed={showAnnotations}
+                    >
+                        {showAnnotations ? <PreviewIcon className="text-xl" /> : <VisibilityOffIcon className="text-xl" />}
+                    </button>
                     {onTogglePenMode && (
                         <button
                             type="button"
@@ -851,18 +829,6 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 )
             )}
 
-            {/* Annotation Popover Overlay */}
-            {activeSelection && (
-                <AnnotationPopover
-                    x={activeSelection.position.x}
-                    y={activeSelection.position.y}
-                    onSave={handleAnnotationSave}
-                    onCancel={() => {
-                        setActiveSelection(null);
-                        window.getSelection()?.removeAllRanges();
-                    }}
-                />
-            )}
             <section
                 ref={containerRef}
                 className={`flex-1 w-full h-full overflow-auto bg-slate-200 touch-panning relative ${penMode ? 'cursor-crosshair' : ''}`}
@@ -903,6 +869,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                                                 currentStroke={currentStroke?.page === pageNum ? currentStroke.points : undefined}
                                                 strokeColor={penColor}
                                                 strokeWidth={penWidth}
+                                                showAnnotations={showAnnotations}
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-white shadow-lg" />
