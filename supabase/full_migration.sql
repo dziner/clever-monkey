@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS public.documents (
   monkey_mode       BOOLEAN NOT NULL DEFAULT FALSE,
   document_content  TEXT,
   quiz_tab_data     JSONB,
+  mind_map_data     JSONB,
+  slides_data       JSONB,
+  podcast_data      JSONB,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

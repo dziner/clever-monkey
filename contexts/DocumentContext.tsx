@@ -124,6 +124,14 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [state, dispatch] = React.useReducer(documentReducer, initialState);
   const [isLoading, setIsLoading] = React.useState(true);
 
+  const generatedContentRef = React.useRef<Record<string, {
+    quizTabData: DocumentData['quizTabData'];
+    mindMapData: DocumentData['mindMapData'];
+    slidesData: DocumentData['slidesData'];
+    podcastData: DocumentData['podcastData'];
+  }>>({});
+  const contentSyncInitializedRef = React.useRef(false);
+
   React.useEffect(() => {
     let isMounted = true;
 
@@ -194,6 +202,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             documentContent: doc.document_content ?? undefined,
             folderId: doc.folder_id ?? null,
             quizTabData: doc.quiz_tab_data ?? undefined,
+            mindMapData: doc.mind_map_data ?? undefined,
+            slidesData: doc.slides_data ?? undefined,
+            podcastData: doc.podcast_data ?? undefined,
             annotations: [],
             annotationsLoaded: false,
             currentPage: 1,
@@ -312,6 +323,66 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       isActive = false;
     };
   }, [state.activeDocumentId, state.documents]);
+
+  // Persist generated content (quiz, mindmap, slides, podcast) to Supabase when changed
+  React.useEffect(() => {
+    if (isLoading) {
+      contentSyncInitializedRef.current = false;
+      generatedContentRef.current = {};
+      return;
+    }
+
+    if (!contentSyncInitializedRef.current) {
+      contentSyncInitializedRef.current = true;
+      state.documents.forEach(doc => {
+        generatedContentRef.current[doc.id] = {
+          quizTabData: doc.quizTabData,
+          mindMapData: doc.mindMapData,
+          slidesData: doc.slidesData,
+          podcastData: doc.podcastData,
+        };
+      });
+      return;
+    }
+
+    state.documents.forEach(doc => {
+      const prev = generatedContentRef.current[doc.id];
+
+      if (!prev) {
+        generatedContentRef.current[doc.id] = {
+          quizTabData: doc.quizTabData,
+          mindMapData: doc.mindMapData,
+          slidesData: doc.slidesData,
+          podcastData: doc.podcastData,
+        };
+        return;
+      }
+
+      const changed =
+        doc.quizTabData !== prev.quizTabData ||
+        doc.mindMapData !== prev.mindMapData ||
+        doc.slidesData !== prev.slidesData ||
+        doc.podcastData !== prev.podcastData;
+
+      if (!changed) return;
+
+      generatedContentRef.current[doc.id] = {
+        quizTabData: doc.quizTabData,
+        mindMapData: doc.mindMapData,
+        slidesData: doc.slidesData,
+        podcastData: doc.podcastData,
+      };
+
+      supabase.from('documents').update({
+        quiz_tab_data: doc.quizTabData ?? null,
+        mind_map_data: doc.mindMapData ?? null,
+        slides_data: doc.slidesData ?? null,
+        podcast_data: doc.podcastData ?? null,
+      }).eq('id', doc.id).then(({ error }) => {
+        if (error) console.error('Failed to save generated content:', error);
+      });
+    });
+  }, [state.documents, isLoading]);
 
 
   return (
