@@ -1,7 +1,10 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from './icons';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, BrainIcon, ChevronLeftIcon, ChevronRightIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon } from './icons';
+import { MindMapTab } from './MindMapTab';
+import { SlidesTab } from './SlidesTab';
+import { PodcastTab } from './PodcastTab';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
@@ -20,6 +23,8 @@ import { getErrorMessage } from '../utils/errors';
 // Assuming jspdf and html2canvas are loaded from CDN
 declare const jspdf: any;
 
+export type ActiveTab = 'summary' | 'chat' | 'quiz' | 'mindmap' | 'slides' | 'podcast';
+
 interface InteractionPanelProps {
     document: DocumentData;
     onMenuClick: () => void;
@@ -27,9 +32,10 @@ interface InteractionPanelProps {
     isPdfVisible: boolean;
     isPdfViewerCollapsed: boolean;
     onTogglePdfViewer: () => void;
+    onToggleRightPanel?: () => void;
 
-    activeTab: 'summary' | 'chat' | 'quiz';
-    onTabChange: (tab: 'summary' | 'chat' | 'quiz') => void;
+    activeTab: ActiveTab;
+    onTabChange: (tab: ActiveTab) => void;
 }
 
 export const InteractionPanel: React.FC<InteractionPanelProps> = ({
@@ -39,6 +45,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     isPdfVisible,
     isPdfViewerCollapsed,
     onTogglePdfViewer,
+    onToggleRightPanel,
     activeTab,
     onTabChange,
 }) => {
@@ -325,10 +332,13 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 { id: 'summary', icon: CopyIcon, label: 'Summary' },
                 { id: 'chat', icon: ChatIcon, label: 'Chat' },
                 { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
+                { id: 'mindmap', icon: AccountTreeIcon, label: 'Map' },
+                { id: 'slides', icon: SlideshowIcon, label: 'Slides' },
+                { id: 'podcast', icon: HeadphonesIcon, label: 'Podcast' },
             ].map(tab => (
                 <button
                     key={tab.id}
-                    onClick={() => onTabChange(tab.id as any)}
+                    onClick={() => onTabChange(tab.id as ActiveTab)}
                     className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${activeTab === tab.id
                         ? 'bg-white text-blue-600 shadow-sm ring-1 ring-black/5 scale-[1.02]'
                         : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
@@ -347,7 +357,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 <SelectionView
                     onSelect={(selection) => {
                         setView('content');
-                        onTabChange(selection);
+                        onTabChange(selection as ActiveTab);
                     }}
                 />
             );
@@ -461,6 +471,18 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     </div>
                 </div>
 
+                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'mindmap' ? 'flex' : 'hidden'}`}>
+                    <MindMapTab document={document} />
+                </div>
+
+                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'slides' ? 'flex' : 'hidden'}`}>
+                    <SlidesTab document={document} />
+                </div>
+
+                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'podcast' ? 'flex' : 'hidden'}`}>
+                    <PodcastTab document={document} />
+                </div>
+
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'quiz' ? 'flex' : 'hidden'}`}>
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                         {isGeneratingQuiz && (
@@ -572,8 +594,19 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     >
                         <PreviewIcon className="text-2xl" />
                     </button>
-                    {/* Spacer for desktop to balance the layout */}
-                    <div className="hidden md:inline-flex w-10 h-10"></div>
+                    {/* Collapse right panel button — desktop only */}
+                    {onToggleRightPanel ? (
+                        <button
+                            onClick={onToggleRightPanel}
+                            className="hidden md:inline-flex p-2 text-slate-600 rounded-lg hover:bg-slate-100"
+                            aria-label="Collapse tools panel"
+                            title="Collapse tools panel"
+                        >
+                            <ChevronRightIcon className="text-2xl" />
+                        </button>
+                    ) : (
+                        <div className="hidden md:inline-flex w-10 h-10"></div>
+                    )}
                 </div>
                 {!isProcessing && view === 'content' && (
                     <div className="px-2 pb-2 md:hidden">

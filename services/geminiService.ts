@@ -1,6 +1,6 @@
 import type { Part } from '@google/genai';
 import { getSystemInstruction, initialBotMessage } from '../constants';
-import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage } from '../types';
+import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 
@@ -312,15 +312,7 @@ export async function generateStudyTips(
   return await generateContent(model, prompt);
 }
 
-export type MindMapData = {
-  center: string;
-  branches: Array<{ label: string; children: string[] }>;
-};
-
-export type SlideData = {
-  title: string;
-  slides: Array<{ heading: string; emoji: string; bullets: string[] }>;
-};
+export type { MindMapData, SlideData };
 
 export async function generateMindMap(
   documentContent: string,

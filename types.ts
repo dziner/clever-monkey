@@ -121,6 +121,9 @@ export interface DocumentData {
   } | null;
   annotations?: Annotation[];
   annotationsLoaded?: boolean;
+  mindMapData?: MindMapData | null;
+  slidesData?: SlideData | null;
+  podcastData?: { script: string } | null;
 }
 
 export type AnnotationKind = 'highlight' | 'note' | 'underline' | 'area' | 'pen';
@@ -162,6 +165,16 @@ export interface Annotation {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type MindMapData = {
+  center: string;
+  branches: Array<{ label: string; children: string[] }>;
+};
+
+export type SlideData = {
+  title: string;
+  slides: Array<{ heading: string; emoji: string; bullets: string[] }>;
+};
 
 export interface QuizQuestion {
   questionText: string;

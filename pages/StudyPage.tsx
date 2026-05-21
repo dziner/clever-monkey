@@ -2,8 +2,9 @@ import React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
+import type { ActiveTab } from '../components/InteractionPanel';
 import { Spinner } from '../components/Spinner';
-import { DocumentIcon, XIcon } from '../components/icons';
+import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, ChevronLeftIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { fetchAnnotationsForDocument, createAnnotation } from '../services/annotationService';
 import type { DocumentProcessingState, Annotation, AnnotationAnchor, Point } from '../types';
@@ -37,7 +38,8 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
     const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(450, 350, 800, 'right');
     const [penMode, setPenMode] = React.useState(false);
-    const [activeTab, setActiveTab] = React.useState<'summary' | 'chat' | 'quiz'>('summary');
+    const [activeTab, setActiveTab] = React.useState<ActiveTab>('summary');
+    const [isRightPanelCollapsed, setIsRightPanelCollapsed] = React.useState(false);
 
     const [sheetTranslateY, setSheetTranslateY] = React.useState(0);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -203,23 +205,75 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 </div>
             </section>
 
-            {/* Resizer — Desktop */}
-            <button
-                type="button"
-                onMouseDown={handleResize}
-                className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
-                aria-label="Resize panel"
-            >
-                <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
-            </button>
+            {/* Resizer — Desktop (hidden when right panel is collapsed) */}
+            {!isRightPanelCollapsed && (
+                <button
+                    type="button"
+                    onMouseDown={handleResize}
+                    className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
+                    aria-label="Resize panel"
+                >
+                    <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
+                </button>
+            )}
 
-            {/* Interaction Panel */}
+            {/* Right Panel — collapsed icon strip or full InteractionPanel */}
+            <aside
+                className={`hidden md:flex flex-col flex-shrink-0 h-full bg-white border-l border-slate-200 transition-all duration-300 ${isRightPanelCollapsed ? 'w-14' : ''}`}
+                style={isRightPanelCollapsed ? {} : (isPdfViewerCollapsed ? { width: '100%' } : { width: interactionPanelWidth })}
+            >
+                {isRightPanelCollapsed ? (
+                    <div className="flex flex-col items-center py-4 gap-1 h-full">
+                        <button
+                            type="button"
+                            onClick={() => setIsRightPanelCollapsed(false)}
+                            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl"
+                            title="Expand tools panel"
+                        >
+                            <ChevronLeftIcon className="text-xl" />
+                        </button>
+                        <div className="w-8 h-px bg-slate-200 mb-1" />
+                        {([
+                            { id: 'summary', icon: CopyIcon, label: 'Summary' },
+                            { id: 'chat', icon: ChatIcon, label: 'Chat' },
+                            { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
+                            { id: 'mindmap', icon: AccountTreeIcon, label: 'Mind Map' },
+                            { id: 'slides', icon: SlideshowIcon, label: 'Slides' },
+                            { id: 'podcast', icon: HeadphonesIcon, label: 'Podcast' },
+                        ] as { id: ActiveTab; icon: React.FC<React.HTMLAttributes<HTMLSpanElement>>; label: string }[]).map(tab => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => { setIsRightPanelCollapsed(false); setActiveTab(tab.id); }}
+                                className={`p-3 rounded-xl transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-100'}`}
+                                title={tab.label}
+                            >
+                                <tab.icon className="text-xl" />
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <InteractionPanel
+                        key={activeDocument.id}
+                        document={activeDocument}
+                        onMenuClick={onMenuClick}
+                        onPreviewClick={() => setIsPdfVisible(v => !v)}
+                        isPdfVisible={isPdfVisible}
+                        isPdfViewerCollapsed={isPdfViewerCollapsed}
+                        onTogglePdfViewer={() => setIsPdfViewerCollapsed(v => !v)}
+                        onToggleRightPanel={() => setIsRightPanelCollapsed(true)}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                    />
+                )}
+            </aside>
+
+            {/* Interaction Panel — Mobile (full width) */}
             <section
-                className="min-h-0 w-full md:w-auto md:flex-shrink-0 bg-white border-l border-slate-200 shadow-xl z-10"
-                style={!isPdfViewerCollapsed ? { width: interactionPanelWidth } : { width: '100%' }}
+                className="min-h-0 w-full md:hidden bg-white border-l border-slate-200 shadow-xl z-10"
             >
                 <InteractionPanel
-                    key={activeDocument.id}
+                    key={`mobile-${activeDocument.id}`}
                     document={activeDocument}
                     onMenuClick={onMenuClick}
                     onPreviewClick={() => setIsPdfVisible(v => !v)}
