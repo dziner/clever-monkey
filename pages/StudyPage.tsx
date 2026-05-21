@@ -6,8 +6,7 @@ import type { ActiveTab } from '../components/InteractionPanel';
 import { Spinner } from '../components/Spinner';
 import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
-import { fetchAnnotationsForDocument, createAnnotation } from '../services/annotationService';
-import type { DocumentProcessingState, Annotation, AnnotationAnchor, Point } from '../types';
+import type { DocumentProcessingState } from '../types';
 
 const getProcessingMessage = (state: DocumentProcessingState): string => {
     switch (state) {
@@ -37,7 +36,6 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const [isPdfVisible, setIsPdfVisible] = React.useState(false);
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
     const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(400, 280, 700, 'right');
-    const [penMode, setPenMode] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState<ActiveTab>('summary');
     const [isRightPanelCollapsed, setIsRightPanelCollapsed] = React.useState(
         typeof window !== 'undefined' && window.innerWidth < 1024
@@ -50,89 +48,10 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
 
-    React.useEffect(() => {
-        const fetchAnnotations = async () => {
-            if (activeDocument && !activeDocument.annotations) {
-                const annotations = await fetchAnnotationsForDocument(activeDocument.id);
-                if (annotations) {
-                    dispatch({
-                        type: 'UPDATE_DOCUMENT',
-                        payload: { docId: activeDocument.id, updates: { annotations } },
-                    });
-                }
-            }
-        };
-        fetchAnnotations();
-    }, [activeDocument?.id, dispatch]);
-
     const handlePageChange = React.useCallback((page: number) => {
         if (!activeDocument) return;
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: activeDocument.id, updates: { currentPage: page } } });
     }, [activeDocument?.id, dispatch]);
-
-    const handleAnnotationCreate = React.useCallback(async (
-        anchor: AnnotationAnchor,
-        _note?: string,
-        color?: string,
-        paths?: Point[][],
-        penWidth?: number
-    ) => {
-        if (!activeDocument) return;
-
-        const getCurrentAnnotations = () => {
-            const currentDoc = state.documents.find(doc => doc.id === activeDocument.id);
-            return currentDoc?.annotations ?? [];
-        };
-
-        const kind = paths && paths.length > 0 ? 'pen' : 'highlight';
-        const content: { color?: string; paths?: Point[][]; penWidth?: number } = {};
-
-        if (kind === 'highlight') {
-            content.color = color || '#FDE68A';
-        } else {
-            content.paths = paths;
-            content.penWidth = penWidth;
-            content.color = color || '#000000';
-        }
-
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const optimistic: Annotation = {
-            id: tempId,
-            documentId: activeDocument.id,
-            pageNumber: anchor.page,
-            kind,
-            anchor,
-            content,
-        };
-        dispatch({
-            type: 'UPDATE_DOCUMENT',
-            payload: { docId: activeDocument.id, updates: { annotations: [...getCurrentAnnotations(), optimistic] } },
-        });
-
-        const created = await createAnnotation({
-            documentId: activeDocument.id,
-            pageNumber: anchor.page,
-            kind,
-            anchor,
-            content,
-        });
-
-        if (created) {
-            const nextAnnotations = getCurrentAnnotations().map(a => a.id === tempId ? created : a);
-            dispatch({
-                type: 'UPDATE_DOCUMENT',
-                payload: { docId: activeDocument.id, updates: { annotations: nextAnnotations } },
-            });
-        } else {
-            const nextAnnotations = getCurrentAnnotations().filter(a => a.id !== tempId);
-            dispatch({
-                type: 'UPDATE_DOCUMENT',
-                payload: { docId: activeDocument.id, updates: { annotations: nextAnnotations } },
-            });
-        }
-    }, [activeDocument?.id, state.documents, dispatch]);
-
-    const handleTogglePenMode = React.useCallback(() => setPenMode(c => !c), []);
 
     const handleTouchStart = (e: React.TouchEvent) => {
         dragStartY.current = e.touches[0].clientY;
@@ -185,12 +104,8 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                     file={activeDocument.file}
                     imageUrl={activeDocument.imageUrl}
                     docId={activeDocument.id}
-                    annotations={activeDocument.annotations}
                     currentPage={activeDocument.currentPage}
                     onPageChange={handlePageChange}
-                    penMode={penMode}
-                    onTogglePenMode={handleTogglePenMode}
-                    onHighlightCreate={handleAnnotationCreate}
                 />
             ) : (
                 !isProcessing && <ViewerPlaceholder />
@@ -271,9 +186,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
             </aside>
 
             {/* Interaction Panel — Mobile (full width) */}
-            <section
-                className="min-h-0 h-full w-full md:hidden bg-white border-l border-slate-200 shadow-xl z-10"
-            >
+            <section className="min-h-0 h-full w-full md:hidden bg-white border-l border-slate-200 shadow-xl z-10">
                 <InteractionPanel
                     key={`mobile-${activeDocument.id}`}
                     document={activeDocument}

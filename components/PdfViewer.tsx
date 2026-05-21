@@ -1,20 +1,14 @@
 import * as React from 'react';
 import { Spinner } from './Spinner';
-import { ZoomInIcon, ZoomOutIcon, FitScreenIcon, HighlightIcon, EditIcon, PreviewIcon, VisibilityOffIcon } from './icons';
-import type { AnnotationAnchor, Annotation, Point, PDFDocumentProxy, PDFPageViewport } from '../types';
-import { PenToolbar } from './PenToolbar';
+import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
+import type { PDFDocumentProxy, PDFPageViewport } from '../types';
 
 interface PdfViewerProps {
     file: File;
     imageUrl?: string;
     docId: string;
-    annotations?: Annotation[];
     currentPage?: number;
-    onSelection?: (anchor: AnnotationAnchor) => void;
     onPageChange?: (page: number) => void;
-    penMode?: boolean;
-    onTogglePenMode?: () => void;
-    onHighlightCreate?: (anchor: AnnotationAnchor, note?: string, color?: string, paths?: Point[][], penWidth?: number) => void;
 }
 
 interface RenderTask {
@@ -22,25 +16,17 @@ interface RenderTask {
     cancel(): void;
 }
 
-// A memoized component to render a single page of a PDF.
 const PdfPage: React.FC<{
     pdfDoc: PDFDocumentProxy | null;
     pageNum: number;
     renderScale: number;
     viewScale: number;
-    penMode?: boolean;
-    pageAnnotations?: Annotation[];
-    currentStroke?: Point[];
-    strokeColor?: string;
-    strokeWidth?: number;
-    showAnnotations?: boolean;
-}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, penMode, pageAnnotations, currentStroke, strokeColor, strokeWidth, showAnnotations = true }) => {
+}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
     const renderTaskRef = React.useRef<RenderTask | null>(null);
     const textLayerRef = React.useRef<HTMLDivElement>(null);
     const textRenderTaskRef = React.useRef<RenderTask | null>(null);
 
-    // Effect to render the PDF content to the main canvas
     React.useEffect(() => {
         let isCancelled = false;
         const renderPage = async () => {
@@ -48,9 +34,7 @@ const PdfPage: React.FC<{
             if (!pdfDoc || !canvas || renderScale <= 0) return;
 
             if (renderTaskRef.current) {
-                try {
-                    renderTaskRef.current.cancel();
-                } catch (e) { }
+                try { renderTaskRef.current.cancel(); } catch (_) {}
                 renderTaskRef.current = null;
             }
 
@@ -66,26 +50,18 @@ const PdfPage: React.FC<{
                 tempCanvas.height = renderViewport.height;
                 tempCanvas.width = renderViewport.width;
 
-                const renderContext = {
-                    canvasContext: tempContext,
-                    viewport: renderViewport,
-                    background: 'white',
-                };
-
-                const task = page.render(renderContext);
+                const task = page.render({ canvasContext: tempContext, viewport: renderViewport, background: 'white' });
                 renderTaskRef.current = task;
                 await task.promise;
                 if (isCancelled) return;
 
                 const context = canvas.getContext('2d');
                 if (!context) return;
-
                 canvas.height = renderViewport.height;
                 canvas.width = renderViewport.width;
                 context.drawImage(tempCanvas, 0, 0);
-
             } catch (err: unknown) {
-                const e = err as { name?: string; message?: string };
+                const e = err as { name?: string };
                 if (e.name !== 'RenderingCancelledException') {
                     console.error(`Error rendering page ${pageNum}:`, err);
                 }
@@ -95,14 +71,9 @@ const PdfPage: React.FC<{
         };
 
         renderPage();
-
         return () => {
             isCancelled = true;
-            if (renderTaskRef.current) {
-                try {
-                    renderTaskRef.current.cancel();
-                } catch (e) { }
-            }
+            try { renderTaskRef.current?.cancel(); } catch (_) {}
         };
     }, [pdfDoc, pageNum, renderScale]);
 
@@ -125,16 +96,9 @@ const PdfPage: React.FC<{
                 const textContentSource = await page.getTextContent();
                 if (isCancelled) return;
 
-                const task = pdfjsLib.renderTextLayer({
-                    textContentSource,
-                    container: layer,
-                    viewport,
-                });
+                const task = pdfjsLib.renderTextLayer({ textContentSource, container: layer, viewport });
                 textRenderTaskRef.current = task;
-
-                if (task?.promise) {
-                    await task.promise;
-                }
+                if (task?.promise) await task.promise;
             } catch (err: unknown) {
                 const e = err as { name?: string };
                 if (e?.name !== 'RenderingCancelledException') {
@@ -144,98 +108,22 @@ const PdfPage: React.FC<{
         };
 
         renderTextLayer();
-
         return () => {
             isCancelled = true;
-            if (textRenderTaskRef.current?.cancel) {
-                try {
-                    textRenderTaskRef.current.cancel();
-                } catch (e) { }
-            }
+            try { textRenderTaskRef.current?.cancel?.(); } catch (_) {}
         };
     }, [pdfDoc, pageNum, viewScale]);
 
-    const renderPath = (pts: Point[], color: string, width: number) => {
-        if (pts.length === 0) return '';
-        const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x * 100} ${p.y * 100}`).join(' ');
-        const isHighlighter = width > 10;
-        return (
-            <path
-                d={d}
-                stroke={color}
-                strokeWidth={width}
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-                style={isHighlighter ? { opacity: 0.4, mixBlendMode: 'multiply' } : undefined}
-            />
-        );
-    };
-
     const textLayerStyle: React.CSSProperties & { ['--scale-factor']?: string } = {
-        pointerEvents: penMode ? 'none' : 'auto',
         ['--scale-factor']: String(viewScale),
     };
 
     return (
         <div className="relative w-full h-full shadow-lg bg-white select-none">
             <canvas ref={pdfCanvasRef} className="w-full h-full block" />
-
-            {/* Annotation Layers */}
-            {showAnnotations && (
-                <div className="absolute inset-0 pointer-events-none z-10 w-full h-full">
-                    {/* Highlights */}
-                    {pageAnnotations?.map((annotation) => {
-                        if (annotation.kind === 'highlight') {
-                            return annotation.anchor.rects.map((rect, rectIndex) => (
-                                <div
-                                    key={`hl-${annotation.id}-${rectIndex}`}
-                                    className="absolute mix-blend-multiply transition-opacity duration-200"
-                                    style={{
-                                        left: `${rect.x * 100}%`,
-                                        top: `${rect.y * 100}%`,
-                                        width: `${rect.width * 100}%`,
-                                        height: `${rect.height * 100}%`,
-                                        backgroundColor: annotation.content?.color || '#FDE68A',
-                                        opacity: 0.4,
-                                        borderRadius: '2px',
-                                    }}
-                                />
-                            ));
-                        }
-                        return null;
-                    })}
-
-                    {/* Pen Drawings */}
-                    <svg
-                        className="absolute inset-0 w-full h-full overflow-visible"
-                        viewBox="0 0 100 100"
-                        preserveAspectRatio="none"
-                        aria-hidden="true"
-                    >
-                        <title>Pen annotations</title>
-                        {pageAnnotations?.map((annotation) => {
-                            if (annotation.kind === 'pen' && annotation.content?.paths) {
-                                return annotation.content.paths.map((path, i) => (
-                                    <React.Fragment key={`pen-${annotation.id}-${i}`}>
-                                        {renderPath(path, annotation.content?.color || 'black', annotation.content?.penWidth || 2)}
-                                    </React.Fragment>
-                                ));
-                            }
-                            return null;
-                        })}
-                        {/* Current Draft Stroke */}
-                        {currentStroke && currentStroke.length > 0 && (
-                            renderPath(currentStroke, strokeColor || 'red', strokeWidth || 2)
-                        )}
-                    </svg>
-                </div>
-            )}
-
             <div
                 ref={textLayerRef}
-                className={`absolute inset-0 text-transparent z-20 ${penMode ? 'select-none' : 'select-text'}`}
+                className="absolute inset-0 text-transparent z-20 select-text"
                 style={textLayerStyle}
             />
         </div>
@@ -247,7 +135,7 @@ const ZOOM_STEP = 0.2;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 4.0;
 
-export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotations = [], currentPage: externalCurrentPage, onSelection, onPageChange, penMode, onTogglePenMode, onHighlightCreate }) => {
+export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPage: externalCurrentPage, onPageChange }) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [pdfDoc, setPdfDoc] = React.useState<PDFDocumentProxy | null>(null);
     const [numPages, setNumPages] = React.useState(0);
@@ -267,43 +155,6 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     const [visiblePages, setVisiblePages] = React.useState<number[]>([]);
     const effectiveScale = fitScale * zoomFactor;
 
-    const setCurrentPage = setInternalCurrentPage;
-
-    // Annotation & Pen State
-    const [showAnnotations, setShowAnnotations] = React.useState(true);
-    const [penColor, setPenColor] = React.useState('#000000');
-    const [penTool, setPenTool] = React.useState<'pen' | 'highlighter'>('pen');
-    const penWidth = penTool === 'pen' ? 2 : 14;
-    // stroke accumulates points {x,y} relative to a specific page
-    const [currentStroke, setCurrentStroke] = React.useState<{ page: number, points: Point[] } | null>(null);
-    const [isPenToolbarCollapsed, setIsPenToolbarCollapsed] = React.useState(false);
-
-    React.useEffect(() => {
-        if (penMode) {
-            setIsPenToolbarCollapsed(false);
-        }
-    }, [penMode]);
-
-    React.useEffect(() => {
-        if (externalCurrentPage && externalCurrentPage !== internalCurrentPage) {
-            const pageEl = pageRefs.current[externalCurrentPage - 1];
-            if (pageEl && containerRef.current) {
-                const rect = pageEl.getBoundingClientRect();
-                const containerRect = containerRef.current.getBoundingClientRect();
-                const isVisible = (
-                    rect.top >= containerRect.top &&
-                    rect.bottom <= containerRect.bottom
-                );
-
-                if (!isVisible) {
-                    pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-                setInternalCurrentPage(externalCurrentPage);
-            }
-        }
-    }, [externalCurrentPage, internalCurrentPage]);
-
-    // Refs for gesture-based zooming
     const activePointers = React.useRef(new Map<number, { x: number; y: number }>()).current;
     const pinchStateRef = React.useRef<{
         startScale: number;
@@ -312,12 +163,24 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         viewportOrigin: { x: number; y: number };
     } | null>(null);
 
-    // Load PDF, text, or image file
+    React.useEffect(() => {
+        if (externalCurrentPage && externalCurrentPage !== internalCurrentPage) {
+            const pageEl = pageRefs.current[externalCurrentPage - 1];
+            if (pageEl && containerRef.current) {
+                const rect = pageEl.getBoundingClientRect();
+                const containerRect = containerRef.current.getBoundingClientRect();
+                const isVisible = rect.top >= containerRect.top && rect.bottom <= containerRect.bottom;
+                if (!isVisible) pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setInternalCurrentPage(externalCurrentPage);
+            }
+        }
+    }, [externalCurrentPage, internalCurrentPage]);
+
     React.useEffect(() => {
         setIsLoading(true);
         setPdfDoc(null);
         setNumPages(0);
-        setCurrentPage(1);
+        setInternalCurrentPage(1);
 
         if (file.type.startsWith('image/')) {
             setIsLoading(false);
@@ -326,14 +189,8 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
 
         if (file.type.startsWith('text/')) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                setTextContent(e.target?.result as string);
-                setIsLoading(false);
-            };
-            reader.onerror = () => {
-                setError('Failed to read the text file.');
-                setIsLoading(false);
-            }
+            reader.onload = (e) => { setTextContent(e.target?.result as string); setIsLoading(false); };
+            reader.onerror = () => { setError('Failed to read the text file.'); setIsLoading(false); };
             reader.readAsText(file);
             return;
         }
@@ -341,17 +198,13 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         const loadPdf = async () => {
             try {
                 const pdfjsLib = (window as any).pdfjsLib;
-                if (!pdfjsLib) {
-                    throw new Error('PDF.js library is not loaded.');
-                }
+                if (!pdfjsLib) throw new Error('PDF.js library is not loaded.');
 
                 const arrayBuffer = await file.arrayBuffer();
-                const loadingTask = pdfjsLib.getDocument(arrayBuffer);
-                const doc = await loadingTask.promise;
+                const doc = await pdfjsLib.getDocument(arrayBuffer).promise;
                 setPdfDoc(doc);
                 setNumPages(doc.numPages);
 
-                // Keep scale 1.0 for viewports to get base dimensions
                 const viewports = await Promise.all(
                     Array.from({ length: doc.numPages }, async (_, i) => {
                         const page = await doc.getPage(i + 1);
@@ -359,11 +212,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                     })
                 );
                 setPageViewports(viewports);
-
                 pageRefs.current = Array(doc.numPages).fill(null);
-
             } catch (err: unknown) {
-                console.error("Error loading PDF:", err);
+                console.error('Error loading PDF:', err);
                 setError((err as { message?: string }).message || 'Failed to load PDF.');
             } finally {
                 setIsLoading(false);
@@ -371,47 +222,26 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         };
 
         loadPdf();
-
     }, [file]);
 
     React.useEffect(() => {
         const calculateFitScale = () => {
             const container = containerRef.current;
-            if (!container || pageViewports.length === 0 || container.clientWidth <= 0) {
-                return;
-            }
-
-            const containerWidth = container.clientWidth - 24;
-            const firstPageViewport = pageViewports[0];
-            const calculatedScale = containerWidth / firstPageViewport.width;
-            if (!Number.isFinite(calculatedScale) || calculatedScale <= 0) {
-                return;
-            }
-
-            setFitScale(calculatedScale);
+            if (!container || pageViewports.length === 0 || container.clientWidth <= 0) return;
+            const calculatedScale = (container.clientWidth - 24) / pageViewports[0].width;
+            if (Number.isFinite(calculatedScale) && calculatedScale > 0) setFitScale(calculatedScale);
         };
 
         calculateFitScale();
-
-        const resizeObserver = new ResizeObserver(() => calculateFitScale());
-        const containerEl = containerRef.current;
-        if (containerEl) {
-            resizeObserver.observe(containerEl);
-        }
-
-        return () => {
-            if (containerEl) {
-                resizeObserver.unobserve(containerEl);
-                resizeObserver.disconnect();
-            }
-        };
+        const observer = new ResizeObserver(calculateFitScale);
+        const el = containerRef.current;
+        if (el) observer.observe(el);
+        return () => { if (el) observer.unobserve(el); observer.disconnect(); };
     }, [pageViewports]);
 
     React.useEffect(() => {
         clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = window.setTimeout(() => {
-            setRenderScale(effectiveScale);
-        }, 100);
+        debounceTimerRef.current = window.setTimeout(() => setRenderScale(effectiveScale), 100);
         return () => clearTimeout(debounceTimerRef.current);
     }, [effectiveScale]);
 
@@ -424,14 +254,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                 setVisiblePages(prev => {
                     const next = new Set(prev);
                     entries.forEach(entry => {
-                        const target = entry.target as HTMLElement;
-                        const pageNum = Number(target.dataset.page);
+                        const pageNum = Number((entry.target as HTMLElement).dataset.page);
                         if (!pageNum) return;
-                        if (entry.isIntersecting) {
-                            next.add(pageNum);
-                        } else {
-                            next.delete(pageNum);
-                        }
+                        entry.isIntersecting ? next.add(pageNum) : next.delete(pageNum);
                     });
                     return Array.from(next).sort((a, b) => a - b);
                 });
@@ -439,9 +264,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
             { root: container, rootMargin: '400px 0px', threshold: 0.1 }
         );
 
-        pageRefs.current.forEach((el, index) => {
+        pageRefs.current.forEach((el, i) => {
             if (!el) return;
-            el.dataset.page = String(index + 1);
+            el.dataset.page = String(i + 1);
             observer.observe(el);
         });
 
@@ -451,37 +276,23 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     const pagesToRender = React.useMemo(() => {
         const set = new Set<number>();
         if (numPages === 0) return set;
-        if (visiblePages.length === 0) {
-            for (let i = 1; i <= Math.min(3, numPages); i += 1) {
-                set.add(i);
-            }
-            return set;
-        }
-
-        visiblePages.forEach(pageNum => {
-            for (let i = pageNum - 2; i <= pageNum + 2; i += 1) {
-                if (i >= 1 && i <= numPages) {
-                    set.add(i);
-                }
+        const base = visiblePages.length > 0 ? visiblePages : [1];
+        base.forEach(p => {
+            for (let i = p - 2; i <= p + 2; i++) {
+                if (i >= 1 && i <= numPages) set.add(i);
             }
         });
         return set;
     }, [visiblePages, numPages]);
 
-    const clampScale = React.useCallback((value: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)), []);
+    const clampScale = React.useCallback((v: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, v)), []);
 
     const zoomIn = React.useCallback(() => {
-        setZoomFactor(current => {
-            const next = clampScale(fitScale * current + ZOOM_STEP);
-            return fitScale > 0 ? next / fitScale : current;
-        });
+        setZoomFactor(cur => fitScale > 0 ? clampScale(fitScale * cur + ZOOM_STEP) / fitScale : cur);
     }, [fitScale, clampScale]);
 
     const zoomOut = React.useCallback(() => {
-        setZoomFactor(current => {
-            const next = clampScale(fitScale * current - ZOOM_STEP);
-            return fitScale > 0 ? next / fitScale : current;
-        });
+        setZoomFactor(cur => fitScale > 0 ? clampScale(fitScale * cur - ZOOM_STEP) / fitScale : cur);
     }, [fitScale, clampScale]);
 
     const fitToPage = React.useCallback(() => setZoomFactor(1), []);
@@ -489,253 +300,102 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
     const handleScroll = React.useCallback(() => {
         const container = containerRef.current;
         if (!container) return;
-        const scrollMidpoint = container.scrollTop + container.clientHeight / 2;
-        let closestPage = 0;
-        let minDistance = Infinity;
-
-        for (let i = 0; i < numPages; i++) {
-            const pageEl = pageRefs.current[i];
-            if (pageEl) {
-                const pageMidpoint = pageEl.offsetTop + pageEl.offsetHeight / 2;
-                const distance = Math.abs(scrollMidpoint - pageMidpoint);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestPage = i;
-                }
-            }
-        }
-        const pageNumber = closestPage + 1;
-        setCurrentPage(pageNumber);
-        onPageChange?.(pageNumber);
+        const mid = container.scrollTop + container.clientHeight / 2;
+        let closest = 0;
+        let minDist = Infinity;
+        pageRefs.current.forEach((el, i) => {
+            if (!el) return;
+            const dist = Math.abs(mid - (el.offsetTop + el.offsetHeight / 2));
+            if (dist < minDist) { minDist = dist; closest = i; }
+        });
+        const page = closest + 1;
+        setInternalCurrentPage(page);
+        onPageChange?.(page);
     }, [numPages, onPageChange]);
 
     const handleWheel = React.useCallback((e: WheelEvent) => {
-        if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            const container = containerRef.current;
-            if (!container) return;
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        const container = containerRef.current;
+        if (!container) return;
 
-            const rect = container.getBoundingClientRect();
-            const viewportOrigin = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-            };
-            const contentOrigin = {
-                x: (container.scrollLeft + viewportOrigin.x) / effectiveScale,
-                y: (container.scrollTop + viewportOrigin.y) / effectiveScale,
-            };
+        const rect = container.getBoundingClientRect();
+        const vpOrigin = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const contentOrigin = {
+            x: (container.scrollLeft + vpOrigin.x) / effectiveScale,
+            y: (container.scrollTop + vpOrigin.y) / effectiveScale,
+        };
+        const newScale = clampScale(effectiveScale - e.deltaY * 0.005);
+        if (fitScale > 0) setZoomFactor(newScale / fitScale);
 
-            const oldScale = effectiveScale;
-            // More sensitive pinch to zoom on wheel
-            const newScale = clampScale(oldScale - e.deltaY * 0.005);
-
-            if (fitScale > 0) {
-                setZoomFactor(newScale / fitScale);
-            }
-
-            const newScrollLeft = contentOrigin.x * newScale - viewportOrigin.x;
-            const newScrollTop = contentOrigin.y * newScale - viewportOrigin.y;
-
-            requestAnimationFrame(() => {
-                container.scrollLeft = newScrollLeft;
-                container.scrollTop = newScrollTop;
-            });
-        }
+        requestAnimationFrame(() => {
+            container.scrollLeft = contentOrigin.x * newScale - vpOrigin.x;
+            container.scrollTop = contentOrigin.y * newScale - vpOrigin.y;
+        });
     }, [effectiveScale, fitScale, clampScale]);
 
     React.useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-        container.addEventListener('wheel', handleWheel, { passive: false });
-        return () => container.removeEventListener('wheel', handleWheel);
+        const el = containerRef.current;
+        if (!el) return;
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
     }, [handleWheel]);
 
-    // --- Pointer Handling (Zoom, Pan, Draw) ---
-
-    // Constants for drawing
-    const DRAW_THRESHOLD = 2; // px movement before counting as draw (to avoid dots on click)
-
     const handlePointerDown = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        // Drawing Logic
-        if (penMode) {
-            // Only draw with primary pointer (mouse left click, or first touch)
-            if (!e.isPrimary && e.pointerType !== 'mouse') return;
-            // Check which page we are over
-            const target = e.target as HTMLElement;
-            const pageEl = target.closest('[data-page]') as HTMLElement;
-            if (!pageEl) return;
-
-            const pageNum = Number(pageEl.dataset.page);
-            if (!pageNum) return;
-
-            const pageRect = pageEl.getBoundingClientRect();
-            const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-            const x = clamp01((e.clientX - pageRect.left) / pageRect.width);
-            const y = clamp01((e.clientY - pageRect.top) / pageRect.height);
-
-            // Capture pointer to container to track it even if it leaves the page.
-            containerRef.current?.setPointerCapture(e.pointerId);
-
-            setCurrentStroke({
-                page: pageNum,
-                points: [{ x, y }]
-            });
-            return;
-        }
-
-        // Panning/Zooming Logic
         if (e.pointerType !== 'touch') return;
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
         if (activePointers.size === 2) {
             const container = containerRef.current;
             if (!container) return;
-
-            const pointers: { x: number; y: number }[] = Array.from(activePointers.values());
-            const dist = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
-
-            const viewportMidpoint = {
-                x: (pointers[0].x + pointers[1].x) / 2,
-                y: (pointers[0].y + pointers[1].y) / 2
-            };
-
+            const pts = Array.from(activePointers.values());
+            const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+            const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
             const rect = container.getBoundingClientRect();
-            const viewportOrigin = {
-                x: viewportMidpoint.x - rect.left,
-                y: viewportMidpoint.y - rect.top,
-            };
-
-            const contentOrigin = {
-                x: (container.scrollLeft + viewportOrigin.x) / effectiveScale,
-                y: (container.scrollTop + viewportOrigin.y) / effectiveScale,
-            };
-
+            const vpOrigin = { x: mid.x - rect.left, y: mid.y - rect.top };
             pinchStateRef.current = {
                 startScale: effectiveScale,
                 startDist: dist,
-                contentOrigin,
-                viewportOrigin,
+                contentOrigin: {
+                    x: (container.scrollLeft + vpOrigin.x) / effectiveScale,
+                    y: (container.scrollTop + vpOrigin.y) / effectiveScale,
+                },
+                viewportOrigin: vpOrigin,
             };
         }
-    }, [effectiveScale, activePointers, penMode]);
+    }, [effectiveScale, activePointers]);
 
     const handlePointerMove = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        // Drawing
-        if (penMode && currentStroke) {
-            e.preventDefault(); // prevent scroll
-
-            // We need to map current pointer to the SAME page coordinates
-            // Even if we drag outside, we project to that page's space (clamping if needed, or allowing out of bounds)
-            const pageEl = pageRefs.current[currentStroke.page - 1];
-            if (!pageEl) return;
-
-            const pageRect = pageEl.getBoundingClientRect();
-            const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-            const x = clamp01((e.clientX - pageRect.left) / pageRect.width);
-            const y = clamp01((e.clientY - pageRect.top) / pageRect.height);
-
-            setCurrentStroke(prev => prev ? {
-                ...prev,
-                points: [...prev.points, { x, y }]
-            } : null);
-            return;
-        }
-
-        // Zooming/Panning
         if (e.pointerType !== 'touch' || activePointers.size !== 2 || !pinchStateRef.current) return;
 
         activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        const pointers: { x: number; y: number }[] = Array.from(activePointers.values());
-        const newDist = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
-
+        const pts = Array.from(activePointers.values());
+        const newDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
         const { startScale, startDist, contentOrigin, viewportOrigin } = pinchStateRef.current;
-
-        const newScale = startScale * (newDist / startDist);
-        const clampedScale = clampScale(newScale);
-
-        if (fitScale > 0) {
-            setZoomFactor(clampedScale / fitScale);
-        }
+        const clamped = clampScale(startScale * (newDist / startDist));
+        if (fitScale > 0) setZoomFactor(clamped / fitScale);
 
         const container = containerRef.current;
         if (container) {
-            const newScrollLeft = contentOrigin.x * clampedScale - viewportOrigin.x;
-            const newScrollTop = contentOrigin.y * clampedScale - viewportOrigin.y;
-
-            container.scrollLeft = newScrollLeft;
-            container.scrollTop = newScrollTop;
+            container.scrollLeft = contentOrigin.x * clamped - viewportOrigin.x;
+            container.scrollTop = contentOrigin.y * clamped - viewportOrigin.y;
         }
-    }, [activePointers, clampScale, fitScale, penMode, currentStroke]);
+    }, [activePointers, clampScale, fitScale]);
 
     const handlePointerUp = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        if (penMode && currentStroke) {
-            containerRef.current?.releasePointerCapture(e.pointerId);
-            if (currentStroke.points.length > 2) {
-                const anchor: AnnotationAnchor = {
-                    page: currentStroke.page,
-                    rects: [],
-                };
-                onHighlightCreate?.(anchor, undefined, penColor, [currentStroke.points], penWidth);
-            }
-            setCurrentStroke(null);
-            return;
-        }
-
         if (e.pointerType !== 'touch') return;
         activePointers.delete(e.pointerId);
-        if (activePointers.size < 2) {
-            pinchStateRef.current = null;
-        }
-    }, [activePointers, penMode, currentStroke, penColor, penWidth, onHighlightCreate]);
+        if (activePointers.size < 2) pinchStateRef.current = null;
+    }, [activePointers]);
 
-    const handleMouseUp = React.useCallback((e: React.MouseEvent) => {
-        if (penMode) return;
-
-        const selection = window.getSelection();
-        if (!selection || selection.isCollapsed) return;
-
-        const text = selection.toString().trim();
-        if (!text) return;
-
-        const anchorNode = selection.anchorNode as HTMLElement | null;
-        const pageElement = anchorNode?.parentElement?.closest('[data-page]') as HTMLElement | null;
-        if (!pageElement) return;
-
-        const pageNumber = Number(pageElement.dataset.page);
-        if (!pageNumber) return;
-
-        const range = selection.getRangeAt(0);
-        const rects = Array.from(range.getClientRects())
-            .filter(rect => rect.width > 0 && rect.height > 0)
-            .map(rect => {
-                const pageRect = pageElement.getBoundingClientRect();
-                const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
-                return {
-                    x: clamp01((rect.left - pageRect.left) / pageRect.width),
-                    y: clamp01((rect.top - pageRect.top) / pageRect.height),
-                    width: clamp01(rect.width / pageRect.width),
-                    height: clamp01(rect.height / pageRect.height),
-                };
-            });
-
-        if (rects.length === 0) return;
-
-        const anchor: AnnotationAnchor = { page: pageNumber, rects, textQuote: text };
-        onHighlightCreate?.(anchor, undefined, '#FDE68A');
-        window.getSelection()?.removeAllRanges();
-    }, [penMode, onHighlightCreate]);
-
-    if (isLoading) {
-        return <div className="flex items-center justify-center h-full"><Spinner /></div>;
-    }
-    if (error) {
-        return <div className="flex items-center justify-center h-full p-4 text-red-600 bg-red-50">{error}</div>;
-    }
+    if (isLoading) return <div className="flex items-center justify-center h-full"><Spinner /></div>;
+    if (error) return <div className="flex items-center justify-center h-full p-4 text-red-600 bg-red-50">{error}</div>;
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-100 relative">
+            {/* Toolbar */}
             <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center">
                     <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
                         <button type="button" onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom Out">
                             <ZoomOutIcon className="text-lg" />
@@ -756,133 +416,51 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
                     <span className="text-sm font-medium text-slate-500 font-mono">{numPages || '--'}</span>
                 </div>
 
-                <div className="flex justify-end gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setShowAnnotations(v => !v)}
-                        className={`p-2 rounded-lg transition-colors active:scale-95 ${
-                            showAnnotations
-                                ? 'bg-blue-50 text-blue-600 ring-1 ring-blue-100'
-                                : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                        }`}
-                        title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
-                        aria-label={showAnnotations ? 'Hide annotations' : 'Show annotations'}
-                        aria-pressed={showAnnotations}
-                    >
-                        {showAnnotations ? <PreviewIcon className="text-xl" /> : <VisibilityOffIcon className="text-xl" />}
-                    </button>
-                    {onTogglePenMode && (
-                        <button
-                            type="button"
-                            onClick={onTogglePenMode}
-                            className={`p-2 rounded-lg transition-colors active:scale-95 ${penMode
-                                ? 'bg-blue-100 text-blue-600 shadow-inner ring-1 ring-blue-200'
-                                : 'text-slate-500 hover:bg-blue-50 hover:text-blue-600'
-                                }`}
-                            title={penMode ? "Exit Pen Mode" : "Enter Pen Mode"}
-                            aria-pressed={penMode}
-                        >
-                            <HighlightIcon className="text-xl" />
-                        </button>
-                    )}
-                    <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
-                        <FitScreenIcon className="text-xl" />
-                    </button>
-                </div>
+                <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
+                    <FitScreenIcon className="text-xl" />
+                </button>
             </div>
 
-            {/* Pen Toolbar Overlay */}
-            {penMode && onTogglePenMode && (
-                isPenToolbarCollapsed ? (
-                    <div className="absolute top-20 right-6 z-50">
-                        <button
-                            type="button"
-                            onClick={() => setIsPenToolbarCollapsed(false)}
-                            className="flex items-center justify-center w-11 h-11 rounded-full bg-white border border-slate-200 shadow-lg hover:shadow-xl transition-all overflow-hidden"
-                            title="Expand Pen Tools"
-                            aria-label="Expand pen tools"
-                        >
-                            <div className="flex flex-col items-center justify-center leading-none">
-                                <span
-                                    className="text-lg"
-                                    style={{ color: penColor, opacity: penTool === 'highlighter' ? 0.6 : 1 }}
-                                    aria-hidden="true"
-                                >
-                                    {penTool === 'pen' ? <EditIcon /> : <HighlightIcon />}
-                                </span>
-                                <span
-                                    className="mt-0.5 w-5 h-1.5 rounded-full"
-                                    style={{
-                                        backgroundColor: penColor,
-                                        opacity: penTool === 'highlighter' ? 0.45 : 0.9,
-                                        boxShadow: penColor === '#ffffff' ? 'inset 0 0 0 1px #e2e8f0' : 'none'
-                                    }}
-                                    aria-hidden="true"
-                                />
-                            </div>
-                        </button>
-                    </div>
-                ) : (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50">
-                        <PenToolbar
-                            color={penColor} setColor={setPenColor}
-                            tool={penTool} setTool={setPenTool}
-                            onCollapse={() => setIsPenToolbarCollapsed(true)}
-                            onAfterSelect={() => setIsPenToolbarCollapsed(true)}
-                        />
-                    </div>
-                )
-            )}
-
+            {/* Scroll area */}
             <section
                 ref={containerRef}
-                className={`flex-1 min-h-0 w-full overflow-auto bg-slate-200 relative ${penMode ? 'cursor-crosshair' : ''}`}
-                style={penMode ? { touchAction: 'none' } : undefined}
+                className="flex-1 min-h-0 w-full overflow-auto bg-slate-200 relative"
                 aria-label="PDF viewer"
                 onScroll={handleScroll}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
-                onMouseUp={handleMouseUp}
             >
                 {pdfDoc && numPages > 0 ? (
-                    <div>
-                        <div className="p-3 space-y-3 flex flex-col items-center">
-                            {Array.from({ length: numPages }, (_, i) => {
-                                const pageNum = i + 1;
-                                const viewport = pageViewports[i];
-                                const scaledWidth = viewport.width * effectiveScale;
-                                const scaledHeight = viewport.height * effectiveScale;
+                    <div className="p-3 space-y-3 flex flex-col items-center">
+                        {Array.from({ length: numPages }, (_, i) => {
+                            const pageNum = i + 1;
+                            const viewport = pageViewports[i];
+                            const scaledWidth = viewport.width * effectiveScale;
+                            const scaledHeight = viewport.height * effectiveScale;
 
-                                return (
-                                    <div
-                                        key={`page-${pageNum}`}
-                                        ref={el => { pageRefs.current[i] = el; }}
-                                        className="mx-auto"
-                                        style={{ width: scaledWidth, height: scaledHeight }}
-                                        data-page={pageNum}
-                                    >
-                                        {pagesToRender.has(pageNum) ? (
-                                            <PdfPage
-                                                pdfDoc={pdfDoc}
-                                                pageNum={pageNum}
-                                                renderScale={renderScale * window.devicePixelRatio}
-                                                viewScale={effectiveScale}
-                                                penMode={penMode}
-                                                pageAnnotations={annotations.filter(a => a.pageNumber === pageNum)}
-                                                currentStroke={currentStroke?.page === pageNum ? currentStroke.points : undefined}
-                                                strokeColor={penColor}
-                                                strokeWidth={penWidth}
-                                                showAnnotations={showAnnotations}
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full bg-white shadow-lg" />
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
+                            return (
+                                <div
+                                    key={`page-${pageNum}`}
+                                    ref={el => { pageRefs.current[i] = el; }}
+                                    className="mx-auto"
+                                    style={{ width: scaledWidth, height: scaledHeight }}
+                                    data-page={pageNum}
+                                >
+                                    {pagesToRender.has(pageNum) ? (
+                                        <PdfPage
+                                            pdfDoc={pdfDoc}
+                                            pageNum={pageNum}
+                                            renderScale={renderScale * window.devicePixelRatio}
+                                            viewScale={effectiveScale}
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full bg-white shadow-lg" />
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : imageUrl ? (
                     <div className="p-6 flex justify-center">
