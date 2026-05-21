@@ -5,7 +5,7 @@ import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
-import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelLeftCloseIcon } from './components/icons';
+import { HomeIcon, ErrorOutlineIcon, StyleIcon, PanelLeftCloseIcon } from './components/icons';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
@@ -17,9 +17,6 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
 const WrongAnswersPage = React.lazy(() => import('./pages/WrongAnswersPage').then(m => ({ default: m.WrongAnswersPage })));
 const FlashcardsPage = React.lazy(() => import('./pages/FlashcardsPage').then(m => ({ default: m.FlashcardsPage })));
-const MindMapPage = React.lazy(() => import('./pages/MindMapPage').then(m => ({ default: m.MindMapPage })));
-const SlidesPage = React.lazy(() => import('./pages/SlidesPage').then(m => ({ default: m.SlidesPage })));
-const PodcastPage = React.lazy(() => import('./pages/PodcastPage').then(m => ({ default: m.PodcastPage })));
 
 const PageLoader: React.FC = () => (
   <div className="flex-1 flex items-center justify-center bg-slate-50">
@@ -41,11 +38,8 @@ const formatBytes = (value: number) => {
 
 const NAV_ITEMS = [
     { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
-    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
+    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong A...', icon: ErrorOutlineIcon },
     { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
-    { path: ROUTES.MINDMAP, label: 'Mind Map', icon: AccountTreeIcon },
-    { path: ROUTES.SLIDES, label: 'Slides', icon: SlideshowIcon },
-    { path: ROUTES.PODCAST, label: 'Podcast', icon: HeadphonesIcon },
 ] as const;
 
 const App: React.FC = () => {
@@ -213,9 +207,6 @@ const App: React.FC = () => {
                     <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path={ROUTES.WRONG_ANSWERS} element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path={ROUTES.FLASHCARDS} element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path={ROUTES.MINDMAP} element={<MindMapPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path={ROUTES.SLIDES} element={<SlidesPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path={ROUTES.PODCAST} element={<PodcastPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                 </Routes>
               </React.Suspense>
