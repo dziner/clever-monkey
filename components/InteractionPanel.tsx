@@ -334,34 +334,36 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     ] as const;
 
     const TabsComponent = () => (
-        <div className="flex items-center gap-0.5 px-2 py-1.5 bg-slate-50 border-b border-slate-200 overflow-x-auto scrollbar-none">
+        <div className="flex bg-white w-full">
             {studyTabs.map(tab => (
                 <button
                     key={tab.id}
+                    type="button"
+                    title={tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
-                    className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${
+                    className={`flex-1 flex items-center justify-center py-3 border-b-2 transition-colors ${
                         activeTab === tab.id
-                            ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                            ? 'text-blue-600 border-blue-600'
+                            : 'text-slate-400 hover:text-slate-600 border-slate-200'
                     }`}
                 >
-                    <tab.icon className="text-lg" />
-                    <span>{tab.label}</span>
+                    <tab.icon className="text-[18px]" />
                 </button>
             ))}
-            <div className="w-px h-6 bg-slate-200 flex-shrink-0 mx-1" />
+            <div className="w-px bg-slate-200 flex-shrink-0 my-2" />
             {createTabs.map(tab => (
                 <button
                     key={tab.id}
+                    type="button"
+                    title={tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
-                    className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${
+                    className={`flex-1 flex items-center justify-center py-3 border-b-2 transition-colors ${
                         activeTab === tab.id
-                            ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
-                            : 'text-slate-500 hover:text-slate-700 hover:bg-white'
+                            ? 'text-blue-600 border-blue-600'
+                            : 'text-slate-400 hover:text-slate-600 border-slate-200'
                     }`}
                 >
-                    <tab.icon className="text-lg" />
-                    <span>{tab.label}</span>
+                    <tab.icon className="text-[18px]" />
                 </button>
             ))}
         </div>
@@ -375,17 +377,18 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
 
                 <div className={`flex-1 flex-col overflow-y-auto ${activeTab === 'summary' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-shrink-0 p-4 bg-white border-b">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-xl font-bold text-slate-800">Summary</h3>
-                            <div className="flex items-center space-x-2">
-                                <button onClick={handleCopyToClipboard} className="flex items-center space-x-1 text-sm text-slate-600 hover:text-blue-600 p-1.5 rounded-md hover:bg-slate-100">
-                                    <CopyIcon className="text-xl" /> <span>Copy</span>
-                                </button>
-                                <button onClick={handleDownloadPdf} className="flex items-center space-x-1 text-sm text-slate-600 hover:text-blue-600 p-1.5 rounded-md hover:bg-slate-100">
-                                    <DownloadIcon className="text-xl" /> <span>PDF</span>
-                                </button>
-                            </div>
+                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
+                        <div className="flex items-center gap-2">
+                            <CopyIcon className="text-xl text-blue-500" />
+                            <span className="font-semibold text-slate-700 text-sm">Summary</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button onClick={handleCopyToClipboard} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
+                                <CopyIcon className="text-sm" /> Copy
+                            </button>
+                            <button onClick={handleDownloadPdf} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
+                                <DownloadIcon className="text-sm" /> PDF
+                            </button>
                         </div>
                     </div>
                     <div ref={summaryRef} className="p-6 bg-white text-slate-800">
