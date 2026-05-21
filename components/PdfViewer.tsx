@@ -411,7 +411,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = window.setTimeout(() => {
             setRenderScale(effectiveScale);
-        }, 300);
+        }, 100);
         return () => clearTimeout(debounceTimerRef.current);
     }, [effectiveScale]);
 
@@ -836,7 +836,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, annotation
 
             <section
                 ref={containerRef}
-                className={`flex-1 min-h-0 w-full overflow-auto bg-slate-200 touch-panning relative ${penMode ? 'cursor-crosshair' : ''}`}
+                className={`flex-1 min-h-0 w-full overflow-auto bg-slate-200 relative ${penMode ? 'cursor-crosshair' : ''}`}
                 style={penMode ? { touchAction: 'none' } : undefined}
                 aria-label="PDF viewer"
                 onScroll={handleScroll}

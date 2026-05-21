@@ -152,7 +152,7 @@ const App: React.FC = () => {
 
     // Main layout with sidebar + routed content
     return (
-        <div className="flex h-full bg-slate-50 font-sans antialiased overflow-hidden">
+        <div className="flex h-screen bg-slate-50 font-sans antialiased overflow-hidden">
             {authUI}
 
             {/* Sidebar — Mobile overlay */}
