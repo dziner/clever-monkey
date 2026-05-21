@@ -3,6 +3,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { generateSlides, SlideData } from '../services/geminiService';
 import { MenuIcon, SlideshowIcon, ChevronLeftIcon, ChevronRightIcon, AutoAwesomeIcon } from '../components/icons';
 import { Spinner } from '../components/Spinner';
+import { useAIGeneration } from '../hooks/useAIGeneration';
 
 
 const SLIDE_COUNT_OPTIONS = [5, 8, 10, 12] as const;
@@ -20,33 +21,25 @@ export const SlidesPage: React.FC<Props> = ({ onMenuClick }) => {
   const { state } = useDocuments();
   const activeDoc = state.documents.find(d => d.id === state.activeDocumentId);
 
-  const [data, setData] = React.useState<SlideData | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [slideCount, setSlideCount] = React.useState<number>(8);
   const [current, setCurrent] = React.useState(0);
   const [presenting, setPresenting] = React.useState(false);
-  const abortRef = React.useRef<AbortController | null>(null);
+
+  const { data, loading, error, generate, cancel } = useAIGeneration<SlideData>(
+    React.useCallback(
+      (signal) => {
+        if (!activeDoc?.documentContent) return Promise.reject(new Error('No document content'));
+        return generateSlides(activeDoc.documentContent, activeDoc.model, slideCount, signal);
+      },
+      [activeDoc, slideCount]
+    )
+  );
+
+  // Reset to first slide when new presentation is generated
+  React.useEffect(() => { if (data) setCurrent(0); }, [data]);
+
   const dataRef = React.useRef(data);
   React.useEffect(() => { dataRef.current = data; }, [data]);
-
-  const handleGenerate = React.useCallback(async () => {
-    if (!activeDoc?.documentContent) return;
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await generateSlides(activeDoc.documentContent, activeDoc.model, slideCount, abortRef.current.signal);
-      setData(result);
-      setCurrent(0);
-    } catch (e: any) {
-      if (e.name === 'AbortError') return;
-      setError(e.message ?? 'Failed to generate slides.');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeDoc, slideCount]);
 
   const prev = () => setCurrent(c => Math.max(0, c - 1));
   const next = () => data && setCurrent(c => Math.min(data.slides.length - 1, c + 1));
@@ -136,7 +129,7 @@ export const SlidesPage: React.FC<Props> = ({ onMenuClick }) => {
               )}
               {loading ? (
                 <>
-                  <button type="button" onClick={() => abortRef.current?.abort()} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+                  <button type="button" onClick={cancel} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
                     Cancel
                   </button>
                   <button type="button" disabled className="flex items-center gap-2 px-4 py-2 bg-indigo-600 opacity-50 text-white rounded-xl text-sm font-semibold cursor-not-allowed">
@@ -147,7 +140,7 @@ export const SlidesPage: React.FC<Props> = ({ onMenuClick }) => {
               ) : (
                 <button
                   type="button"
-                  onClick={handleGenerate}
+                  onClick={generate}
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
                 >
                   <AutoAwesomeIcon className="text-base" />

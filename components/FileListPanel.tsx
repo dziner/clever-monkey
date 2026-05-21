@@ -6,6 +6,7 @@ import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, ChevronLeftIcon, XIcon, LogO
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
+import { ROUTES } from '../routes';
 
 interface FileListPanelProps {
     onFileSelected: (file: File) => void;
@@ -235,12 +236,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             <div className="px-3 pb-3 flex-shrink-0">
                 <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Tools</div>
                 {[
-                    { path: '/', label: 'Study', icon: HomeIcon },
-                    { path: '/wrong-answers', label: 'Wrong Answers', icon: ErrorOutlineIcon },
-                    { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
-                    { path: '/mindmap', label: 'Mind Map', icon: AccountTreeIcon },
-                    { path: '/slides', label: 'Slides', icon: SlideshowIcon },
-                    { path: '/podcast', label: 'Podcast', icon: HeadphonesIcon },
+                    { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
+                    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
+                    { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
+                    { path: ROUTES.MINDMAP, label: 'Mind Map', icon: AccountTreeIcon },
+                    { path: ROUTES.SLIDES, label: 'Slides', icon: SlideshowIcon },
+                    { path: ROUTES.PODCAST, label: 'Podcast', icon: HeadphonesIcon },
                 ].map(item => (
                     <button
                         key={item.path}

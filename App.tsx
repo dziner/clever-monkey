@@ -9,13 +9,21 @@ import { MenuIcon, HomeIcon, ErrorOutlineIcon, StyleIcon, AccountTreeIcon, Slide
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, supabase } from './services/supabaseClient';
-import { StudyPage } from './pages/StudyPage';
-import { WrongAnswersPage } from './pages/WrongAnswersPage';
-import { FlashcardsPage } from './pages/FlashcardsPage';
-import { MindMapPage } from './pages/MindMapPage';
-import { SlidesPage } from './pages/SlidesPage';
-import { PodcastPage } from './pages/PodcastPage';
 import { CleverMonkeyIcon } from './components/icons';
+import { ROUTES } from './routes';
+
+const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
+const WrongAnswersPage = React.lazy(() => import('./pages/WrongAnswersPage').then(m => ({ default: m.WrongAnswersPage })));
+const FlashcardsPage = React.lazy(() => import('./pages/FlashcardsPage').then(m => ({ default: m.FlashcardsPage })));
+const MindMapPage = React.lazy(() => import('./pages/MindMapPage').then(m => ({ default: m.MindMapPage })));
+const SlidesPage = React.lazy(() => import('./pages/SlidesPage').then(m => ({ default: m.SlidesPage })));
+const PodcastPage = React.lazy(() => import('./pages/PodcastPage').then(m => ({ default: m.PodcastPage })));
+
+const PageLoader: React.FC = () => (
+  <div className="flex-1 flex items-center justify-center bg-slate-50">
+    <div className="w-7 h-7 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+  </div>
+);
 
 const formatBytes = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0 B';
@@ -30,12 +38,12 @@ const formatBytes = (value: number) => {
 };
 
 const NAV_ITEMS = [
-    { path: '/', label: 'Study', icon: HomeIcon },
-    { path: '/wrong-answers', label: 'Wrong Answers', icon: ErrorOutlineIcon },
-    { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
-    { path: '/mindmap', label: 'Mind Map', icon: AccountTreeIcon },
-    { path: '/slides', label: 'Slides', icon: SlideshowIcon },
-    { path: '/podcast', label: 'Podcast', icon: HeadphonesIcon },
+    { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
+    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
+    { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
+    { path: ROUTES.MINDMAP, label: 'Mind Map', icon: AccountTreeIcon },
+    { path: ROUTES.SLIDES, label: 'Slides', icon: SlideshowIcon },
+    { path: ROUTES.PODCAST, label: 'Podcast', icon: HeadphonesIcon },
 ] as const;
 
 const App: React.FC = () => {
@@ -116,7 +124,7 @@ const App: React.FC = () => {
     );
 
     // Profile page — full screen, no sidebar
-    if (location.pathname === '/profile') {
+    if (location.pathname === ROUTES.PROFILE) {
         return (
             <React.Fragment>
                 {authUI}
@@ -125,7 +133,7 @@ const App: React.FC = () => {
                     fileCount={fileCount}
                     storageUsage={storageUsage}
                     planName={planName}
-                    onBack={() => navigate('/')}
+                    onBack={() => navigate(ROUTES.STUDY)}
                     onUpgrade={() => setIsAuthModalOpen(true)}
                 />
             </React.Fragment>
@@ -183,7 +191,7 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         userEmail={userEmail}
                         planName={planName}
-                        onProfileClick={() => navigate('/profile')}
+                        onProfileClick={() => navigate(ROUTES.PROFILE)}
                         onSignOut={handleSignOut}
                     />
                 </aside>
@@ -227,7 +235,7 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         userEmail={userEmail}
                         planName={planName}
-                        onProfileClick={() => navigate('/profile')}
+                        onProfileClick={() => navigate(ROUTES.PROFILE)}
                         onSignOut={handleSignOut}
                     />
                 )}
@@ -235,15 +243,17 @@ const App: React.FC = () => {
 
             {/* Main content area — routed */}
             <main className="flex-1 flex min-w-0 relative pb-16 md:pb-0">
+              <React.Suspense fallback={<PageLoader />}>
                 <Routes>
-                    <Route path="/" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path="/wrong-answers" element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path="/flashcards" element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path="/mindmap" element={<MindMapPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path="/slides" element={<SlidesPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path="/podcast" element={<PodcastPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.WRONG_ANSWERS} element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.FLASHCARDS} element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.MINDMAP} element={<MindMapPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.SLIDES} element={<SlidesPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.PODCAST} element={<PodcastPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                 </Routes>
+              </React.Suspense>
             </main>
 
             {/* Mobile bottom navigation bar */}

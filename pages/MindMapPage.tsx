@@ -3,6 +3,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { generateMindMap, MindMapData } from '../services/geminiService';
 import { MenuIcon, AccountTreeIcon, AutoAwesomeIcon } from '../components/icons';
 import { Spinner } from '../components/Spinner';
+import { useAIGeneration } from '../hooks/useAIGeneration';
 
 const COLORS = [
   { bg: '#eff6ff', border: '#93c5fd', text: '#1e40af', accent: '#3b82f6' },
@@ -34,10 +35,15 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
   const { state } = useDocuments();
   const activeDoc = state.documents.find(d => d.id === state.activeDocumentId);
 
-  const [data, setData] = React.useState<MindMapData | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const abortRef = React.useRef<AbortController | null>(null);
+  const { data, loading, error, generate, cancel } = useAIGeneration<MindMapData>(
+    React.useCallback(
+      (signal) => {
+        if (!activeDoc?.documentContent) return Promise.reject(new Error('No document content'));
+        return generateMindMap(activeDoc.documentContent, activeDoc.model, signal);
+      },
+      [activeDoc]
+    )
+  );
 
   // Body
   const bodyRef = React.useRef<HTMLDivElement>(null);
@@ -54,23 +60,6 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
     return () => obs.disconnect();
   }, []);
 
-  const handleGenerate = React.useCallback(async () => {
-    if (!activeDoc?.documentContent) return;
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await generateMindMap(activeDoc.documentContent, activeDoc.model, abortRef.current.signal);
-      setData(result);
-    } catch (e: any) {
-      if (e.name === 'AbortError') return;
-      setError(e.message ?? 'Failed to generate mind map.');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeDoc]);
-
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
       {/* Header */}
@@ -86,7 +75,7 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
         <div className="ml-auto flex items-center gap-2">
           {loading ? (
             <>
-              <button type="button" onClick={() => abortRef.current?.abort()} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+              <button type="button" onClick={cancel} className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
                 Cancel
               </button>
               <button type="button" disabled className="flex items-center gap-2 px-4 py-2 bg-violet-600 opacity-50 text-white rounded-xl text-sm font-semibold cursor-not-allowed">
@@ -95,7 +84,7 @@ export const MindMapPage: React.FC<Props> = ({ onMenuClick }) => {
               </button>
             </>
           ) : activeDoc?.documentContent ? (
-            <button type="button" onClick={handleGenerate} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+            <button type="button" onClick={generate} className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
               <AutoAwesomeIcon className="text-base" />
               {data ? 'Regenerate' : 'Generate'}
             </button>
