@@ -3,8 +3,12 @@ import type { DocumentData, MindMapData } from '../types';
 import { generateMindMap } from '../services/geminiService';
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
-import { AccountTreeIcon, AutoAwesomeIcon } from './icons';
+import { AccountTreeIcon, AutoAwesomeIcon, ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import { Spinner } from './Spinner';
+
+const ZOOM_STEP = 0.25;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3.0;
 
 const COLORS = [
   { bg: '#eff6ff', border: '#93c5fd', text: '#1e40af', accent: '#3b82f6' },
@@ -128,6 +132,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
   const bodyRef = React.useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = React.useState(1);
+  const [userZoom, setUserZoom] = React.useState(1);
 
   const { data, loading, error, generate, cancel } = useAIGeneration<MindMapData>(
     React.useCallback(
@@ -160,8 +165,12 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
     return () => obs.disconnect();
   }, []);
 
-  // Use persisted data if available and no fresh generation yet
   const displayData = data ?? document.mindMapData ?? null;
+  const effectiveScale = canvasScale * userZoom;
+
+  const zoomIn  = () => setUserZoom(z => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))));
+  const zoomOut = () => setUserZoom(z => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))));
+  const zoomFit = () => setUserZoom(1);
 
   if (!document.documentContent) {
     return (
@@ -213,34 +222,91 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
       </div>
 
       {/* Body */}
-      <div ref={bodyRef} className="flex-1 overflow-auto p-4 flex items-start justify-center">
+      <div ref={bodyRef} className="flex-1 overflow-auto relative">
         {loading ? (
           <div className="flex flex-col items-center gap-3 text-slate-500 mt-8">
             <Spinner />
             <span className="text-sm">Building mind map…</span>
           </div>
         ) : error ? (
-          <div className="text-center text-red-500 text-sm max-w-sm mt-8">
+          <div className="text-center text-red-500 text-sm max-w-sm mt-8 mx-auto">
             <p className="font-semibold mb-1">Generation failed</p>
             <p>{error}</p>
           </div>
         ) : !displayData ? (
-          <div className="text-center text-slate-400 max-w-xs mt-8">
+          <div className="text-center text-slate-400 max-w-xs mt-8 mx-auto p-4">
             <AccountTreeIcon className="text-6xl mb-4 opacity-20" />
             <p className="font-semibold text-slate-600 mb-1">Visualize your document</p>
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
-          <div
-            style={{
-              transform: `scale(${canvasScale})`,
-              transformOrigin: 'top center',
-              width: CANVAS_W,
-              height: CANVAS_H * canvasScale,
-            }}
-          >
-            <MindMapCanvas data={displayData} />
-          </div>
+          <>
+            {/* Scroll area sized to match visual canvas */}
+            <div
+              className="flex items-start justify-center p-4"
+              style={{ minWidth: 'fit-content' }}
+            >
+              <div
+                style={{
+                  width: CANVAS_W * effectiveScale,
+                  height: CANVAS_H * effectiveScale,
+                  position: 'relative',
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: CANVAS_W,
+                    height: CANVAS_H,
+                    transform: `scale(${effectiveScale})`,
+                    transformOrigin: 'top left',
+                    position: 'absolute',
+                  }}
+                >
+                  <MindMapCanvas data={displayData} />
+                </div>
+              </div>
+            </div>
+
+            {/* Zoom controls — floating bottom-right */}
+            <div className="absolute bottom-4 right-4 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={zoomOut}
+                disabled={userZoom <= ZOOM_MIN}
+                title="Zoom out"
+                className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ZoomOutIcon className="text-lg" />
+              </button>
+              <button
+                type="button"
+                onClick={zoomFit}
+                title="Fit to window"
+                className="px-2 py-2 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100 transition-colors min-w-[46px] text-center border-x border-slate-200"
+              >
+                {Math.round(effectiveScale * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={zoomIn}
+                disabled={userZoom >= ZOOM_MAX}
+                title="Zoom in"
+                className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ZoomInIcon className="text-lg" />
+              </button>
+              <div className="w-px h-5 bg-slate-200 mx-0.5" />
+              <button
+                type="button"
+                onClick={zoomFit}
+                title="Reset zoom"
+                className="p-2 text-slate-500 hover:bg-slate-100 transition-colors"
+              >
+                <FitScreenIcon className="text-lg" />
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
