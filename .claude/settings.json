@@ -1,0 +1,11 @@
+{
+  "enabledMcpjsonServers": ["playwright"],
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx playwright *)",
+      "Bash(npx vite *)",
+      "Bash(git *)"
+    ]
+  }
+}
