@@ -89,8 +89,6 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
                 answerScope: 'document',
                 monkeyMode: false,
                 folderId: targetFolderId,
-                annotations: [],
-                annotationsLoaded: true,
                 currentPage: 1,
             };
             dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
@@ -118,8 +116,6 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
             answerScope: 'document',
             monkeyMode: false,
             folderId: targetFolderId,
-            annotations: [],
-            annotationsLoaded: true,
             currentPage: 1,
         };
 
