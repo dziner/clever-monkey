@@ -117,7 +117,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
         <div className="flex-1 flex min-w-0">
             {/* PDF Viewer — Desktop */}
             <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
-                <div className={`flex-1 relative min-h-0 w-full h-full ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
+                <div className={`flex-1 relative min-h-0 w-full flex flex-col ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
                     <PdfContent />
                 </div>
             </section>
@@ -228,7 +228,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 >
                     <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
                 </div>
-                <div className="relative h-full w-full pt-8">
+                <div className="relative h-full w-full pt-8 flex flex-col">
                     <PdfContent />
                     <button
                         type="button"
