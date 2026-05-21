@@ -194,9 +194,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-6 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="bg-blue-600 p-1.5 rounded-xl shadow-lg shadow-blue-600/20">
-                        <CleverMonkeyIcon className="w-6 h-6 text-white" />
-                    </div>
+                    <CleverMonkeyIcon className="w-9 h-9 text-blue-600 flex-shrink-0" />
                     <div>
                         <span className="block font-bold text-slate-900 text-lg font-outfit leading-tight tracking-tight">Clever Monkey</span>
                         <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Sources</p>
