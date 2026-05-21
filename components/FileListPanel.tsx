@@ -25,6 +25,8 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     
     const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
     const [dropTargetId, setDropTargetId] = React.useState<string | null>(null);
+    const deletingIdsRef = React.useRef(new Set<string>());
+    const isCreatingFolderRef = React.useRef(false);
     
     const totalTokens = React.useMemo(() => {
         return state.documents.reduce((acc, doc) => acc + (doc.tokenCount || 0), 0);
@@ -38,8 +40,10 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     };
     
     const handleDeleteDocument = async (docId: string) => {
+        if (deletingIdsRef.current.has(docId)) return;
         const targetDoc = state.documents.find(doc => doc.id === docId);
         if (!window.confirm(`Delete "${targetDoc?.fileName ?? 'this document'}"? This cannot be undone.`)) return;
+        deletingIdsRef.current.add(docId);
         dispatch({ type: 'DELETE_DOCUMENT', payload: { docId } });
 
         const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -68,9 +72,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         if (deleteError) {
             console.error('문서 메타데이터 삭제에 실패했습니다:', deleteError);
         }
+        deletingIdsRef.current.delete(docId);
     };
 
     const handleAddNewFolder = async () => {
+        if (isCreatingFolderRef.current) return;
+        isCreatingFolderRef.current = true;
         let newName = "New Folder";
         let counter = 1;
         const existingNames = new Set(state.folders.map(f => f.name));
@@ -94,10 +101,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
         if (insertError) {
             console.error('폴더 생성에 실패했습니다:', insertError);
+            isCreatingFolderRef.current = false;
             return;
         }
 
         dispatch({ type: 'ADD_FOLDER', payload: newFolder });
+        isCreatingFolderRef.current = false;
     };
 
     const handleDragStart = (e: React.DragEvent, docId: string) => {
@@ -227,7 +236,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Tools</div>
                 {[
                     { path: '/', label: 'Study', icon: HomeIcon },
-                    { path: '/wrong-answers', label: '오답노트', icon: ErrorOutlineIcon },
+                    { path: '/wrong-answers', label: 'Wrong Answers', icon: ErrorOutlineIcon },
                     { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
                     { path: '/mindmap', label: 'Mind Map', icon: AccountTreeIcon },
                     { path: '/slides', label: 'Slides', icon: SlideshowIcon },

@@ -31,7 +31,7 @@ const formatBytes = (value: number) => {
 
 const NAV_ITEMS = [
     { path: '/', label: 'Study', icon: HomeIcon },
-    { path: '/wrong-answers', label: '오답노트', icon: ErrorOutlineIcon },
+    { path: '/wrong-answers', label: 'Wrong Answers', icon: ErrorOutlineIcon },
     { path: '/flashcards', label: 'Flashcards', icon: StyleIcon },
     { path: '/mindmap', label: 'Mind Map', icon: AccountTreeIcon },
     { path: '/slides', label: 'Slides', icon: SlideshowIcon },

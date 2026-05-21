@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { DocumentProvider } from './contexts/DocumentContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import './types';
 
@@ -12,10 +13,12 @@ if ((window as any).pdfjsLib) {
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <DocumentProvider>
-        <App />
-      </DocumentProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <DocumentProvider>
+          <App />
+        </DocumentProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );
