@@ -373,7 +373,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         return (
             <React.Fragment>
                 <div className="hidden md:flex flex-shrink-0">
-                    <TabsComponent />
+                    {TabsComponent()}
                 </div>
 
                 <div className={`flex-1 flex-col overflow-y-auto ${activeTab === 'summary' ? 'flex' : 'hidden'}`}>
@@ -636,7 +636,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
                 {!isProcessing && (
                     <div className="md:hidden">
-                        <TabsComponent />
+                        {TabsComponent()}
                     </div>
                 )}
             </div>
@@ -648,7 +648,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     <p className="text-sm mt-1">Analyzing the document to create a summary and getting ready for your questions.</p>
                 </div>
             ) : (
-                <MainContent />
+                MainContent()
             )}
 
             <div className={`absolute bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm py-2 px-4 rounded-full shadow-lg transition-all duration-300 ${showCopyToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}`}>
