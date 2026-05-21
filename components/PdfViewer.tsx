@@ -399,7 +399,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
     if (error) return <div className="flex items-center justify-center h-full p-4 text-red-600 bg-red-50">{error}</div>;
 
     return (
-        <div className="w-full h-full flex flex-col bg-slate-100 relative">
+        <div className="flex-1 min-h-0 w-full flex flex-col bg-slate-100 relative">
             {/* Toolbar */}
             <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
                 <div className="flex items-center">
@@ -432,6 +432,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
             <section
                 ref={containerRef}
                 className="flex-1 min-h-0 w-full overflow-auto bg-slate-200 relative"
+                style={{ touchAction: 'pan-x pan-y' }}
                 aria-label="PDF viewer"
                 onScroll={handleScroll}
                 onPointerDown={handlePointerDown}
@@ -439,7 +440,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
             >
-                {pdfDoc && numPages > 0 ? (
+                {pdfDoc && numPages > 0 && pageViewports.length === numPages ? (
                     <div className="p-3 space-y-3 flex flex-col items-center">
                         {Array.from({ length: numPages }, (_, i) => {
                             const pageNum = i + 1;
