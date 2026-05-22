@@ -66,7 +66,7 @@ const StudyView: React.FC<{
         <h2 className="text-xl font-bold text-slate-700">오늘 복습할 카드가 없습니다</h2>
         <p className="text-slate-500 mt-1 text-sm">모든 카드가 일정에 맞게 복습됐습니다.</p>
       </div>
-      <button onClick={() => onExit(0)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
+      <button type="button" onClick={() => onExit(0)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
         돌아가기
       </button>
     </div>
@@ -81,7 +81,7 @@ const StudyView: React.FC<{
         <h2 className="text-xl font-bold text-slate-700">세션 완료!</h2>
         <p className="text-slate-500 mt-1 text-sm">{studied}장의 카드를 복습했습니다.</p>
       </div>
-      <button onClick={() => onExit(studied)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
+      <button type="button" onClick={() => onExit(studied)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
         덱으로 돌아가기
       </button>
     </div>
@@ -91,7 +91,7 @@ const StudyView: React.FC<{
     <div className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => onExit(studied)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+        <button type="button" onClick={() => onExit(studied)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
           <XIcon className="text-xl" />
         </button>
         <div className="text-center">
@@ -134,6 +134,7 @@ const StudyView: React.FC<{
       <div className="mt-6">
         {!flipped ? (
           <button
+            type="button"
             onClick={() => setFlipped(true)}
             className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 transition-colors"
           >
@@ -151,6 +152,7 @@ const StudyView: React.FC<{
               ] as const).map(({ q, label, sub, cls }) => (
                 <button
                   key={q}
+                  type="button"
                   onClick={() => handleRate(q as ReviewQuality)}
                   className={`flex flex-col items-center py-3 rounded-xl border font-semibold text-xs transition-colors ${cls}`}
                 >
@@ -228,7 +230,7 @@ const GenerateModal: React.FC<{
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-800">새 플래시카드 덱 만들기</h2>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
             <XIcon className="text-xl" />
           </button>
         </div>
@@ -241,6 +243,7 @@ const GenerateModal: React.FC<{
               {(['document', 'wrong_answers'] as const).map(s => (
                 <button
                   key={s}
+                  type="button"
                   onClick={() => setSource(s)}
                   className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                     source === s ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -321,6 +324,7 @@ const GenerateModal: React.FC<{
           )}
 
           <button
+            type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -387,13 +391,14 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) =
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 bg-white">
         <div className="p-3 h-14 flex items-center gap-3">
-          <button onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden">
+          <button type="button" onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden">
             <MenuIcon className="text-2xl" />
           </button>
           <StyleIcon className="text-2xl text-purple-500 hidden md:block" />
           <h1 className="text-lg font-bold text-slate-800">플래시카드</h1>
           <div className="ml-auto">
             <button
+              type="button"
               onClick={() => setShowGenerate(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transition-colors"
             >
@@ -406,10 +411,14 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) =
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center"><Spinner /></div>
       ) : !isLoggedIn ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
-          <StyleIcon className="text-5xl text-slate-300" />
-          <p className="font-semibold text-slate-700">로그인이 필요합니다</p>
-          <p className="text-sm text-slate-500">플래시카드를 저장하려면 로그인하세요.</p>
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
+            <StyleIcon className="text-4xl text-slate-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-700">로그인이 필요합니다</p>
+            <p className="text-sm text-slate-500 mt-1">플래시카드를 저장하려면 로그인하세요.</p>
+          </div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
@@ -446,6 +455,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) =
                   <p className="text-sm text-slate-400 mt-1">교재나 오답노트에서 카드를 자동 생성하세요.</p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowGenerate(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 text-sm"
                 >
@@ -475,6 +485,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) =
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
+                        type="button"
                         onClick={() => setStudyingDeck(deck)}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
                           deck.dueCards > 0
@@ -486,6 +497,7 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) =
                         학습
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(deck.id)}
                         className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       >

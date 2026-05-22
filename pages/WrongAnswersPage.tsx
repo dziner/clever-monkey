@@ -28,6 +28,7 @@ const WrongAnswerCard: React.FC<{
         <div className={`rounded-xl border transition-all duration-200 ${isReviewed ? 'border-slate-100 bg-slate-50/50' : 'border-slate-200 bg-white shadow-sm'}`}>
             {/* Card header — always visible */}
             <button
+                type="button"
                 className="w-full text-left p-4 flex items-start gap-3"
                 onClick={() => setExpanded(e => !e)}
             >
@@ -110,6 +111,7 @@ const WrongAnswerCard: React.FC<{
                     <div className="flex items-center justify-end gap-2 pt-1">
                         {!isReviewed && (
                             <button
+                                type="button"
                                 onClick={() => onMarkReviewed(item.id)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg transition-colors"
                             >
@@ -117,6 +119,7 @@ const WrongAnswerCard: React.FC<{
                             </button>
                         )}
                         <button
+                            type="button"
                             onClick={() => onDelete(item.id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 rounded-lg transition-colors"
                         >

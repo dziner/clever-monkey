@@ -80,13 +80,13 @@ export const PodcastPage: React.FC<Props> = ({ onMenuClick }) => {
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 shadow-sm">
+      <div className="flex-shrink-0 flex items-center gap-3 px-4 h-14 bg-white border-b border-slate-200 shadow-sm">
         <button type="button" onClick={onMenuClick} className="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg">
           <MenuIcon className="text-xl" />
         </button>
         <HeadphonesIcon className="text-2xl text-emerald-500" />
         <div>
-          <h1 className="font-bold text-slate-800 text-base leading-tight">Podcast</h1>
+          <h1 className="font-bold text-slate-800 text-lg leading-tight">Podcast</h1>
           <p className="text-xs text-slate-400 truncate max-w-xs">{activeDoc ? activeDoc.fileName : 'No document selected'}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
