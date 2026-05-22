@@ -260,26 +260,6 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 </button>
             </div>
 
-            {userEmail && (
-                <div className="px-5 pb-4 -mt-2">
-                    <button
-                        onClick={onProfileClick}
-                        className="w-full flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl hover:bg-slate-100 transition-colors"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg shadow-inner">
-                            {userEmail[0].toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                            <p className="text-sm font-bold text-slate-700 truncate" title={userEmail}>{userEmail}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border border-blue-200">{planName}</span>
-                                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Personal</span>
-                            </div>
-                        </div>
-                    </button>
-                </div>
-            )}
-            
             <div className="px-5 pb-6 flex-shrink-0">
                 <div className="grid grid-cols-2 gap-3">
                     <button
@@ -385,7 +365,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                  )}
             </div>
             
-            <div className="flex-shrink-0 p-5 border-t border-slate-100 bg-slate-50/50 space-y-4">
+            <div className="flex-shrink-0 p-5 border-t border-slate-100 bg-slate-50/50 space-y-3">
                 <div>
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-semibold text-slate-500">Usage</span>
@@ -397,11 +377,28 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 </div>
                 {userEmail && (
                     <button
-                        onClick={onSignOut}
-                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 border border-slate-200 bg-white rounded-xl py-2 hover:bg-slate-100 transition-colors"
+                        onClick={onProfileClick}
+                        className="w-full flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
                     >
-                        <LogOutIcon className="text-lg" />
-                        Log out
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shadow-inner flex-shrink-0">
+                            {userEmail[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <p className="text-xs font-bold text-slate-700 truncate" title={userEmail}>{userEmail}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border border-blue-200">{planName}</span>
+                                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Personal</span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); onSignOut(); }}
+                            className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+                            title="Log out"
+                            aria-label="Log out"
+                        >
+                            <LogOutIcon className="text-base" />
+                        </button>
                     </button>
                 )}
             </div>
