@@ -144,7 +144,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                 }`}
             >
                 <div className="flex items-center flex-1 min-w-0">
-                    <button onClick={(e) => { e.stopPropagation(); if (!isEditing) setIsExpanded(v => !v); }} className="p-1 rounded-md text-slate-500 hover:bg-slate-300 disabled:cursor-not-allowed" disabled={isEditing}>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); if (!isEditing) setIsExpanded(v => !v); }} className="p-1 rounded-md text-slate-500 hover:bg-slate-300 disabled:cursor-not-allowed" disabled={isEditing}>
                          {isExpanded ? <ChevronDownIcon className="text-base"/> : <ChevronRightIcon className="text-base"/>}
                     </button>
                     <FolderIcon className="text-xl text-slate-500 mx-1 flex-shrink-0" />
@@ -171,18 +171,23 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                     {isConfirmingDelete ? (
                         <div className="flex items-center animate-pulse">
                             <span className="text-xs text-red-600 font-semibold mr-1">Sure?</span>
-                            <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-green-600 hover:bg-green-100 rounded"><CheckIcon className="text-xl"/></button>
-                            <button onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(false); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><XIcon className="text-xl"/></button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-green-600 hover:bg-green-100 rounded"><CheckIcon className="text-xl"/></button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(false); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><XIcon className="text-xl"/></button>
                         </div>
                     ) : !isEditing ? (
                          <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-                            <button onClick={(e) => { e.stopPropagation(); handleStartRename(); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><EditIcon className="text-base"/></button>
-                            {state.folders.length > 1 && <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><TrashIcon className="text-base"/></button>}
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleStartRename(); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><EditIcon className="text-base"/></button>
+                            {state.folders.length > 1 && <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><TrashIcon className="text-base"/></button>}
                         </div>
                     ) : null}
                 </div>
             </div>
-             {isExpanded && documents.map(doc => (
+            {isExpanded && documents.length === 0 && (
+                <div className="pl-8 pr-2 py-2 text-xs text-slate-400 italic select-none">
+                    No files yet — upload one above
+                </div>
+            )}
+            {isExpanded && documents.map(doc => (
                 <FileListItem
                     key={doc.id}
                     doc={doc}

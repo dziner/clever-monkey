@@ -3,18 +3,45 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
-import { Spinner } from '../components/Spinner';
 import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import type { DocumentProcessingState } from '../types';
 
-const getProcessingMessage = (state: DocumentProcessingState): string => {
-    switch (state) {
-        case 'reading': return 'Extracting text with AI...';
-        case 'summarizing': return 'Summarizing document...';
-        case 'generating_questions': return 'Getting things ready...';
-        default: return `${state.charAt(0).toUpperCase() + state.slice(1)} document...`;
-    }
+const PROCESSING_STEPS: { state: DocumentProcessingState; label: string }[] = [
+    { state: 'reading', label: 'Extracting text' },
+    { state: 'summarizing', label: 'Summarizing' },
+    { state: 'generating_questions', label: 'Preparing questions' },
+];
+
+const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }> = ({ processingState }) => {
+    const activeIndex = PROCESSING_STEPS.findIndex(s => s.state === processingState);
+    return (
+        <div className="flex flex-col items-center gap-5 w-full max-w-xs">
+            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+            <div className="w-full space-y-2.5">
+                {PROCESSING_STEPS.map((step, i) => {
+                    const isDone = i < activeIndex;
+                    const isActive = i === activeIndex;
+                    return (
+                        <div key={step.state} className="flex items-center gap-3">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors ${
+                                isDone ? 'bg-green-500 text-white' :
+                                isActive ? 'bg-blue-500 text-white' :
+                                'bg-slate-200 text-slate-400'
+                            }`}>
+                                {isDone ? '✓' : i + 1}
+                            </div>
+                            <span className={`text-sm font-medium transition-colors ${
+                                isActive ? 'text-blue-700' :
+                                isDone ? 'text-green-600' :
+                                'text-slate-400'
+                            }`}>{step.label}{isActive ? '…' : ''}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
 };
 
 const ViewerPlaceholder = () => (
@@ -45,9 +72,8 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
 }) => (
     <React.Fragment>
         {isProcessing && (
-            <div className="absolute inset-0 bg-slate-100/80 flex flex-col items-center justify-center z-10">
-                <Spinner />
-                <p className="mt-4 text-slate-700 font-semibold">{getProcessingMessage(processingState)}</p>
+            <div className="absolute inset-0 bg-slate-50/95 flex flex-col items-center justify-center z-10 p-8">
+                <ProcessingProgress processingState={processingState} />
             </div>
         )}
         {processingState === 'error' && (
@@ -251,14 +277,15 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 }}
             >
                 <div
-                    className="absolute top-0 left-0 right-0 h-8 flex items-center justify-center z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
+                    className="absolute top-0 left-0 right-0 h-9 flex flex-col items-center justify-center gap-1 z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
                     <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
+                    <span className="text-[10px] font-medium text-slate-400 select-none leading-none">Swipe down to close</span>
                 </div>
-                <div className="relative h-full w-full pt-8 flex flex-col">
+                <div className="relative h-full w-full pt-9 flex flex-col">
                     <PdfContentPanel
                         file={activeDocument.file}
                         imageUrl={activeDocument.imageUrl}

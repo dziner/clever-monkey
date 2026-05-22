@@ -304,9 +304,12 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         <div className="flex items-center justify-end gap-2 text-sm text-slate-600" title="Toggle mischievous monkey mode">
             <span className="font-medium">🍌 Monkey</span>
             <button
+                type="button"
+                role="switch"
+                aria-label="Toggle monkey mode"
                 onClick={() => handleMonkeyModeChange(!document.monkeyMode)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${document.monkeyMode ? 'bg-yellow-500' : 'bg-slate-400'}`}
-                aria-pressed={document.monkeyMode}
+                aria-checked={document.monkeyMode}
             >
                 <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${document.monkeyMode ? 'translate-x-6' : 'translate-x-1'}`}
@@ -319,9 +322,12 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         <div className="flex items-center justify-end gap-2 text-sm text-slate-600" title={document.answerScope === 'document' ? 'Answers are strictly from the document' : 'Answers can include general knowledge'}>
             <span className="font-medium">📚 From Document Only</span>
             <button
+                type="button"
+                role="switch"
+                aria-label="Toggle answer scope"
                 onClick={() => handleScopeChange(document.answerScope === 'document' ? 'general' : 'document')}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${document.answerScope === 'document' ? 'bg-blue-600' : 'bg-slate-400'}`}
-                aria-pressed={document.answerScope === 'document'}
+                aria-checked={document.answerScope === 'document'}
             >
                 <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${document.answerScope === 'document' ? 'translate-x-6' : 'translate-x-1'}`}
@@ -392,10 +398,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             <span className="font-semibold text-slate-700 text-sm">Summary</span>
                         </div>
                         <div className="flex items-center gap-1">
-                            <button onClick={handleCopyToClipboard} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
+                            <button type="button" onClick={handleCopyToClipboard} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
                                 <CopyIcon className="text-sm" /> Copy
                             </button>
-                            <button onClick={handleDownloadPdf} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
+                            <button type="button" onClick={handleDownloadPdf} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
                                 <DownloadIcon className="text-sm" /> PDF
                             </button>
                         </div>
@@ -421,6 +427,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                         <ChatBubble message={{ ...msg, text: suggestionText }} />
                                         <div className="flex justify-start pl-14 -mt-3 mb-4">
                                             <button
+                                                type="button"
                                                 onClick={() => onTabChange('quiz')}
                                                 className="flex items-center gap-2 bg-white text-blue-800 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors shadow-md border border-blue-200"
                                             >
@@ -431,6 +438,9 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                     </div>
                                 );
                             }
+                            const prevUserMsg = msg.isError
+                                ? document.chatHistory.slice(0, index).findLast(m => m.sender === 'user')
+                                : null;
                             return (
                                 <div key={`chat-item-${document.id}-${index}`} className="chat-message-item">
                                     {msg.type === 'quiz' && msg.quizData && msg.quizState ? (
@@ -449,7 +459,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                             </div>
                                         </div>
                                     ) : (
-                                        <ChatBubble message={msg} />
+                                        <ChatBubble
+                                            message={msg}
+                                            onRetry={prevUserMsg ? () => handleSendMessage(prevUserMsg.text) : undefined}
+                                        />
                                     )}
                                 </div>
                             );
@@ -579,7 +592,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
             <div className="flex-shrink-0 border-b border-slate-200 bg-white">
                 <div className="p-3 h-14 flex items-center justify-between gap-2">
                     {/* Left side: Menu for mobile, PDF toggle for desktop */}
-                    <button onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden" aria-label="Open file menu">
+                    <button type="button" onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden" aria-label="Open file menu">
                         <MenuIcon className="text-2xl" />
                     </button>
                     <button
@@ -603,6 +616,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
                     {/* Right side: Preview for mobile */}
                     <button
+                        type="button"
                         onClick={onPreviewClick}
                         className={`p-2 rounded-lg hover:bg-slate-100 md:hidden ${isPdfVisible ? 'bg-blue-100 text-blue-600' : 'text-slate-600'}`}
                         aria-label={isPdfVisible ? 'Hide document preview' : 'Show document preview'}
@@ -640,8 +654,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 MainContent()
             )}
 
-            <div className={`absolute bottom-24 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm py-2 px-4 rounded-full shadow-lg transition-all duration-300 ${showCopyToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'}`}>
-                Summary copied to clipboard!
+            <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-slate-900 text-white text-sm py-2 px-4 rounded-full shadow-lg transition-all duration-300 ${showCopyToast ? 'opacity-100 -translate-y-0' : 'opacity-0 -translate-y-3 pointer-events-none'}`}>
+                ✓ Summary copied to clipboard
             </div>
         </div>
     );

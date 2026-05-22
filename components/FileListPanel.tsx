@@ -251,6 +251,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                     </div>
                 </div>
                 <button
+                    type="button"
                     onClick={() => setIsPanelCollapsed(true)}
                     className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                     title="Collapse sources panel"
@@ -263,6 +264,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             <div className="px-5 pb-6 flex-shrink-0">
                 <div className="grid grid-cols-2 gap-3">
                     <button
+                        type="button"
                         onClick={() => inputRef.current?.click()}
                         className="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-semibold transition-all duration-200 border border-blue-100 hover:border-blue-200 shadow-sm hover:shadow-md group"
                     >
@@ -270,6 +272,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         <span className="text-xs">New PDF</span>
                     </button>
                     <button
+                        type="button"
                         onClick={handleAddNewFolder}
                         className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-slate-50 text-slate-600 rounded-xl font-semibold transition-all duration-200 border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md group"
                     >
@@ -291,7 +294,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-slate-700 placeholder-slate-400"
                     />
                     {searchQuery && (
-                        <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                             <XIcon className="text-base" />
                         </button>
                     )}
