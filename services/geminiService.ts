@@ -140,10 +140,26 @@ async function sendChatMessage(params: {
   return data.text;
 }
 
-async function fileToGenerativePart(file: File): Promise<Part> {
-  const base64EncodedData = await new Promise<string>((resolve) => {
+interface InlineDataPart {
+  inlineData: {
+    data: string;
+    mimeType: string;
+  };
+}
+
+async function fileToGenerativePart(file: File): Promise<InlineDataPart> {
+  const base64EncodedData = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.split(',')[1];
+      if (!base64) {
+        reject(new Error('Failed to encode file as base64'));
+        return;
+      }
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error(`FileReader error: ${reader.error?.message ?? 'unknown'}`));
     reader.readAsDataURL(file);
   });
   return {
@@ -164,7 +180,7 @@ async function extractTextFromDocument(file: File, model: ProcessingModel): Prom
   const data = await callGemini<{ text: string }>({
     action: 'extractText',
     model,
-    inlineData: (documentPart as { inlineData: unknown }).inlineData,
+    inlineData: documentPart.inlineData,
   });
 
   return data.text;

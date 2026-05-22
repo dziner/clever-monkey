@@ -8,34 +8,39 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
   const { dispatch } = useDocuments();
   const [isBotTyping, setIsBotTyping] = React.useState(false);
 
+  // Keep a stable ref so callbacks don't need to re-create on every doc state update
+  const documentRef = React.useRef(document);
+  documentRef.current = document;
+
   const handleSendMessage = React.useCallback(
     async (messageText: string) => {
+      const doc = documentRef.current;
       const text = messageText.trim();
       if (!text || isBotTyping) return;
-      if (!document.documentContent) return;
+      if (!doc.documentContent) return;
 
       setIsBotTyping(true);
-      const historyWithUserMessage: ChatMessage[] = [...document.chatHistory, { sender: 'user', text }];
+      const historyWithUserMessage: ChatMessage[] = [...doc.chatHistory, { sender: 'user', text }];
       onChatHistoryChange(historyWithUserMessage);
 
       try {
         const [userTokens, botResponseText] = await Promise.all([
-          geminiProxy.countTokens(document.model, text),
+          geminiProxy.countTokens(doc.model, text),
           geminiProxy.sendChatMessage({
-            model: document.model,
-            systemInstruction: getSystemInstruction(document.answerScope, document.monkeyMode),
-            documentContent: document.documentContent,
+            model: doc.model,
+            systemInstruction: getSystemInstruction(doc.answerScope, doc.monkeyMode),
+            documentContent: doc.documentContent,
             chatHistory: historyWithUserMessage,
             message: text,
           }),
         ]);
 
-        const botTokens = await geminiProxy.countTokens(document.model, botResponseText);
+        const botTokens = await geminiProxy.countTokens(doc.model, botResponseText);
         const newTokens = userTokens + botTokens;
 
         dispatch({
           type: 'UPDATE_DOCUMENT',
-          payload: { docId: document.id, updates: { tokenCount: (document.tokenCount || 0) + newTokens } },
+          payload: { docId: doc.id, updates: { tokenCount: (doc.tokenCount || 0) + newTokens } },
         });
 
         const quizSuggestionMatch = botResponseText.includes('<goto_quiz_tab />');
@@ -45,11 +50,11 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
             sender: 'bot',
             text: cleanText || "Great idea! Let's head over to the Quiz tab to create a test for you. ✨",
             type: 'quiz_suggestion',
-            wasMonkeyMode: document.monkeyMode,
+            wasMonkeyMode: doc.monkeyMode,
           };
           onChatHistoryChange([...historyWithUserMessage, suggestionMessage]);
         } else {
-          const botMessage: ChatMessage = { sender: 'bot', text: botResponseText, wasMonkeyMode: document.monkeyMode };
+          const botMessage: ChatMessage = { sender: 'bot', text: botResponseText, wasMonkeyMode: doc.monkeyMode };
           onChatHistoryChange([...historyWithUserMessage, botMessage]);
         }
       } catch (e) {
@@ -57,25 +62,26 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
         const errorMessage: ChatMessage = {
           sender: 'bot',
           text: 'Sorry, I encountered an error. Please try again. 🙏',
-          wasMonkeyMode: document.monkeyMode,
+          wasMonkeyMode: doc.monkeyMode,
         };
         onChatHistoryChange([...historyWithUserMessage, errorMessage]);
       } finally {
         setIsBotTyping(false);
       }
     },
-    [document, isBotTyping, onChatHistoryChange, dispatch]
+    [isBotTyping, onChatHistoryChange, dispatch]
   );
 
   const changeChatContext = React.useCallback(
     async (updates: Partial<DocumentData>) => {
-      if (!document.documentContent) {
+      const doc = documentRef.current;
+      if (!doc.documentContent) {
         console.error('Document content is not available to change context.');
         return;
       }
 
-      const newScope = updates.answerScope || document.answerScope;
-      const newMode = updates.monkeyMode ?? document.monkeyMode;
+      const newScope = updates.answerScope || doc.answerScope;
+      const newMode = updates.monkeyMode ?? doc.monkeyMode;
 
       let statusMessage: ChatMessage;
       if (updates.answerScope) {
@@ -100,16 +106,22 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
       dispatch({
         type: 'UPDATE_DOCUMENT',
         payload: {
-          docId: document.id,
-          updates: { ...updates, chatHistory: [...document.chatHistory, statusMessage] },
+          docId: doc.id,
+          updates: { ...updates, chatHistory: [...doc.chatHistory, statusMessage] },
         },
       });
     },
-    [document, dispatch]
+    [dispatch]
   );
 
-  const handleScopeChange = (newScope: 'document' | 'general') => changeChatContext({ answerScope: newScope });
-  const handleMonkeyModeChange = (newMode: boolean) => changeChatContext({ monkeyMode: newMode });
+  const handleScopeChange = React.useCallback(
+    (newScope: 'document' | 'general') => changeChatContext({ answerScope: newScope }),
+    [changeChatContext]
+  );
+  const handleMonkeyModeChange = React.useCallback(
+    (newMode: boolean) => changeChatContext({ monkeyMode: newMode }),
+    [changeChatContext]
+  );
 
   return {
     isBotTyping,

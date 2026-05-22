@@ -239,15 +239,13 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     const handleQuizTabStateChange = (newState: QuizTabState) => {
         if (document.quizTabData) {
             const prevState = document.quizTabData.quizState;
+            const restarting = prevState.isFinished && !newState.isFinished;
             const updatedQuizTabData = {
                 ...document.quizTabData,
                 quizState: newState,
+                // When a finished quiz is restarted, clear the previous study tips.
+                ...(restarting ? { studyTips: undefined } : {}),
             };
-
-            // When a finished quiz is restarted, clear the previous study tips.
-            if (prevState.isFinished && !newState.isFinished) {
-                delete updatedQuizTabData.studyTips;
-            }
 
             // Save wrong answers on quiz completion (fire-and-forget)
             const justFinishedMCQ = newState.type === 'mcq' && !prevState.isFinished && newState.isFinished;
