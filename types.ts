@@ -180,6 +180,29 @@ export interface DocumentState {
   activeFolderId: string | null;
 }
 
+// ─── User Tier & Profile ─────────────────────────────────────────────────────
+
+export type UserTier = 'free' | 'pro';
+export type UserRole = 'user' | 'admin';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: UserRole;
+  tier: UserTier;
+  tierExpiresAt: string | null;
+  aiActionsToday: number;
+  aiActionsDate: string;
+  createdAt: string;
+}
+
+export const TIER_LIMITS = {
+  free: { maxDocuments: 5, maxAiActionsPerDay: 20, label: 'Free' },
+  pro:  { maxDocuments: Infinity, maxAiActionsPerDay: Infinity, label: 'Pro' },
+} as const;
+
+// ─── Document State ───────────────────────────────────────────────────────────
+
 export type DocumentAction =
   | { type: 'ADD_DOCUMENT'; payload: DocumentData }
   | { type: 'DELETE_DOCUMENT'; payload: { docId: string } }

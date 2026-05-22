@@ -7,6 +7,7 @@ export const ROUTES = {
   PODCAST: '/podcast',
   PROFILE: '/profile',
   DASHBOARD: '/dashboard',
+  ADMIN: '/admin',
 } as const;
 
 export type AppRoute = typeof ROUTES[keyof typeof ROUTES];

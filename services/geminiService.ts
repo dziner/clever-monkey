@@ -66,10 +66,22 @@ type GeminiPayload =
   | { action: 'extractText'; model: string; inlineData: unknown }
   | { action: 'tts'; text: string; voice: string };
 
+import { supabase } from './supabaseClient';
+
+async function getAuthHeader(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? `Bearer ${token}` : null;
+}
+
 async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Promise<T> {
+  const authHeader = await getAuthHeader();
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (authHeader) headers['authorization'] = authHeader;
+
   const res = await fetch(GEMINI_PROXY_ENDPOINT, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
     signal,
   });

@@ -2,7 +2,8 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon } from './icons';
+import { useTierLimits } from '../hooks/useTierLimits';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { FolderItem } from './FolderItem';
@@ -15,12 +16,15 @@ interface FileListPanelProps {
     isDesktop?: boolean;
     onProfileClick: () => void;
     onSignOut: () => void;
+    onUpgradeClick?: (reason?: 'documents' | 'ai_actions' | 'generic') => void;
+    onAdminClick?: () => void;
 }
 
-export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut }) => {
+export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut, onUpgradeClick, onAdminClick }) => {
     const { state, dispatch } = useDocuments();
-    const { userEmail } = useUser();
-    const planName = 'Free';
+    const { userEmail, userProfile } = useUser();
+    const tierLimits = useTierLimits(state.documents.length);
+    const planName = tierLimits.isPro ? 'Pro' : 'Free';
     const { showToast } = useToast();
     const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -37,6 +41,11 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
+            if (tierLimits.isAtDocumentLimit(state.documents.length)) {
+                onUpgradeClick?.('documents');
+                e.target.value = '';
+                return;
+            }
             onFileSelected(e.target.files[0]);
             if (!isDesktop) setIsPanelCollapsed(true);
         }
@@ -368,29 +377,95 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                  )}
             </div>
             
-            <div className="flex-shrink-0 p-5 border-t border-slate-100 bg-slate-50/50 space-y-3">
+            <div className="flex-shrink-0 p-4 border-t border-slate-100 bg-slate-50/50 space-y-3">
+                {/* Document usage bar */}
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-semibold text-slate-500">Usage</span>
-                        <span className="text-xs font-mono font-medium text-slate-600">{totalTokens.toLocaleString()} tkns</span>
+                        <span className="text-xs font-semibold text-slate-500">문서</span>
+                        <span className="text-xs font-mono font-medium text-slate-600">
+                            {state.documents.length}{tierLimits.maxDocuments !== Infinity ? ` / ${tierLimits.maxDocuments}` : ''}
+                        </span>
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min((totalTokens / 100000) * 100, 100)}%` }}></div>
-                    </div>
+                    {tierLimits.maxDocuments !== Infinity && (
+                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                            <div
+                                className={`h-1.5 rounded-full transition-all ${
+                                    tierLimits.isAtDocumentLimit(state.documents.length) ? 'bg-red-500' : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${Math.min((state.documents.length / tierLimits.maxDocuments) * 100, 100)}%` }}
+                            />
+                        </div>
+                    )}
                 </div>
+
+                {/* AI usage */}
+                {!tierLimits.isPro && userProfile && (
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-semibold text-slate-500">AI 사용</span>
+                            <span className={`text-xs font-mono font-medium ${tierLimits.isAtAiLimit ? 'text-red-600' : 'text-slate-600'}`}>
+                                {tierLimits.aiActionsToday} / {tierLimits.maxAiActionsPerDay}
+                            </span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                            <div
+                                className={`h-1.5 rounded-full transition-all ${tierLimits.isAtAiLimit ? 'bg-red-500' : 'bg-green-500'}`}
+                                style={{ width: `${Math.min((tierLimits.aiActionsToday / tierLimits.maxAiActionsPerDay) * 100, 100)}%` }}
+                            />
+                        </div>
+                        {tierLimits.isAtAiLimit && (
+                            <button
+                                type="button"
+                                onClick={() => onUpgradeClick?.('ai_actions')}
+                                className="mt-1.5 w-full text-xs text-center text-blue-600 font-semibold hover:underline"
+                            >
+                                Pro로 업그레이드 →
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Admin quick-access */}
+                {onAdminClick && (
+                    <button
+                        type="button"
+                        onClick={onAdminClick}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-xl hover:bg-orange-100 transition-colors"
+                    >
+                        <AdminPanelIcon className="text-base" />
+                        Admin Panel
+                    </button>
+                )}
+
+                {/* Profile / logout */}
                 {userEmail && (
                     <button
+                        type="button"
                         onClick={onProfileClick}
                         className="w-full flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
                     >
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shadow-inner flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner flex-shrink-0 ${
+                            tierLimits.isPro ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-600'
+                        }`}>
                             {userEmail[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
                             <p className="text-xs font-bold text-slate-700 truncate" title={userEmail}>{userEmail}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border border-blue-200">{planName}</span>
-                                <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Personal</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
+                                    tierLimits.isPro
+                                        ? 'bg-violet-100 text-violet-700 border-violet-200'
+                                        : 'bg-blue-100 text-blue-700 border-blue-200'
+                                }`}>{planName}</span>
+                                {!tierLimits.isPro && onUpgradeClick && (
+                                    <button
+                                        type="button"
+                                        onClick={e => { e.stopPropagation(); onUpgradeClick('generic'); }}
+                                        className="text-[10px] text-slate-400 hover:text-violet-600 font-semibold flex items-center gap-0.5 transition-colors"
+                                    >
+                                        <WorkspacePremiumIcon className="text-xs" /> 업그레이드
+                                    </button>
+                                )}
                             </div>
                         </div>
                         <button

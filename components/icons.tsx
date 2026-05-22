@@ -68,6 +68,15 @@ export const PictureAsPdfIcon = createIcon('picture_as_pdf');
 export const ImageIcon = createIcon('image');
 export const TextSnippetIcon = createIcon('text_snippet');
 export const RefreshIcon = createIcon('refresh');
+export const AdminPanelIcon = createIcon('admin_panel_settings');
+export const PeopleIcon = createIcon('people');
+export const WorkspacePremiumIcon = createIcon('workspace_premium');
+export const TrendingUpIcon = createIcon('trending_up');
+export const BlockIcon = createIcon('block');
+export const StarIcon = createIcon('star');
+export const KeyIcon = createIcon('key');
+export const BoltIcon = createIcon('bolt');
+export const LockIcon = createIcon('lock');
 
 export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px"

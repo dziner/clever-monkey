@@ -5,7 +5,8 @@ import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
-import { HomeIcon, ErrorOutlineIcon, StyleIcon, PanelLeftCloseIcon, CleverMonkeyIcon, AutoAwesomeIcon } from './components/icons';
+import { HomeIcon, ErrorOutlineIcon, StyleIcon, PanelLeftCloseIcon, CleverMonkeyIcon, AutoAwesomeIcon, AdminPanelIcon } from './components/icons';
+import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
@@ -17,6 +18,7 @@ const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ defa
 const WrongAnswersPage = React.lazy(() => import('./pages/WrongAnswersPage').then(m => ({ default: m.WrongAnswersPage })));
 const FlashcardsPage = React.lazy(() => import('./pages/FlashcardsPage').then(m => ({ default: m.FlashcardsPage })));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 
 const PageLoader: React.FC = () => (
   <div className="flex-1 flex items-center justify-center bg-slate-50">
@@ -51,7 +53,8 @@ const App: React.FC = () => {
     const location = useLocation();
 
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
-    const { userEmail, isAuthLoading } = useUser();
+    const { userEmail, userProfile, isAuthLoading } = useUser();
+    const { isOpen: isUpgradeOpen, reason: upgradeReason, openUpgrade, closeUpgrade } = useUpgradeModal();
 
     useKeyboardShortcuts([
         { key: 'Escape', handler: () => setIsPanelCollapsed(true) },
@@ -92,7 +95,7 @@ const App: React.FC = () => {
     const fileCount = state.documents.length;
     const totalFileSize = state.documents.reduce((acc, doc) => acc + (doc.fileSize || 0), 0);
     const storageUsage = formatBytes(totalFileSize);
-    const planName = 'Free';
+    const planName = userProfile?.tier === 'pro' ? 'Pro' : 'Free';
 
     const authUI = (
         <AuthModal
@@ -103,6 +106,19 @@ const App: React.FC = () => {
             onEmailSignUp={handleEmailSignUp}
         />
     );
+
+    // Admin page — full screen, no sidebar
+    if (location.pathname === ROUTES.ADMIN) {
+        return (
+            <React.Fragment>
+                {authUI}
+                <UpgradeModal isOpen={isUpgradeOpen} reason={upgradeReason} onClose={closeUpgrade} />
+                <React.Suspense fallback={<PageLoader />}>
+                    <AdminPage onMenuClick={() => {}} />
+                </React.Suspense>
+            </React.Fragment>
+        );
+    }
 
     // Profile page — full screen, no sidebar
     if (location.pathname === ROUTES.PROFILE) {
@@ -151,10 +167,13 @@ const App: React.FC = () => {
         );
     }
 
+    const isAdmin = userProfile?.role === 'admin';
+
     // Main layout with sidebar + routed content
     return (
         <div className="flex h-screen bg-slate-50 font-sans antialiased overflow-hidden">
             {authUI}
+            <UpgradeModal isOpen={isUpgradeOpen} reason={upgradeReason} onClose={closeUpgrade} />
 
             {/* Sidebar — Mobile overlay */}
             <div className="md:hidden">
@@ -172,6 +191,8 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         onProfileClick={() => navigate(ROUTES.PROFILE)}
                         onSignOut={handleSignOut}
+                        onUpgradeClick={openUpgrade}
+                        onAdminClick={isAdmin ? () => navigate(ROUTES.ADMIN) : undefined}
                     />
                 </aside>
             </div>
@@ -197,6 +218,8 @@ const App: React.FC = () => {
                         setIsPanelCollapsed={setIsPanelCollapsed}
                         onProfileClick={() => navigate(ROUTES.PROFILE)}
                         onSignOut={handleSignOut}
+                        onUpgradeClick={openUpgrade}
+                        onAdminClick={isAdmin ? () => navigate(ROUTES.ADMIN) : undefined}
                     />
                 )}
             </aside>

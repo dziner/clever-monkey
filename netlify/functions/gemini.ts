@@ -2,23 +2,65 @@ import type { Handler } from '@netlify/functions';
 import { GoogleGenAI } from '@google/genai';
 
 const API_KEY = process.env.GEMINI_API_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024; // 4MB
 const MAX_TEXT_CHARS = 250_000;
 
-// naive per-instance rate limiting (best-effort in serverless)
+// Fallback IP-based rate limiting (anonymous / unverified users)
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
 const rateState = globalThis.__cmRateState ?? new Map<string, number[]>();
 (globalThis as any).__cmRateState = rateState;
 
-function tooManyRequests(ip: string): boolean {
+function tooManyRequestsByIp(ip: string): boolean {
   const now = Date.now();
   const arr = rateState.get(ip) ?? [];
   const next = arr.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   next.push(now);
   rateState.set(ip, next);
   return next.length > RATE_LIMIT_MAX;
+}
+
+// Actions that consume a daily AI credit (countTokens is free)
+const COUNTED_ACTIONS = new Set(['generateContent', 'chat', 'extractText', 'tts']);
+
+async function getUserIdFromToken(authHeader: string | undefined): Promise<string | null> {
+  if (!authHeader?.startsWith('Bearer ') || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: authHeader,
+      },
+    });
+    if (!res.ok) return null;
+    const user = (await res.json()) as { id?: string };
+    return user.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function checkTierLimit(userId: string): Promise<{ allowed: boolean; error?: string }> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return { allowed: true };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_ai_action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      },
+      body: JSON.stringify({ p_user_id: userId }),
+    });
+    if (!res.ok) return { allowed: true }; // fail open
+    const data = (await res.json()) as { allowed: boolean; error?: string };
+    return { allowed: data.allowed, error: data.error };
+  } catch {
+    return { allowed: true }; // fail open on network errors
+  }
 }
 
 function json(statusCode: number, body: any) {
@@ -79,8 +121,26 @@ export const handler: Handler = async (event) => {
     event.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
     'unknown';
 
-  if (tooManyRequests(ip)) {
-    return json(429, { error: 'Rate limit exceeded. Please try again soon.' });
+  // Authenticate the request and apply tier-based limits
+  const authHeader = event.headers['authorization'];
+  const userId = await getUserIdFromToken(authHeader);
+
+  // Parse action early so we can decide if it needs a credit
+  let parsedAction: string | undefined;
+  try {
+    parsedAction = (JSON.parse(event.body || '{}') as { action?: string }).action;
+  } catch { /* handled below */ }
+
+  if (userId && parsedAction && COUNTED_ACTIONS.has(parsedAction)) {
+    const { allowed, error } = await checkTierLimit(userId);
+    if (!allowed) {
+      return json(429, { error: error ?? 'Daily AI limit reached. Upgrade to Pro.' });
+    }
+  } else if (!userId) {
+    // Unauthenticated: fallback to IP rate limiting
+    if (tooManyRequestsByIp(ip)) {
+      return json(429, { error: 'Rate limit exceeded. Please sign in or try again later.' });
+    }
   }
 
   const raw = event.body || '';
