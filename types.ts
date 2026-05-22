@@ -76,6 +76,7 @@ export interface ChatMessage {
   quizData?: QuizData;
   quizState?: MCQQuizState; // Chat-based quizzes are currently only MCQ
   wasMonkeyMode?: boolean;
+  isError?: boolean;
 }
 
 export type DocumentProcessingState = 'reading' | 'summarizing' | 'generating_questions' | 'error' | 'done';

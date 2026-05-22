@@ -63,6 +63,7 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
           sender: 'bot',
           text: 'Sorry, I encountered an error. Please try again. 🙏',
           wasMonkeyMode: doc.monkeyMode,
+          isError: true,
         };
         onChatHistoryChange([...historyWithUserMessage, errorMessage]);
       } finally {
