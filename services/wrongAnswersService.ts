@@ -160,3 +160,34 @@ export async function deleteWrongAnswer(id: string): Promise<boolean> {
     .eq('id', id);
   return !error;
 }
+
+export interface QuizSession {
+  id: string;
+  documentName: string;
+  quizType: 'mcq' | 'frq';
+  score: number;
+  totalQuestions: number;
+  correctCount: number;
+  createdAt: string;
+}
+
+export async function fetchQuizSessions(limit = 30): Promise<QuizSession[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from('quiz_sessions')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) { console.error('Failed to fetch quiz sessions:', error); return []; }
+  return (data ?? []).map(row => ({
+    id: row.id,
+    documentName: row.document_name,
+    quizType: row.quiz_type,
+    score: row.score,
+    totalQuestions: row.total_questions,
+    correctCount: row.correct_count,
+    createdAt: row.created_at,
+  }));
+}
