@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon } from './icons';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon } from './icons';
 import { MindMapTab } from './MindMapTab';
 import { SlidesTab } from './SlidesTab';
 import { PodcastTab } from './PodcastTab';
@@ -52,6 +52,9 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const [showCopyToast, setShowCopyToast] = React.useState(false);
     const [isPresetQuestionsOpen, setIsPresetQuestionsOpen] = React.useState(false);
+    const [chatSearch, setChatSearch] = React.useState('');
+    const [isChatSearchOpen, setIsChatSearchOpen] = React.useState(false);
+    const chatSearchRef = React.useRef<HTMLInputElement>(null);
 
     // State for quiz generation status in the quiz tab
     const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false);
@@ -80,7 +83,20 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     React.useEffect(() => {
         setQuizError(null);
+        setChatSearch('');
+        setIsChatSearchOpen(false);
     }, [document.id]);
+
+    React.useEffect(() => {
+        if (isChatSearchOpen) chatSearchRef.current?.focus();
+    }, [isChatSearchOpen]);
+
+    const toggleChatSearch = React.useCallback(() => {
+        setIsChatSearchOpen(v => {
+            if (v) setChatSearch('');
+            return !v;
+        });
+    }, []);
 
     // Effect to manage the initial chat sequence and preset questions visibility
     React.useEffect(() => {
@@ -396,6 +412,11 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                         <div className="flex items-center gap-2">
                             <CopyIcon className="text-xl text-blue-500" />
                             <span className="font-semibold text-slate-700 text-sm">Summary</span>
+                            {document.summary && (
+                                <span className="text-xs text-slate-400 font-normal">
+                                    · ≈{Math.max(1, Math.round(document.summary.trim().split(/\s+/).length / 200))} min read
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-1">
                             <button type="button" onClick={handleCopyToClipboard} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
@@ -412,14 +433,48 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-shrink-0 flex items-center px-4 py-3 border-b border-slate-100 bg-white">
+                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
                         <div className="flex items-center gap-2">
                             <ChatIcon className="text-xl text-blue-500" />
                             <span className="font-semibold text-slate-700 text-sm">Chat</span>
+                            {chatSearch && (
+                                <span className="text-xs text-slate-400">
+                                    {document.chatHistory.filter(m => m.text.toLowerCase().includes(chatSearch.toLowerCase())).length} matches
+                                </span>
+                            )}
                         </div>
+                        <button
+                            type="button"
+                            onClick={toggleChatSearch}
+                            className={`p-1.5 rounded-lg transition-colors ${isChatSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                            title="Search chat history"
+                            aria-label="Search chat"
+                        >
+                            <SearchIcon className="text-base" />
+                        </button>
                     </div>
+                    {isChatSearchOpen && (
+                        <div className="flex-shrink-0 px-4 py-2 border-b border-slate-100 bg-slate-50">
+                            <div className="relative">
+                                <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                                <input
+                                    ref={chatSearchRef}
+                                    type="text"
+                                    value={chatSearch}
+                                    onChange={e => setChatSearch(e.target.value)}
+                                    placeholder="Search messages…"
+                                    className="w-full pl-8 pr-8 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
+                                />
+                                {chatSearch && (
+                                    <button type="button" onClick={() => setChatSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                        <XIcon className="text-sm" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
-                        {document.chatHistory.map((msg, index) => {
+                        {document.chatHistory.filter(msg => !chatSearch || msg.text.toLowerCase().includes(chatSearch.toLowerCase())).map((msg, index) => {
                             if (msg.type === 'quiz_suggestion') {
                                 const suggestionText = msg.text || "Let's make a quiz! Click the button below to go to the quiz generator.";
                                 return (

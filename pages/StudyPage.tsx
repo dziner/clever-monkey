@@ -5,7 +5,11 @@ import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
 import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useRetryProcessing } from '../hooks/useRetryProcessing';
 import type { DocumentProcessingState } from '../types';
+
+const TAB_ORDER: ActiveTab[] = ['summary', 'chat', 'quiz', 'mindmap', 'slides', 'podcast'];
 
 const PROCESSING_STEPS: { state: DocumentProcessingState; label: string }[] = [
     { state: 'reading', label: 'Extracting text' },
@@ -64,11 +68,12 @@ interface PdfContentPanelProps {
     processingState: DocumentProcessingState;
     errorMessage?: string | null;
     onDeleteDocument: () => void;
+    onRetryProcessing: () => void;
 }
 
 const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
     file, imageUrl, docId, currentPage, onPageChange,
-    isProcessing, processingState, errorMessage, onDeleteDocument,
+    isProcessing, processingState, errorMessage, onDeleteDocument, onRetryProcessing,
 }) => (
     <React.Fragment>
         {isProcessing && (
@@ -77,16 +82,25 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
             </div>
         )}
         {processingState === 'error' && (
-            <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-10 p-4">
+            <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-10 p-8 text-center">
                 <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
-                <p className="text-red-600 mt-2 text-center">{errorMessage}</p>
-                <button
-                    type="button"
-                    onClick={onDeleteDocument}
-                    className="mt-4 flex items-center px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
-                >
-                    <XIcon className="text-base mr-2" /> Close
-                </button>
+                <p className="text-red-600 mt-2 max-w-xs">{errorMessage}</p>
+                <div className="mt-5 flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={onRetryProcessing}
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                    >
+                        Retry
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onDeleteDocument}
+                        className="flex items-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300"
+                    >
+                        <XIcon className="text-base mr-1.5" /> Close
+                    </button>
+                </div>
             </div>
         )}
         {file ? (
@@ -124,6 +138,13 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
 
+    useKeyboardShortcuts(
+        TAB_ORDER.map((tab, i) => ({
+            key: String(i + 1),
+            handler: () => { setActiveTab(tab); setIsRightPanelCollapsed(false); },
+        }))
+    );
+
     const handlePageChange = React.useCallback((page: number) => {
         if (!activeDocument) return;
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: activeDocument.id, updates: { currentPage: page } } });
@@ -133,6 +154,12 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
         if (!activeDocument) return;
         dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: activeDocument.id } });
     }, [activeDocument?.id, dispatch]);
+
+    const { retry: retryProcessing } = useRetryProcessing();
+    const handleRetryProcessing = React.useCallback(() => {
+        if (!activeDocument) return;
+        retryProcessing(activeDocument.id);
+    }, [activeDocument?.id, retryProcessing]);
 
     const handleTouchStart = (e: React.TouchEvent) => {
         dragStartY.current = e.touches[0].clientY;
@@ -174,6 +201,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
                         onDeleteDocument={handleDeleteDocument}
+                        onRetryProcessing={handleRetryProcessing}
                     />
                 </div>
             </section>
@@ -296,6 +324,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
                         onDeleteDocument={handleDeleteDocument}
+                        onRetryProcessing={handleRetryProcessing}
                     />
                     <button
                         type="button"

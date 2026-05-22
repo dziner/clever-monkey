@@ -5,7 +5,7 @@ import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
-import { HomeIcon, ErrorOutlineIcon, StyleIcon, PanelLeftCloseIcon, CleverMonkeyIcon } from './components/icons';
+import { HomeIcon, ErrorOutlineIcon, StyleIcon, PanelLeftCloseIcon, CleverMonkeyIcon, AutoAwesomeIcon } from './components/icons';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
@@ -16,6 +16,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
 const WrongAnswersPage = React.lazy(() => import('./pages/WrongAnswersPage').then(m => ({ default: m.WrongAnswersPage })));
 const FlashcardsPage = React.lazy(() => import('./pages/FlashcardsPage').then(m => ({ default: m.FlashcardsPage })));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 
 const PageLoader: React.FC = () => (
   <div className="flex-1 flex items-center justify-center bg-slate-50">
@@ -37,6 +38,7 @@ const formatBytes = (value: number) => {
 
 const NAV_ITEMS = [
     { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
+    { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
     { path: ROUTES.WRONG_ANSWERS, label: 'Wrong A...', icon: ErrorOutlineIcon },
     { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
 ] as const;
@@ -204,6 +206,7 @@ const App: React.FC = () => {
               <React.Suspense fallback={<PageLoader />}>
                 <Routes>
                     <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.DASHBOARD} element={<DashboardPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path={ROUTES.WRONG_ANSWERS} element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path={ROUTES.FLASHCARDS} element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />

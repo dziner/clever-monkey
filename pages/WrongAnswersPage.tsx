@@ -137,6 +137,13 @@ export const WrongAnswersPage: React.FC<WrongAnswersPageProps> = ({ onMenuClick 
     const [filterType, setFilterType] = React.useState<FilterType>('all');
     const [filterStatus, setFilterStatus] = React.useState<FilterStatus>('pending');
 
+    // 집중 복습 모드
+    const [isReviewMode, setIsReviewMode] = React.useState(false);
+    const [reviewQueue, setReviewQueue] = React.useState<WrongAnswerRecord[]>([]);
+    const [reviewIndex, setReviewIndex] = React.useState(0);
+    const [showAnswer, setShowAnswer] = React.useState(false);
+    const [reviewedInSession, setReviewedInSession] = React.useState(0);
+
     React.useEffect(() => {
         supabase.auth.getUser().then(({ data }) => {
             if (data.user) {
@@ -187,12 +194,195 @@ export const WrongAnswersPage: React.FC<WrongAnswersPageProps> = ({ onMenuClick 
 
     const selectCls = "text-xs font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-600 focus:ring-1 focus:ring-blue-400 focus:border-blue-400 outline-none cursor-pointer";
 
+    // 집중 복습 모드 핸들러
+    const startReviewMode = () => {
+        const pending = items.filter(i => !i.reviewedAt);
+        setReviewQueue(pending);
+        setReviewIndex(0);
+        setShowAnswer(false);
+        setReviewedInSession(0);
+        setIsReviewMode(true);
+    };
+
+    const handleKnowIt = async () => {
+        const current = reviewQueue[reviewIndex];
+        await handleMarkReviewed(current.id);
+        setReviewedInSession(n => n + 1);
+        setShowAnswer(false);
+        setReviewIndex(i => i + 1);
+    };
+
+    const handleReviewAgain = () => {
+        setReviewQueue(q => [...q, q[reviewIndex]]);
+        setShowAnswer(false);
+        setReviewIndex(i => i + 1);
+    };
+
+    // 집중 복습 모드 UI
+    if (isReviewMode) {
+        const isDone = reviewIndex >= reviewQueue.length;
+        const current = isDone ? null : reviewQueue[reviewIndex];
+        const total = reviewQueue.length;
+
+        if (isDone) {
+            return (
+                <div className="flex flex-col h-full bg-slate-50 items-center justify-center p-8 text-center gap-6">
+                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckIcon className="text-5xl text-green-500" />
+                    </div>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">복습 완료!</h2>
+                        <p className="text-slate-500 mt-2">총 {reviewedInSession}개 문제를 복습했습니다 🎉</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsReviewMode(false)}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                        오답노트로 돌아가기
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div className="flex flex-col h-full bg-slate-50">
+                {/* 복습 모드 헤더 */}
+                <div className="flex-shrink-0 border-b border-slate-200 bg-white">
+                    <div className="p-3 h-14 flex items-center gap-3">
+                        <div className="flex-1">
+                            <p className="text-xs text-slate-500 font-medium">집중 복습</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-1.5 bg-blue-500 rounded-full transition-all duration-300"
+                                        style={{ width: `${total > 0 ? (reviewIndex / total) * 100 : 0}%` }}
+                                    />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 flex-shrink-0">
+                                    {reviewIndex} / {total}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsReviewMode(false)}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex-shrink-0"
+                        >
+                            나가기
+                        </button>
+                    </div>
+                </div>
+
+                {/* 복습 카드 */}
+                <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start p-4 gap-4">
+                    <div className="w-full max-w-xl">
+                        {/* 문제 유형 배지 */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                                current!.quizType === 'mcq'
+                                    ? 'bg-blue-50 text-blue-600'
+                                    : 'bg-green-50 text-green-600'
+                            }`}>
+                                {current!.quizType === 'mcq' ? '객관식 MCQ' : '주관식 FRQ'}
+                            </span>
+                            <span className="text-xs text-slate-400 truncate max-w-[200px]">{current!.documentName}</span>
+                        </div>
+
+                        {/* 문제 */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                            <h2 className="text-base font-semibold text-slate-800 leading-relaxed">
+                                {current!.questionText}
+                            </h2>
+
+                            {/* MCQ 선택지 (답 보기 전에도 보여줌) */}
+                            {current!.quizType === 'mcq' && current!.options && (
+                                <div className="mt-4 space-y-2">
+                                    {current!.options.map((opt, i) => {
+                                        let cls = 'border-slate-200 bg-slate-50 text-slate-600';
+                                        if (showAnswer) {
+                                            if (i === current!.correctAnswerIndex) {
+                                                cls = 'border-green-300 bg-green-50 text-green-800 font-semibold';
+                                            } else if (i === current!.userAnswerIndex) {
+                                                cls = 'border-red-200 bg-red-50 text-red-700 line-through';
+                                            }
+                                        }
+                                        return (
+                                            <div key={i} className={`text-sm px-4 py-2.5 rounded-xl border ${cls}`}>
+                                                <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span>
+                                                {opt}
+                                                {showAnswer && i === current!.correctAnswerIndex && (
+                                                    <span className="ml-2 text-green-600 font-bold">✓ 정답</span>
+                                                )}
+                                                {showAnswer && i === current!.userAnswerIndex && i !== current!.correctAnswerIndex && (
+                                                    <span className="ml-2 text-red-500">✗ 내 답</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* 답 보기 후 해설 */}
+                            {showAnswer && (
+                                <div className="mt-4 space-y-3">
+                                    {current!.quizType === 'frq' && current!.userAnswerText && (
+                                        <div className="text-sm p-3 bg-red-50 border border-red-100 rounded-xl">
+                                            <span className="font-semibold text-red-700 block mb-1">내 답</span>
+                                            <span className="text-slate-700">{current!.userAnswerText}</span>
+                                        </div>
+                                    )}
+                                    <div className="text-sm p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                                        <span className="font-semibold text-blue-700 block mb-1">
+                                            {current!.quizType === 'frq' ? '모범 답안' : '해설'}
+                                        </span>
+                                        <span className="text-slate-700 leading-relaxed">{current!.explanation}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 버튼 영역 */}
+                        {!showAnswer ? (
+                            <div className="mt-4 flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAnswer(true)}
+                                    className="px-8 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                                >
+                                    답 보기
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="mt-4 flex gap-3 justify-center">
+                                <button
+                                    type="button"
+                                    onClick={handleKnowIt}
+                                    className="flex-1 max-w-[200px] px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors shadow-sm text-sm"
+                                >
+                                    ✅ 알아요
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleReviewAgain}
+                                    className="flex-1 max-w-[200px] px-4 py-3 bg-orange-100 text-orange-700 border border-orange-200 rounded-xl font-semibold hover:bg-orange-200 transition-colors text-sm"
+                                >
+                                    🔁 다시 볼게요
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full bg-slate-50">
             {/* Header */}
             <div className="flex-shrink-0 border-b border-slate-200 bg-white">
                 <div className="p-3 h-14 flex items-center gap-3">
-                    <button onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden" aria-label="Open menu">
+                    <button type="button" onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden" aria-label="Open menu">
                         <MenuIcon className="text-2xl" />
                     </button>
                     <ErrorOutlineIcon className="text-2xl text-orange-500 hidden md:block" />
@@ -231,16 +421,27 @@ export const WrongAnswersPage: React.FC<WrongAnswersPageProps> = ({ onMenuClick 
                             <span className="text-xs text-slate-500 font-medium">복습 완료</span>
                         </div>
                         {items.length > 0 && (
-                            <div className="ml-auto">
-                                <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-2 bg-green-500 rounded-full transition-all"
-                                        style={{ width: `${items.length > 0 ? Math.round((reviewedCount / items.length) * 100) : 0}%` }}
-                                    />
+                            <div className="ml-auto flex items-center gap-3">
+                                {pendingCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={startReviewMode}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                                    >
+                                        🎯 집중 복습 시작
+                                    </button>
+                                )}
+                                <div>
+                                    <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-2 bg-green-500 rounded-full transition-all"
+                                            style={{ width: `${items.length > 0 ? Math.round((reviewedCount / items.length) * 100) : 0}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 text-right mt-0.5">
+                                        {items.length > 0 ? Math.round((reviewedCount / items.length) * 100) : 0}% 완료
+                                    </p>
                                 </div>
-                                <p className="text-[10px] text-slate-400 text-right mt-0.5">
-                                    {items.length > 0 ? Math.round((reviewedCount / items.length) * 100) : 0}% 완료
-                                </p>
                             </div>
                         )}
                     </div>
@@ -284,7 +485,7 @@ export const WrongAnswersPage: React.FC<WrongAnswersPageProps> = ({ onMenuClick 
                         ) : filtered.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
                                 <p className="font-semibold text-slate-500">조건에 맞는 문제가 없습니다</p>
-                                <button onClick={() => { setFilterDoc('all'); setFilterType('all'); setFilterStatus('all'); }}
+                                <button type="button" onClick={() => { setFilterDoc('all'); setFilterType('all'); setFilterStatus('all'); }}
                                     className="text-sm text-blue-600 hover:underline">
                                     필터 초기화
                                 </button>
