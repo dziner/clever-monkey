@@ -77,6 +77,13 @@ export const StarIcon = createIcon('star');
 export const KeyIcon = createIcon('key');
 export const BoltIcon = createIcon('bolt');
 export const LockIcon = createIcon('lock');
+export const StorageIcon = createIcon('storage');
+export const BarChartIcon = createIcon('bar_chart');
+export const WarningIcon = createIcon('warning');
+export const QuizIcon = createIcon('quiz');
+export const FolderOpenIcon = createIcon('folder_open');
+export const AnnotationIcon = createIcon('edit_note');
+export const CloudIcon = createIcon('cloud');
 
 export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
