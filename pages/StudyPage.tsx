@@ -27,6 +27,56 @@ const ViewerPlaceholder = () => (
     </div>
 );
 
+interface PdfContentPanelProps {
+    file: File | null | undefined;
+    imageUrl?: string;
+    docId: string;
+    currentPage: number;
+    onPageChange: (page: number) => void;
+    isProcessing: boolean;
+    processingState: DocumentProcessingState;
+    errorMessage?: string | null;
+    onDeleteDocument: () => void;
+}
+
+const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
+    file, imageUrl, docId, currentPage, onPageChange,
+    isProcessing, processingState, errorMessage, onDeleteDocument,
+}) => (
+    <React.Fragment>
+        {isProcessing && (
+            <div className="absolute inset-0 bg-slate-100/80 flex flex-col items-center justify-center z-10">
+                <Spinner />
+                <p className="mt-4 text-slate-700 font-semibold">{getProcessingMessage(processingState)}</p>
+            </div>
+        )}
+        {processingState === 'error' && (
+            <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-10 p-4">
+                <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
+                <p className="text-red-600 mt-2 text-center">{errorMessage}</p>
+                <button
+                    type="button"
+                    onClick={onDeleteDocument}
+                    className="mt-4 flex items-center px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
+                >
+                    <XIcon className="text-base mr-2" /> Close
+                </button>
+            </div>
+        )}
+        {file ? (
+            <PdfViewer
+                file={file}
+                imageUrl={imageUrl}
+                docId={docId}
+                currentPage={currentPage}
+                onPageChange={onPageChange}
+            />
+        ) : (
+            !isProcessing && <ViewerPlaceholder />
+        )}
+    </React.Fragment>
+));
+
 interface StudyPageProps {
     onMenuClick: () => void;
 }
@@ -51,6 +101,11 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const handlePageChange = React.useCallback((page: number) => {
         if (!activeDocument) return;
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: activeDocument.id, updates: { currentPage: page } } });
+    }, [activeDocument?.id, dispatch]);
+
+    const handleDeleteDocument = React.useCallback(() => {
+        if (!activeDocument) return;
+        dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: activeDocument.id } });
     }, [activeDocument?.id, dispatch]);
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -78,47 +133,22 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
         );
     }
 
-    const PdfContent = () => (
-        <React.Fragment>
-            {isProcessing && (
-                <div className="absolute inset-0 bg-slate-100/80 flex flex-col items-center justify-center z-10">
-                    <Spinner />
-                    <p className="mt-4 text-slate-700 font-semibold">{getProcessingMessage(activeDocument.processingState)}</p>
-                </div>
-            )}
-            {activeDocument.processingState === 'error' && (
-                <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-10 p-4">
-                    <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
-                    <p className="text-red-600 mt-2 text-center">{activeDocument.errorMessage}</p>
-                    <button
-                        type="button"
-                        onClick={() => dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: activeDocument.id } })}
-                        className="mt-4 flex items-center px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700"
-                    >
-                        <XIcon className="text-base mr-2" /> Close
-                    </button>
-                </div>
-            )}
-            {activeDocument.file ? (
-                <PdfViewer
-                    file={activeDocument.file}
-                    imageUrl={activeDocument.imageUrl}
-                    docId={activeDocument.id}
-                    currentPage={activeDocument.currentPage}
-                    onPageChange={handlePageChange}
-                />
-            ) : (
-                !isProcessing && <ViewerPlaceholder />
-            )}
-        </React.Fragment>
-    );
-
     return (
         <div className="flex-1 flex min-w-0">
             {/* PDF Viewer — Desktop */}
             <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
                 <div className={`flex-1 relative min-h-0 w-full flex flex-col ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
-                    <PdfContent />
+                    <PdfContentPanel
+                        file={activeDocument.file}
+                        imageUrl={activeDocument.imageUrl}
+                        docId={activeDocument.id}
+                        currentPage={activeDocument.currentPage ?? 1}
+                        onPageChange={handlePageChange}
+                        isProcessing={isProcessing}
+                        processingState={activeDocument.processingState}
+                        errorMessage={activeDocument.errorMessage}
+                        onDeleteDocument={handleDeleteDocument}
+                    />
                 </div>
             </section>
 
@@ -229,7 +259,17 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                     <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
                 </div>
                 <div className="relative h-full w-full pt-8 flex flex-col">
-                    <PdfContent />
+                    <PdfContentPanel
+                        file={activeDocument.file}
+                        imageUrl={activeDocument.imageUrl}
+                        docId={activeDocument.id}
+                        currentPage={activeDocument.currentPage ?? 1}
+                        onPageChange={handlePageChange}
+                        isProcessing={isProcessing}
+                        processingState={activeDocument.processingState}
+                        errorMessage={activeDocument.errorMessage}
+                        onDeleteDocument={handleDeleteDocument}
+                    />
                     <button
                         type="button"
                         onClick={() => setIsPdfVisible(false)}
