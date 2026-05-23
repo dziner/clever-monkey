@@ -15,7 +15,7 @@ interface FRQuizProps {
     documentContent?: string;
     onRestartWithNewData?: (newQuizData: FRQData) => void;
     studyTips?: string;
-    onStudyTipsGenerated: (tips: string) => void;
+    onStudyTipsGenerated?: (tips: string) => void;
 }
 
 export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
@@ -36,10 +36,10 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                 setIsGeneratingTips(true);
                 try {
                     const tips = await generateStudyTips(documentContent, data, userAnswers, model);
-                    onStudyTipsGenerated(tips);
+                    onStudyTipsGenerated?.(tips);
                 } catch (error) {
                     console.error("Failed to generate study tips:", error);
-                    onStudyTipsGenerated("Sorry, I couldn't generate study tips at this time.");
+                    onStudyTipsGenerated?.("Sorry, I couldn't generate study tips at this time.");
                 } finally {
                     setIsGeneratingTips(false);
                 }

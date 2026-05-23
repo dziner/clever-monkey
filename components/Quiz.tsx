@@ -15,7 +15,7 @@ interface QuizProps {
     documentContent?: string;
     onRestartWithNewData?: (newQuizData: QuizData) => void;
     studyTips?: string;
-    onStudyTipsGenerated: (tips: string) => void;
+    onStudyTipsGenerated?: (tips: string) => void;
 }
 
 export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
@@ -50,10 +50,10 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                 setIsGeneratingTips(true);
                 try {
                     const tips = await generateStudyTips(documentContent, data, userAnswers, 'gemini-2.5-flash');
-                    onStudyTipsGenerated(tips);
+                    onStudyTipsGenerated?.(tips);
                 } catch (error) {
                     console.error("Failed to generate study tips:", error);
-                    onStudyTipsGenerated("Sorry, I couldn't generate study tips at this time.");
+                    onStudyTipsGenerated?.("Sorry, I couldn't generate study tips at this time.");
                 } finally {
                     setIsGeneratingTips(false);
                 }

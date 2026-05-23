@@ -24,9 +24,9 @@ interface DocumentRow {
   chat_history: DocumentData['chatHistory'] | null;
   preset_questions: string[] | null;
   token_count: number | null;
-  processing_state: string | null;
+  processing_state: DocumentData['processingState'] | null;
   error_message: string | null;
-  model: string | null;
+  model: DocumentData['model'] | null;
   answer_scope: 'document' | 'general' | null;
   monkey_mode: boolean | null;
   document_content: string | null;
