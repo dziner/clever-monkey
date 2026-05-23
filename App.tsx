@@ -41,7 +41,7 @@ const formatBytes = (value: number) => {
 const NAV_ITEMS = [
     { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
     { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
-    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong A...', icon: ErrorOutlineIcon },
+    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong', icon: ErrorOutlineIcon },
     { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
 ] as const;
 
