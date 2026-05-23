@@ -41,30 +41,34 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     React.useEffect(() => {
         let isMounted = true;
 
-        supabase.auth.getSession().then(({ data, error }) => {
-            if (!isMounted) return;
-            if (error) console.error('Failed to load session', error);
-            const user = data.session?.user;
+        // Supabase re-emits auth events (SIGNED_IN / TOKEN_REFRESHED) when the
+        // tab regains focus. Only (re)fetch the profile when the user actually
+        // changes so refocusing doesn't trigger redundant network calls.
+        let loadedUserId: string | null | undefined = undefined;
+        const syncUser = (user: { id: string; email?: string } | null | undefined) => {
             const email = user?.email ?? null;
             const uid = user?.id ?? null;
             setUserEmail(email);
             setUserId(uid);
             setIsAuthLoading(false);
-            if (uid && email) fetchProfile(uid, email);
-        });
-
-        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-            const user = session?.user;
-            const email = user?.email ?? null;
-            const uid = user?.id ?? null;
-            setUserEmail(email);
-            setUserId(uid);
-            setIsAuthLoading(false);
+            if (uid === loadedUserId) return;
+            loadedUserId = uid;
             if (uid && email) {
                 fetchProfile(uid, email);
             } else {
                 setUserProfile(null);
             }
+        };
+
+        supabase.auth.getSession().then(({ data, error }) => {
+            if (!isMounted) return;
+            if (error) console.error('Failed to load session', error);
+            syncUser(data.session?.user);
+        });
+
+        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!isMounted) return;
+            syncUser(session?.user);
         });
 
         return () => {

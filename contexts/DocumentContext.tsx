@@ -266,23 +266,31 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (error) {
         console.error('사용자 정보를 불러오지 못했습니다:', error);
       }
-      if (user) {
-        await loadStateForUser(user.id);
-      } else if (isMounted) {
-        dispatch({ type: 'SET_STATE', payload: initialState });
-        setIsLoading(false);
+      handleUser(user?.id ?? null);
+    };
+
+    // Supabase re-emits auth events (e.g. SIGNED_IN / TOKEN_REFRESHED) when the
+    // tab regains focus. Only reload when the signed-in user actually changes,
+    // otherwise refocusing a tab would re-fetch everything and reset the active
+    // document (looks like a full page reload).
+    let loadedUserId: string | null | undefined = undefined;
+    const handleUser = (userId: string | null) => {
+      if (userId === loadedUserId) return;
+      loadedUserId = userId;
+      if (!userId) {
+        if (isMounted) {
+          dispatch({ type: 'SET_STATE', payload: initialState });
+          setIsLoading(false);
+        }
+        return;
       }
+      loadStateForUser(userId);
     };
 
     bootstrap();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const userId = session?.user?.id;
-      if (!userId) {
-        dispatch({ type: 'SET_STATE', payload: initialState });
-        return;
-      }
-      loadStateForUser(userId);
+      handleUser(session?.user?.id ?? null);
     });
 
     return () => {
