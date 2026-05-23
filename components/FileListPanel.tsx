@@ -1,14 +1,23 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { useTierLimits } from '../hooks/useTierLimits';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon, AutoAwesomeIcon, ErrorOutlineIcon, StyleIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { ROUTES } from '../routes';
 import { FolderItem } from './FolderItem';
 import { FileListItem } from './FileListItem';
 import { useToast } from './Toast';
+
+const NAV_LINKS = [
+    { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
+    { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
+    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
+    { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
+] as const;
 
 interface FileListPanelProps {
     onFileSelected: (file: File) => void;
@@ -22,6 +31,8 @@ interface FileListPanelProps {
 
 export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut, onUpgradeClick, onAdminClick }) => {
     const { state, dispatch } = useDocuments();
+    const navigate = useNavigate();
+    const location = useLocation();
     const { userEmail, userProfile } = useUser();
     const tierLimits = useTierLimits(state.documents.length);
     const planName = tierLimits.isPro ? 'Pro' : 'Free';
@@ -269,6 +280,30 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                     {isDesktop ? <PanelLeftCloseIcon /> : <XIcon className="text-xl" />}
                 </button>
             </div>
+
+            {/* App navigation — desktop sidebar (mobile uses the bottom tab bar) */}
+            {isDesktop && (
+                <nav className="px-3 pb-4 flex-shrink-0 space-y-0.5">
+                    {NAV_LINKS.map(item => {
+                        const isActive = location.pathname === item.path;
+                        return (
+                            <button
+                                key={item.path}
+                                type="button"
+                                onClick={() => navigate(item.path)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                                    isActive
+                                        ? 'bg-blue-50 text-blue-700'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                            >
+                                <item.icon className="text-xl flex-shrink-0" />
+                                <span className="truncate">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+            )}
 
             <div className="px-5 pb-6 flex-shrink-0">
                 <div className="grid grid-cols-2 gap-3">
