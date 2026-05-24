@@ -3,13 +3,13 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
-import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon } from '../components/icons';
+import { DocumentIcon, XIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useRetryProcessing } from '../hooks/useRetryProcessing';
 import type { DocumentProcessingState } from '../types';
 
-const TAB_ORDER: ActiveTab[] = ['overview', 'summary', 'chat', 'quiz', 'mindmap', 'slides', 'podcast'];
+const TAB_ORDER: ActiveTab[] = ['overview', 'chat', 'quiz', 'mindmap', 'slides', 'podcast'];
 
 const PROCESSING_STEPS: { state: DocumentProcessingState; label: string }[] = [
     { state: 'reading', label: 'Extracting text' },
@@ -236,7 +236,6 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         <div className="w-8 h-px bg-slate-200 mb-1" />
                         {([
                             { id: 'overview', icon: SpaceDashboardIcon, label: 'Overview' },
-                            { id: 'summary', icon: CopyIcon, label: 'Summary' },
                             { id: 'chat', icon: ChatIcon, label: 'Chat' },
                             { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
                             { id: 'mindmap', icon: AccountTreeIcon, label: 'Mind Map' },

@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon } from './icons';
+import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon } from './icons';
 import { ROUTES } from '../routes';
 import { OverviewTab } from './OverviewTab';
 import { MindMapTab } from './MindMapTab';
 import { SlidesTab } from './SlidesTab';
 import { PodcastTab } from './PodcastTab';
-import { MarkdownRenderer } from './MarkdownRenderer';
 import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
 import { Quiz } from './Quiz';
@@ -21,10 +20,7 @@ import { generateQuiz } from '../services/geminiService';
 import { saveQuizSession } from '../services/wrongAnswersService';
 import { getErrorMessage } from '../utils/errors';
 
-// Assuming jspdf and html2canvas are loaded from CDN
-declare const jspdf: any;
-
-export type ActiveTab = 'overview' | 'summary' | 'chat' | 'quiz' | 'mindmap' | 'slides' | 'podcast';
+export type ActiveTab = 'overview' | 'chat' | 'quiz' | 'mindmap' | 'slides' | 'podcast';
 
 interface InteractionPanelProps {
     document: DocumentData;
@@ -54,7 +50,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     const navigate = useNavigate();
     // activeTab is controlled by prop from StudyPage
 
-    const [showCopyToast, setShowCopyToast] = React.useState(false);
     const [isPresetQuestionsOpen, setIsPresetQuestionsOpen] = React.useState(false);
     const [chatSearch, setChatSearch] = React.useState('');
     const [isChatSearchOpen, setIsChatSearchOpen] = React.useState(false);
@@ -68,7 +63,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     const [isPreparingSuggestions, setIsPreparingSuggestions] = React.useState(false);
     const [canShowPresetQuestions, setCanShowPresetQuestions] = React.useState(document.chatHistory.length > 1);
 
-    const summaryRef = React.useRef<HTMLDivElement>(null);
     const chatContainerRef = React.useRef<HTMLDivElement>(null);
 
     const onChatHistoryChange = (chatHistory: ChatMessage[]) => {
@@ -170,39 +164,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         // The chat history length covers new messages, and the preset questions toggle.
     }, [document.chatHistory.length, isPresetQuestionsOpen, activeTab, canShowPresetQuestions]);
 
-
-    const handleCopyToClipboard = () => {
-        if (summaryRef.current) {
-            navigator.clipboard.writeText(summaryRef.current.innerText)
-                .then(() => {
-                    setShowCopyToast(true);
-                    setTimeout(() => setShowCopyToast(false), 2000);
-                })
-                .catch(err => console.error('Failed to copy text: ', err));
-        }
-    };
-
-    const handleDownloadPdf = () => {
-        if (summaryRef.current && typeof jspdf !== 'undefined') {
-            const { jsPDF } = jspdf;
-            const pdf = new jsPDF({
-                orientation: 'p',
-                unit: 'pt',
-                format: 'a4'
-            });
-            const content = summaryRef.current;
-            const docName = document.fileName.replace(/\.[^/.]+$/, "");
-
-            pdf.html(content, {
-                callback: function (doc: any) {
-                    doc.save(`${docName}-summary.pdf`);
-                },
-                margin: [40, 40, 40, 40],
-                autoPaging: 'text',
-                width: 515,
-            });
-        }
-    };
 
     const handleGenerateQuiz = async (type: 'mcq' | 'frq', count: number) => {
         if (!document.documentContent) {
@@ -358,7 +319,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const studyTabs = [
         { id: 'overview', icon: SpaceDashboardIcon, label: 'Overview' },
-        { id: 'summary', icon: CopyIcon, label: 'Summary' },
         { id: 'chat', icon: ChatIcon, label: 'Chat' },
         { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
     ] as const;
@@ -414,31 +374,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
                 <div className={`flex-1 flex-col min-h-0 ${activeTab === 'overview' ? 'flex' : 'hidden'}`}>
                     <OverviewTab document={document} onSelectTab={onTabChange} />
-                </div>
-
-                <div className={`flex-1 flex-col overflow-y-auto ${activeTab === 'summary' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
-                        <div className="flex items-center gap-2">
-                            <CopyIcon className="text-xl text-blue-500" />
-                            <span className="font-semibold text-slate-700 text-sm">Summary</span>
-                            {document.summary && (
-                                <span className="text-xs text-slate-400 font-normal">
-                                    · ≈{Math.max(1, Math.round(document.summary.trim().split(/\s+/).length / 200))} min read
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <button type="button" onClick={handleCopyToClipboard} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
-                                <CopyIcon className="text-sm" /> Copy
-                            </button>
-                            <button type="button" onClick={handleDownloadPdf} className="flex items-center gap-1 px-3 py-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg text-xs font-medium transition-colors">
-                                <DownloadIcon className="text-sm" /> PDF
-                            </button>
-                        </div>
-                    </div>
-                    <div ref={summaryRef} className="p-6 bg-white text-slate-800">
-                        <MarkdownRenderer content={document.summary} />
-                    </div>
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
@@ -664,7 +599,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const activeTabLabel: Record<ActiveTab, string> = {
         overview: 'Overview',
-        summary: 'Summary',
         chat: 'Chat',
         quiz: 'Quiz',
         mindmap: 'Mind Map',
@@ -739,10 +673,6 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
             ) : (
                 MainContent()
             )}
-
-            <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-slate-900 text-white text-sm py-2 px-4 rounded-full shadow-lg transition-all duration-300 ${showCopyToast ? 'opacity-100 -translate-y-0' : 'opacity-0 -translate-y-3 pointer-events-none'}`}>
-                ✓ Summary copied to clipboard
-            </div>
         </div>
     );
 };

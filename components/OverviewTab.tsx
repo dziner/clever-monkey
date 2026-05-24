@@ -5,8 +5,9 @@ import type { ActiveTab } from './InteractionPanel';
 import { ROUTES } from '../routes';
 import {
     ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon,
-    CopyIcon, ErrorOutlineIcon, StyleIcon, ChevronRightIcon,
+    CopyIcon, ErrorOutlineIcon, StyleIcon, ChevronDownIcon, ChevronUpIcon,
 } from './icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { fetchQuizSessions, fetchWrongAnswers } from '../services/wrongAnswersService';
 import type { QuizSession } from '../services/wrongAnswersService';
 import { fetchDecks } from '../services/flashcardsService';
@@ -35,6 +36,7 @@ const QUICK_TOOLS: { id: ActiveTab; label: string; icon: React.FC<React.HTMLAttr
 export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab }) => {
     const navigate = useNavigate();
     const [stats, setStats] = React.useState<OverviewStats | null>(null);
+    const [summaryExpanded, setSummaryExpanded] = React.useState(false);
 
     React.useEffect(() => {
         let active = true;
@@ -64,24 +66,32 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
     return (
         <div className="flex-1 overflow-y-auto bg-slate-50">
             <div className="max-w-2xl w-full mx-auto p-4 sm:p-6 space-y-5">
-                {/* Summary preview */}
+                {/* Summary */}
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                         <CopyIcon className="text-lg text-blue-500" />
                         <h2 className="font-bold text-slate-800 text-sm">요약</h2>
                     </div>
                     {summaryPreview ? (
-                        <p className="text-sm text-slate-600 leading-relaxed line-clamp-4">{summaryPreview}</p>
+                        summaryExpanded ? (
+                            <div className="text-slate-800">
+                                <MarkdownRenderer content={summaryPreview} />
+                            </div>
+                        ) : (
+                            <p className="text-sm text-slate-600 leading-relaxed line-clamp-4">{summaryPreview}</p>
+                        )
                     ) : (
                         <p className="text-sm text-slate-400">요약이 아직 없습니다.</p>
                     )}
-                    <button
-                        type="button"
-                        onClick={() => onSelectTab('summary')}
-                        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
-                    >
-                        전체 요약 보기 <ChevronRightIcon className="text-base" />
-                    </button>
+                    {summaryPreview && (
+                        <button
+                            type="button"
+                            onClick={() => setSummaryExpanded(v => !v)}
+                            className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                        >
+                            {summaryExpanded ? <>간략히 <ChevronUpIcon className="text-base" /></> : <>전체 요약 보기 <ChevronDownIcon className="text-base" /></>}
+                        </button>
+                    )}
                 </section>
 
                 {/* Progress */}
