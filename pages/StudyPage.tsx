@@ -306,15 +306,14 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 }}
             >
                 <div
-                    className="absolute top-0 left-0 right-0 h-9 flex flex-col items-center justify-center gap-1 z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
+                    className="absolute top-0 left-0 right-0 h-7 flex items-center justify-center z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
-                    <span className="text-[10px] font-medium text-slate-400 select-none leading-none">Swipe down to close</span>
+                    <div className="w-10 h-1.5 bg-slate-300 rounded-full" />
                 </div>
-                <div className="relative h-full w-full pt-9 flex flex-col">
+                <div className="relative h-full w-full pt-7 flex flex-col">
                     <PdfContentPanel
                         file={activeDocument.file}
                         imageUrl={activeDocument.imageUrl}
@@ -327,14 +326,6 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         onDeleteDocument={handleDeleteDocument}
                         onRetryProcessing={handleRetryProcessing}
                     />
-                    <button
-                        type="button"
-                        onClick={() => setIsPdfVisible(false)}
-                        className="absolute top-2 right-2 z-30 p-2 text-slate-400 hover:text-slate-600"
-                        aria-label="Close document preview"
-                    >
-                        <XIcon className="text-xl" />
-                    </button>
                 </div>
             </div>
         </div>
