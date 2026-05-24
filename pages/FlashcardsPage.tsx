@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { MenuIcon, StyleIcon, TrashIcon, BrainIcon, ChevronRightIcon, CheckIcon, XIcon, AddIcon } from '../components/icons';
 import { Spinner } from '../components/Spinner';
 import { supabase } from '../services/supabaseClient';
@@ -172,10 +173,12 @@ const StudyView: React.FC<{
 const GenerateModal: React.FC<{
   onClose: () => void;
   onCreated: (deck: FlashcardDeck) => void;
-}> = ({ onClose, onCreated }) => {
+  initialSource?: 'document' | 'wrong_answers';
+  initialDocId?: string;
+}> = ({ onClose, onCreated, initialSource, initialDocId }) => {
   const { state } = useDocuments();
-  const [source, setSource] = React.useState<'document' | 'wrong_answers'>('document');
-  const [selectedDocId, setSelectedDocId] = React.useState('');
+  const [source, setSource] = React.useState<'document' | 'wrong_answers'>(initialSource ?? 'document');
+  const [selectedDocId, setSelectedDocId] = React.useState(initialDocId ?? '');
   const [cardCount, setCardCount] = React.useState(15);
   const [deckTitle, setDeckTitle] = React.useState('');
   const [wrongAnswers, setWrongAnswers] = React.useState<WrongAnswerRecord[]>([]);
@@ -341,11 +344,13 @@ const GenerateModal: React.FC<{
 export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) => {
   const { state: docState } = useDocuments();
   const activeDoc = docState.documents.find(d => d.id === docState.activeDocumentId);
+  const location = useLocation();
+  const navState = location.state as { openGenerate?: boolean; source?: 'document' | 'wrong_answers'; documentId?: string } | null;
   const [decks, setDecks] = React.useState<FlashcardDeck[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
   const [studyingDeck, setStudyingDeck] = React.useState<FlashcardDeck | null>(null);
-  const [showGenerate, setShowGenerate] = React.useState(false);
+  const [showGenerate, setShowGenerate] = React.useState(Boolean(navState?.openGenerate));
 
   const loadDecks = React.useCallback(async () => {
     const d = await fetchDecks();
@@ -516,6 +521,8 @@ export const FlashcardsPage: React.FC<FlashcardsPageProps> = ({ onMenuClick }) =
         <GenerateModal
           onClose={() => setShowGenerate(false)}
           onCreated={handleDeckCreated}
+          initialSource={navState?.source}
+          initialDocId={navState?.documentId}
         />
       )}
     </div>

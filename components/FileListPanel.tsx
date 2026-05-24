@@ -12,11 +12,19 @@ import { FolderItem } from './FolderItem';
 import { FileListItem } from './FileListItem';
 import { useToast } from './Toast';
 
-const NAV_LINKS = [
-    { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
-    { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
-    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
-    { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
+const NAV_GROUPS = [
+    {
+        heading: null,
+        items: [{ path: ROUTES.STUDY, label: 'Study', icon: HomeIcon }],
+    },
+    {
+        heading: 'Review & Progress',
+        items: [
+            { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
+            { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
+            { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
+        ],
+    },
 ] as const;
 
 interface FileListPanelProps {
@@ -283,25 +291,36 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
             {/* App navigation — desktop sidebar (mobile uses the bottom tab bar) */}
             {isDesktop && (
-                <nav className="px-3 pb-4 flex-shrink-0 space-y-0.5">
-                    {NAV_LINKS.map(item => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                            <button
-                                key={item.path}
-                                type="button"
-                                onClick={() => navigate(item.path)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                                    isActive
-                                        ? 'bg-blue-50 text-blue-700'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                }`}
-                            >
-                                <item.icon className="text-xl flex-shrink-0" />
-                                <span className="truncate">{item.label}</span>
-                            </button>
-                        );
-                    })}
+                <nav className="px-3 pb-4 flex-shrink-0">
+                    {NAV_GROUPS.map((group, gi) => (
+                        <div key={group.heading ?? `nav-group-${gi}`} className={gi > 0 ? 'mt-3' : ''}>
+                            {group.heading && (
+                                <div className="px-3 mb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                    {group.heading}
+                                </div>
+                            )}
+                            <div className="space-y-0.5">
+                                {group.items.map(item => {
+                                    const isActive = location.pathname === item.path;
+                                    return (
+                                        <button
+                                            key={item.path}
+                                            type="button"
+                                            onClick={() => navigate(item.path)}
+                                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                                                isActive
+                                                    ? 'bg-blue-50 text-blue-700'
+                                                    : 'text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                        >
+                                            <item.icon className="text-xl flex-shrink-0" />
+                                            <span className="truncate">{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
                 </nav>
             )}
 

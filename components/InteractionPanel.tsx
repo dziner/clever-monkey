@@ -1,6 +1,8 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon } from './icons';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon } from './icons';
+import { ROUTES } from '../routes';
 import { MindMapTab } from './MindMapTab';
 import { SlidesTab } from './SlidesTab';
 import { PodcastTab } from './PodcastTab';
@@ -48,6 +50,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onTabChange,
 }) => {
     const { dispatch } = useDocuments();
+    const navigate = useNavigate();
     // activeTab is controlled by prop from StudyPage
 
     const [showCopyToast, setShowCopyToast] = React.useState(false);
@@ -623,6 +626,27 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                         onStudyTipsGenerated={handleStudyTipsGenerated}
                                     />
                                 )}
+
+                                {/* Learning loop: surface review tools after a quiz exists */}
+                                <div className="mt-6 pt-4 border-t border-slate-100">
+                                    <p className="text-xs font-semibold text-slate-400 mb-2">복습하기</p>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(ROUTES.WRONG_ANSWERS)}
+                                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors"
+                                        >
+                                            <ErrorOutlineIcon className="text-lg" /> 오답노트에서 복습
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(ROUTES.FLASHCARDS, { state: { openGenerate: true, source: 'wrong_answers', documentId: document.id } })}
+                                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors"
+                                        >
+                                            <StyleIcon className="text-lg" /> 오답으로 플래시카드
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
