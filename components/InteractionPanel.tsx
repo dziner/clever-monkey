@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon } from './icons';
+import { ChatIcon, CopyIcon, DownloadIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon } from './icons';
 import { ROUTES } from '../routes';
+import { OverviewTab } from './OverviewTab';
 import { MindMapTab } from './MindMapTab';
 import { SlidesTab } from './SlidesTab';
 import { PodcastTab } from './PodcastTab';
@@ -23,7 +24,7 @@ import { getErrorMessage } from '../utils/errors';
 // Assuming jspdf and html2canvas are loaded from CDN
 declare const jspdf: any;
 
-export type ActiveTab = 'summary' | 'chat' | 'quiz' | 'mindmap' | 'slides' | 'podcast';
+export type ActiveTab = 'overview' | 'summary' | 'chat' | 'quiz' | 'mindmap' | 'slides' | 'podcast';
 
 interface InteractionPanelProps {
     document: DocumentData;
@@ -356,6 +357,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     );
 
     const studyTabs = [
+        { id: 'overview', icon: SpaceDashboardIcon, label: 'Overview' },
         { id: 'summary', icon: CopyIcon, label: 'Summary' },
         { id: 'chat', icon: ChatIcon, label: 'Chat' },
         { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
@@ -408,6 +410,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
             <React.Fragment>
                 <div className="hidden md:flex flex-shrink-0">
                     {TabsComponent()}
+                </div>
+
+                <div className={`flex-1 flex-col min-h-0 ${activeTab === 'overview' ? 'flex' : 'hidden'}`}>
+                    <OverviewTab document={document} onSelectTab={onTabChange} />
                 </div>
 
                 <div className={`flex-1 flex-col overflow-y-auto ${activeTab === 'summary' ? 'flex' : 'hidden'}`}>
@@ -657,6 +663,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     }
 
     const activeTabLabel: Record<ActiveTab, string> = {
+        overview: 'Overview',
         summary: 'Summary',
         chat: 'Chat',
         quiz: 'Quiz',

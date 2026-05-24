@@ -3,13 +3,13 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
-import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon } from '../components/icons';
+import { DocumentIcon, XIcon, CopyIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useRetryProcessing } from '../hooks/useRetryProcessing';
 import type { DocumentProcessingState } from '../types';
 
-const TAB_ORDER: ActiveTab[] = ['summary', 'chat', 'quiz', 'mindmap', 'slides', 'podcast'];
+const TAB_ORDER: ActiveTab[] = ['overview', 'summary', 'chat', 'quiz', 'mindmap', 'slides', 'podcast'];
 
 const PROCESSING_STEPS: { state: DocumentProcessingState; label: string }[] = [
     { state: 'reading', label: 'Extracting text' },
@@ -126,7 +126,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     const [isPdfVisible, setIsPdfVisible] = React.useState(false);
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
     const { width: interactionPanelWidth, handleMouseDown: handleResize } = useResizablePanel(400, 280, 700, 'right');
-    const [activeTab, setActiveTab] = React.useState<ActiveTab>('summary');
+    const [activeTab, setActiveTab] = React.useState<ActiveTab>('overview');
     const [isRightPanelCollapsed, setIsRightPanelCollapsed] = React.useState(
         typeof window !== 'undefined' && window.innerWidth < 1024
     );
@@ -235,6 +235,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         </button>
                         <div className="w-8 h-px bg-slate-200 mb-1" />
                         {([
+                            { id: 'overview', icon: SpaceDashboardIcon, label: 'Overview' },
                             { id: 'summary', icon: CopyIcon, label: 'Summary' },
                             { id: 'chat', icon: ChatIcon, label: 'Chat' },
                             { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
