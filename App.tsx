@@ -3,9 +3,8 @@ import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from './contexts/DocumentContext';
 import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
-import { Spinner } from './components/Spinner';
 import { useFileHandler } from './hooks/useFileHandler';
-import { HomeIcon, ErrorOutlineIcon, StyleIcon, PanelLeftCloseIcon, CleverMonkeyIcon, AutoAwesomeIcon, AdminPanelIcon } from './components/icons';
+import { PanelLeftCloseIcon, CleverMonkeyIcon, AdminPanelIcon } from './components/icons';
 import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
 import { ProfilePage } from './components/ProfilePage';
@@ -15,9 +14,6 @@ import { ROUTES } from './routes';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
-const WrongAnswersPage = React.lazy(() => import('./pages/WrongAnswersPage').then(m => ({ default: m.WrongAnswersPage })));
-const FlashcardsPage = React.lazy(() => import('./pages/FlashcardsPage').then(m => ({ default: m.FlashcardsPage })));
-const DashboardPage = React.lazy(() => import('./pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 
 const PageLoader: React.FC = () => (
@@ -38,12 +34,6 @@ const formatBytes = (value: number) => {
     return `${size.toFixed(size >= 100 ? 0 : 1)} ${units[unitIndex]}`;
 };
 
-const NAV_ITEMS = [
-    { path: ROUTES.STUDY, label: 'Study', icon: HomeIcon },
-    { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
-    { path: ROUTES.WRONG_ANSWERS, label: 'Wrong', icon: ErrorOutlineIcon },
-    { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
-] as const;
 
 const App: React.FC = () => {
     const { state, isLoading: isDocumentsLoading } = useDocuments();
@@ -225,37 +215,14 @@ const App: React.FC = () => {
             </aside>
 
             {/* Main content area — routed */}
-            <main className="flex-1 flex min-w-0 relative pb-16 md:pb-0">
+            <main className="flex-1 flex min-w-0 relative">
               <React.Suspense fallback={<PageLoader />}>
                 <Routes>
                     <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path={ROUTES.DASHBOARD} element={<DashboardPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path={ROUTES.WRONG_ANSWERS} element={<WrongAnswersPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path={ROUTES.FLASHCARDS} element={<FlashcardsPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                     <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
                 </Routes>
               </React.Suspense>
             </main>
-
-            {/* Mobile bottom navigation bar */}
-            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-20 flex">
-                {NAV_ITEMS.map(item => (
-                    <button
-                        key={item.path}
-                        type="button"
-                        onClick={() => navigate(item.path)}
-                        className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                            location.pathname === item.path
-                                ? 'text-blue-700'
-                                : 'text-slate-400 hover:text-slate-600'
-                        }`}
-                        aria-label={item.label}
-                    >
-                        <item.icon className="text-xl" />
-                        <span className="text-[9px] font-semibold leading-none truncate max-w-[52px] text-center">{item.label}</span>
-                    </button>
-                ))}
-            </nav>
         </div>
     );
 };

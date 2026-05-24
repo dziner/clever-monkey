@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { useTierLimits } from '../hooks/useTierLimits';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon, AutoAwesomeIcon, ErrorOutlineIcon, StyleIcon } from './icons';
+import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { ROUTES } from '../routes';
@@ -16,14 +16,6 @@ const NAV_GROUPS = [
     {
         heading: null,
         items: [{ path: ROUTES.STUDY, label: 'Study', icon: HomeIcon }],
-    },
-    {
-        heading: 'Review & Progress',
-        items: [
-            { path: ROUTES.DASHBOARD, label: 'Dashboard', icon: AutoAwesomeIcon },
-            { path: ROUTES.WRONG_ANSWERS, label: 'Wrong Answers', icon: ErrorOutlineIcon },
-            { path: ROUTES.FLASHCARDS, label: 'Flashcards', icon: StyleIcon },
-        ],
     },
 ] as const;
 

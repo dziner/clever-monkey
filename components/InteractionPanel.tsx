@@ -1,12 +1,13 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon } from './icons';
-import { ROUTES } from '../routes';
+import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon, TrashIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, BrainIcon } from './icons';
 import { OverviewTab } from './OverviewTab';
 import { MindMapTab } from './MindMapTab';
-import { SlidesTab } from './SlidesTab';
+import { FlashcardsTab } from './FlashcardsTab';
 import { PodcastTab } from './PodcastTab';
+import { fetchWrongAnswers, markReviewed, deleteWrongAnswer } from '../services/wrongAnswersService';
+import type { WrongAnswerRecord } from '../services/wrongAnswersService';
+import { supabase } from '../services/supabaseClient';
 import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
 import { Quiz } from './Quiz';
@@ -20,7 +21,7 @@ import { generateQuiz } from '../services/geminiService';
 import { saveQuizSession } from '../services/wrongAnswersService';
 import { getErrorMessage } from '../utils/errors';
 
-export type ActiveTab = 'overview' | 'chat' | 'quiz' | 'mindmap' | 'slides' | 'podcast';
+export type ActiveTab = 'overview' | 'chat' | 'quiz' | 'mindmap' | 'flashcards' | 'podcast';
 
 interface InteractionPanelProps {
     document: DocumentData;
@@ -35,6 +36,135 @@ interface InteractionPanelProps {
     onTabChange: (tab: ActiveTab) => void;
 }
 
+// ─── Wrong Answers Panel (document-scoped, used inside Quiz tab) ──
+function formatDate(iso: string) {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const WrongAnswerCard: React.FC<{
+    item: WrongAnswerRecord;
+    onMarkReviewed: (id: string) => void;
+    onDelete: (id: string) => void;
+}> = ({ item, onMarkReviewed, onDelete }) => {
+    const [expanded, setExpanded] = React.useState(false);
+    const isReviewed = !!item.reviewedAt;
+    return (
+        <div className={`rounded-xl border transition-all duration-200 ${isReviewed ? 'border-slate-100 bg-slate-50/50' : 'border-slate-200 bg-white shadow-sm'}`}>
+            <button type="button" className="w-full text-left p-3 flex items-start gap-3" onClick={() => setExpanded(e => !e)}>
+                <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${item.quizType === 'mcq' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                    {item.quizType === 'mcq' ? <AssignmentIcon className="text-sm" /> : <BrainIcon className="text-sm" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium leading-snug ${isReviewed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{item.questionText}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-xs text-slate-400">{formatDate(item.createdAt)}</span>
+                        {item.quizType === 'frq' && item.score !== undefined && (
+                            <span className={`text-xs font-semibold ${item.score < 40 ? 'text-red-500' : 'text-orange-500'}`}>{item.score}점</span>
+                        )}
+                        {isReviewed && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">복습완료</span>}
+                    </div>
+                </div>
+                <div className="flex-shrink-0 text-slate-300">
+                    {expanded ? <ChevronUpIcon className="text-lg" /> : <ChevronDownIcon className="text-lg" />}
+                </div>
+            </button>
+            {expanded && (
+                <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2">
+                    {item.quizType === 'mcq' && item.options && (
+                        <div className="space-y-1">
+                            {item.options.map((opt, i) => {
+                                const isCorrect = i === item.correctAnswerIndex;
+                                const isUser = i === item.userAnswerIndex;
+                                let cls = 'text-slate-500 bg-slate-50';
+                                if (isCorrect) cls = 'text-green-700 bg-green-50 border border-green-200 font-semibold';
+                                else if (isUser) cls = 'text-red-700 bg-red-50 border border-red-200 line-through';
+                                return (
+                                    <div key={i} className={`text-xs px-3 py-1.5 rounded-lg ${cls}`}>
+                                        <span className="font-bold mr-1.5">{String.fromCharCode(65 + i)}.</span>{opt}
+                                        {isCorrect && <span className="ml-1.5 text-green-600">✓ 정답</span>}
+                                        {isUser && !isCorrect && <span className="ml-1.5 text-red-500">✗ 내 답</span>}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {item.quizType === 'frq' && item.userAnswerText && (
+                        <div className="text-xs p-2.5 bg-red-50 border border-red-100 rounded-lg">
+                            <span className="font-semibold text-red-700 block mb-0.5">내 답</span>
+                            <span className="text-slate-700">{item.userAnswerText}</span>
+                        </div>
+                    )}
+                    <div className="text-xs p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+                        <span className="font-semibold text-blue-700 block mb-0.5">{item.quizType === 'frq' ? '모범 답안' : '해설'}</span>
+                        <span className="text-slate-700 leading-relaxed">{item.explanation}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-0.5">
+                        {!isReviewed && (
+                            <button type="button" onClick={() => onMarkReviewed(item.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg">
+                                <CheckIcon className="text-xs" /> 복습완료
+                            </button>
+                        )}
+                        <button type="button" onClick={() => onDelete(item.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 rounded-lg">
+                            <TrashIcon className="text-xs" /> 삭제
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const WrongAnswersPanel: React.FC<{
+    items: WrongAnswerRecord[];
+    isLoading: boolean;
+    isLoggedIn: boolean;
+    onMarkReviewed: (id: string) => void;
+    onDelete: (id: string) => void;
+}> = ({ items, isLoading, isLoggedIn, onMarkReviewed, onDelete }) => {
+    const pendingCount = items.filter(i => !i.reviewedAt).length;
+
+    if (isLoading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
+    if (!isLoggedIn) return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
+            <ErrorOutlineIcon className="text-3xl text-slate-300" />
+            <p className="font-semibold text-slate-600">로그인이 필요합니다</p>
+        </div>
+    );
+
+    return (
+        <div className="flex-1 overflow-y-auto">
+            {items.length > 0 && (
+                <div className="px-4 py-2.5 border-b border-slate-100 bg-white flex items-center gap-3">
+                    <span className="text-sm font-bold text-slate-800">{items.length}</span>
+                    <span className="text-xs text-slate-500">전체</span>
+                    <span className="w-px h-4 bg-slate-200" />
+                    <span className="text-sm font-bold text-rose-600">{pendingCount}</span>
+                    <span className="text-xs text-slate-500">복습 필요</span>
+                </div>
+            )}
+            <div className="p-3 space-y-2">
+                {items.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                        <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center">
+                            <ErrorOutlineIcon className="text-3xl text-rose-300" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-slate-600">오답이 아직 없습니다</p>
+                            <p className="text-sm text-slate-400 mt-1">퀴즈를 풀면 틀린 문제가 여기에 저장됩니다.</p>
+                        </div>
+                    </div>
+                ) : (
+                    items.map(item => (
+                        <WrongAnswerCard key={item.id} item={item} onMarkReviewed={onMarkReviewed} onDelete={onDelete} />
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────
+
 export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     document,
     onMenuClick,
@@ -47,8 +177,15 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onTabChange,
 }) => {
     const { dispatch } = useDocuments();
-    const navigate = useNavigate();
     // activeTab is controlled by prop from StudyPage
+
+    // Wrong answers sub-view within Quiz tab
+    type QuizView = 'quiz' | 'wrong_answers';
+    const [quizView, setQuizView] = React.useState<QuizView>('quiz');
+    const [wrongAnswers, setWrongAnswers] = React.useState<WrongAnswerRecord[]>([]);
+    const [isLoadingWA, setIsLoadingWA] = React.useState(false);
+    const [isLoggedInWA, setIsLoggedInWA] = React.useState(false);
+    const waLoadedRef = React.useRef(false);
 
     const [isPresetQuestionsOpen, setIsPresetQuestionsOpen] = React.useState(false);
     const [chatSearch, setChatSearch] = React.useState('');
@@ -83,7 +220,36 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         setQuizError(null);
         setChatSearch('');
         setIsChatSearchOpen(false);
+        setQuizView('quiz');
+        waLoadedRef.current = false;
+        setWrongAnswers([]);
     }, [document.id]);
+
+    const loadWrongAnswers = React.useCallback(async () => {
+        if (waLoadedRef.current) return;
+        waLoadedRef.current = true;
+        setIsLoadingWA(true);
+        const { data } = await supabase.auth.getUser();
+        if (!data.user) { setIsLoggedInWA(false); setIsLoadingWA(false); return; }
+        setIsLoggedInWA(true);
+        const all = await fetchWrongAnswers();
+        setWrongAnswers(all.filter(w => w.documentId === document.id));
+        setIsLoadingWA(false);
+    }, [document.id]);
+
+    React.useEffect(() => {
+        if (quizView === 'wrong_answers') loadWrongAnswers();
+    }, [quizView, loadWrongAnswers]);
+
+    const handleMarkReviewed = async (id: string) => {
+        const ok = await markReviewed(id);
+        if (ok) setWrongAnswers(prev => prev.map(w => w.id === id ? { ...w, reviewedAt: new Date().toISOString() } : w));
+    };
+
+    const handleDeleteWA = async (id: string) => {
+        const ok = await deleteWrongAnswer(id);
+        if (ok) setWrongAnswers(prev => prev.filter(w => w.id !== id));
+    };
 
     React.useEffect(() => {
         if (isChatSearchOpen) chatSearchRef.current?.focus();
@@ -325,7 +491,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const createTabs = [
         { id: 'mindmap', icon: AccountTreeIcon, label: 'Mind Map' },
-        { id: 'slides', icon: SlideshowIcon, label: 'Slides' },
+        { id: 'flashcards', icon: StyleIcon, label: 'Flashcards' },
         { id: 'podcast', icon: HeadphonesIcon, label: 'Podcast' },
     ] as const;
 
@@ -509,8 +675,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     <MindMapTab document={document} />
                 </div>
 
-                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'slides' ? 'flex' : 'hidden'}`}>
-                    <SlidesTab document={document} />
+                <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'flashcards' ? 'flex' : 'hidden'}`}>
+                    <FlashcardsTab document={document} />
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'podcast' ? 'flex' : 'hidden'}`}>
@@ -518,79 +684,105 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'quiz' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-shrink-0 flex items-center px-4 py-3 border-b border-slate-100 bg-white">
-                        <div className="flex items-center gap-2">
-                            <AssignmentIcon className="text-xl text-blue-500" />
-                            <span className="font-semibold text-slate-700 text-sm">Quiz</span>
+                    {/* Sub-tab strip: Quiz | 오답노트 */}
+                    <div className="flex-shrink-0 border-b border-slate-100 bg-white">
+                        <div className="flex">
+                            <button
+                                type="button"
+                                onClick={() => setQuizView('quiz')}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${quizView === 'quiz' ? 'text-blue-600 border-blue-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                            >
+                                <AssignmentIcon className="text-base" /> 퀴즈
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setQuizView('wrong_answers')}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${quizView === 'wrong_answers' ? 'text-rose-600 border-rose-500' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                            >
+                                <ErrorOutlineIcon className="text-base" /> 오답노트
+                            </button>
                         </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                        {isGeneratingQuiz && (
-                            <div className="flex flex-col items-center justify-center h-full text-center">
-                                <Spinner />
-                                <p className="mt-4 font-semibold text-slate-700">Generating your quiz... 🧠</p>
-                            </div>
-                        )}
-                        {!isGeneratingQuiz && quizError && (
-                            <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-red-50 rounded-lg">
-                                <p className="font-bold text-red-700">Quiz Generation Failed</p>
-                                <p className="text-red-600 mt-2 text-sm">{quizError}</p>
-                                <button onClick={handleStartNewQuizInTab} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">Try Again</button>
-                            </div>
-                        )}
-                        {!isGeneratingQuiz && !quizTabData && !quizError && (
-                            <QuizGenerator onGenerate={handleGenerateQuiz} />
-                        )}
-                        {!isGeneratingQuiz && quizTabData && (
-                            <div className="max-w-xl w-full mx-auto">
-                                {quizTabData.quizState.type === 'mcq' ? (
-                                    <Quiz
-                                        data={quizTabData.quizContent as QuizData}
-                                        onCreateAnotherQuiz={handleStartNewQuizInTab}
-                                        quizState={quizTabData.quizState}
-                                        onStateChange={handleQuizTabStateChange}
-                                        documentContent={document.documentContent}
-                                        onRestartWithNewData={handleRestartQuizWithNewData}
-                                        studyTips={quizTabData.studyTips}
-                                        onStudyTipsGenerated={handleStudyTipsGenerated}
-                                    />
-                                ) : (
-                                    <FRQuiz
-                                        data={quizTabData.quizContent as FRQData}
-                                        model={document.model}
-                                        onCreateAnotherQuiz={handleStartNewQuizInTab}
-                                        quizState={quizTabData.quizState}
-                                        onStateChange={handleQuizTabStateChange}
-                                        documentContent={document.documentContent}
-                                        onRestartWithNewData={handleRestartQuizWithNewData}
-                                        studyTips={quizTabData.studyTips}
-                                        onStudyTipsGenerated={handleStudyTipsGenerated}
-                                    />
-                                )}
 
-                                {/* Learning loop: surface review tools after a quiz exists */}
-                                <div className="mt-6 pt-4 border-t border-slate-100">
-                                    <p className="text-xs font-semibold text-slate-400 mb-2">복습하기</p>
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate(ROUTES.WRONG_ANSWERS)}
-                                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors"
-                                        >
-                                            <ErrorOutlineIcon className="text-lg" /> 오답노트에서 복습
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate(ROUTES.FLASHCARDS, { state: { openGenerate: true, source: 'wrong_answers', documentId: document.id } })}
-                                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors"
-                                        >
-                                            <StyleIcon className="text-lg" /> 오답으로 플래시카드
-                                        </button>
+                    {/* Quiz view */}
+                    {quizView === 'quiz' && (
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                            {isGeneratingQuiz && (
+                                <div className="flex flex-col items-center justify-center h-full text-center">
+                                    <Spinner />
+                                    <p className="mt-4 font-semibold text-slate-700">Generating your quiz... 🧠</p>
+                                </div>
+                            )}
+                            {!isGeneratingQuiz && quizError && (
+                                <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-red-50 rounded-lg">
+                                    <p className="font-bold text-red-700">Quiz Generation Failed</p>
+                                    <p className="text-red-600 mt-2 text-sm">{quizError}</p>
+                                    <button onClick={handleStartNewQuizInTab} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">Try Again</button>
+                                </div>
+                            )}
+                            {!isGeneratingQuiz && !quizTabData && !quizError && (
+                                <QuizGenerator onGenerate={handleGenerateQuiz} />
+                            )}
+                            {!isGeneratingQuiz && quizTabData && (
+                                <div className="max-w-xl w-full mx-auto">
+                                    {quizTabData.quizState.type === 'mcq' ? (
+                                        <Quiz
+                                            data={quizTabData.quizContent as QuizData}
+                                            onCreateAnotherQuiz={handleStartNewQuizInTab}
+                                            quizState={quizTabData.quizState}
+                                            onStateChange={handleQuizTabStateChange}
+                                            documentContent={document.documentContent}
+                                            onRestartWithNewData={handleRestartQuizWithNewData}
+                                            studyTips={quizTabData.studyTips}
+                                            onStudyTipsGenerated={handleStudyTipsGenerated}
+                                        />
+                                    ) : (
+                                        <FRQuiz
+                                            data={quizTabData.quizContent as FRQData}
+                                            model={document.model}
+                                            onCreateAnotherQuiz={handleStartNewQuizInTab}
+                                            quizState={quizTabData.quizState}
+                                            onStateChange={handleQuizTabStateChange}
+                                            documentContent={document.documentContent}
+                                            onRestartWithNewData={handleRestartQuizWithNewData}
+                                            studyTips={quizTabData.studyTips}
+                                            onStudyTipsGenerated={handleStudyTipsGenerated}
+                                        />
+                                    )}
+                                    <div className="mt-6 pt-4 border-t border-slate-100">
+                                        <p className="text-xs font-semibold text-slate-400 mb-2">복습하기</p>
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setQuizView('wrong_answers')}
+                                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition-colors"
+                                            >
+                                                <ErrorOutlineIcon className="text-lg" /> 오답노트 보기
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => onTabChange('flashcards')}
+                                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors"
+                                            >
+                                                <StyleIcon className="text-lg" /> 플래시카드
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Wrong answers view */}
+                    {quizView === 'wrong_answers' && (
+                        <WrongAnswersPanel
+                            items={wrongAnswers}
+                            isLoading={isLoadingWA}
+                            isLoggedIn={isLoggedInWA}
+                            onMarkReviewed={handleMarkReviewed}
+                            onDelete={handleDeleteWA}
+                        />
+                    )}
                 </div>
 
             </React.Fragment>
@@ -602,7 +794,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         chat: 'Chat',
         quiz: 'Quiz',
         mindmap: 'Mind Map',
-        slides: 'Slides',
+        flashcards: 'Flashcards',
         podcast: 'Podcast',
     };
 

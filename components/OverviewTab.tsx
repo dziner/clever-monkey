@@ -1,11 +1,9 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 import type { DocumentData } from '../types';
 import type { ActiveTab } from './InteractionPanel';
-import { ROUTES } from '../routes';
 import {
-    ChatIcon, AssignmentIcon, AccountTreeIcon, SlideshowIcon, HeadphonesIcon,
-    CopyIcon, ErrorOutlineIcon, StyleIcon, ChevronDownIcon, ChevronUpIcon,
+    ChatIcon, AssignmentIcon, AccountTreeIcon, StyleIcon, HeadphonesIcon,
+    CopyIcon, ErrorOutlineIcon, ChevronDownIcon, ChevronUpIcon,
 } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { fetchQuizSessions, fetchWrongAnswers } from '../services/wrongAnswersService';
@@ -29,12 +27,11 @@ const QUICK_TOOLS: { id: ActiveTab; label: string; icon: React.FC<React.HTMLAttr
     { id: 'chat', label: 'Chat', icon: ChatIcon },
     { id: 'quiz', label: 'Quiz', icon: AssignmentIcon },
     { id: 'mindmap', label: 'Mind Map', icon: AccountTreeIcon },
-    { id: 'slides', label: 'Slides', icon: SlideshowIcon },
+    { id: 'flashcards', label: 'Cards', icon: StyleIcon },
     { id: 'podcast', label: 'Podcast', icon: HeadphonesIcon },
 ];
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab }) => {
-    const navigate = useNavigate();
     const [stats, setStats] = React.useState<OverviewStats | null>(null);
     const [summaryExpanded, setSummaryExpanded] = React.useState(false);
 
@@ -115,7 +112,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
 
                         <button
                             type="button"
-                            onClick={() => navigate(ROUTES.WRONG_ANSWERS)}
+                            onClick={() => onSelectTab('quiz')}
                             className="flex flex-col items-start gap-1 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-rose-300 hover:shadow-md transition-all text-left"
                         >
                             <ErrorOutlineIcon className="text-xl text-rose-500" />
@@ -128,7 +125,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
 
                         <button
                             type="button"
-                            onClick={() => navigate(ROUTES.FLASHCARDS, { state: { openGenerate: stats?.totalCards === 0, source: 'document', documentId: document.id } })}
+                            onClick={() => onSelectTab('flashcards')}
                             className="flex flex-col items-start gap-1 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-purple-300 hover:shadow-md transition-all text-left"
                         >
                             <StyleIcon className="text-xl text-purple-500" />

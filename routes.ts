@@ -1,9 +1,6 @@
 export const ROUTES = {
   STUDY: '/',
-  WRONG_ANSWERS: '/wrong-answers',
-  FLASHCARDS: '/flashcards',
   PROFILE: '/profile',
-  DASHBOARD: '/dashboard',
   ADMIN: '/admin',
 } as const;
 
