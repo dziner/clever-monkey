@@ -20,20 +20,6 @@ const COLORS = [
   { bg: '#fff7ed', border: '#fdba74', text: '#9a3412', accent: '#f97316' },
 ];
 
-const CANVAS_W = 860;
-const CANVAS_H = 580;
-const CX = CANVAS_W / 2;
-const CY = CANVAS_H / 2;
-const RADIUS = 210;
-
-function getBranchPos(index: number, total: number) {
-  const angle = (index / total) * 2 * Math.PI - Math.PI / 2;
-  return {
-    x: CX + RADIUS * Math.cos(angle),
-    y: CY + RADIUS * Math.sin(angle),
-  };
-}
-
 const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
   const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
 
@@ -47,79 +33,72 @@ const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
   const total = data.branches.length;
 
   return (
-    <div
-      className="relative select-none"
-      style={{ width: CANVAS_W, height: CANVAS_H, minWidth: CANVAS_W, minHeight: CANVAS_H }}
-    >
-      <svg className="absolute inset-0 pointer-events-none" width={CANVAS_W} height={CANVAS_H}>
-        {data.branches.map((_, i) => {
-          const { x, y } = getBranchPos(i, total);
-          const color = COLORS[i % COLORS.length];
-          return (
-            <line
-              key={i}
-              x1={CX} y1={CY}
-              x2={x} y2={y}
-              stroke={color.accent}
-              strokeWidth={2}
-              strokeOpacity={0.5}
-              strokeDasharray="4 3"
-            />
-          );
-        })}
-      </svg>
-
-      {/* Center node */}
-      <div
-        className="absolute flex items-center justify-center"
-        style={{ left: CX, top: CY, transform: 'translate(-50%, -50%)', zIndex: 10 }}
-      >
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl px-5 py-3 text-center shadow-xl max-w-[140px]">
-          <AccountTreeIcon className="text-2xl text-violet-400 mb-1" />
-          <p className="text-sm font-bold leading-tight">{data.center}</p>
-        </div>
+    <div className="inline-flex items-center select-none p-8" style={{ minWidth: 'fit-content' }}>
+      {/* Root node */}
+      <div className="flex-shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl px-5 py-4 text-center shadow-xl max-w-[180px] z-10">
+        <AccountTreeIcon className="text-2xl text-violet-400 mb-1" />
+        <p className="text-sm font-bold leading-tight">{data.center}</p>
       </div>
 
-      {/* Branch nodes */}
-      {data.branches.map((branch, i) => {
-        const { x, y } = getBranchPos(i, total);
-        const color = COLORS[i % COLORS.length];
-        const isOpen = expanded.has(i);
+      {/* Trunk connector from root to the branch rail */}
+      <div className="w-8 h-0.5 bg-slate-300 flex-shrink-0" />
 
-        return (
-          <div
-            key={i}
-            className="absolute"
-            style={{ left: x, top: y, transform: 'translate(-50%, -50%)', zIndex: 20 }}
-          >
-            <button
-              type="button"
-              onClick={() => toggleBranch(i)}
-              className="rounded-xl border-2 shadow-md transition-all hover:shadow-lg active:scale-95 max-w-[160px] w-[160px] text-left"
-              style={{ background: color.bg, borderColor: color.border }}
-            >
-              <div className="px-3 py-2">
-                <p className="text-xs font-bold leading-snug" style={{ color: color.text }}>
-                  {branch.label}
-                </p>
-                {isOpen && (
-                  <ul className="mt-1.5 space-y-0.5">
-                    {branch.children.map((child, ci) => (
-                      <li key={ci} className="flex items-start gap-1 text-xs text-slate-600">
-                        <span className="mt-0.5 w-1 h-1 rounded-full flex-shrink-0" style={{ background: color.accent }} />
-                        <span className="leading-tight">{child}</span>
-                      </li>
-                    ))}
-                  </ul>
+      {/* Branches — stacked vertically, expanding to the right */}
+      <div className="flex flex-col">
+        {data.branches.map((branch, i) => {
+          const color = COLORS[i % COLORS.length];
+          const isOpen = expanded.has(i);
+          const isFirst = i === 0;
+          const isLast = i === total - 1;
+
+          return (
+            <div key={i} className="flex items-stretch">
+              {/* Connector column: vertical rail + horizontal stub to the card */}
+              <div className="relative w-6 flex-shrink-0">
+                {total > 1 && (
+                  <div
+                    className="absolute left-0 w-0.5 bg-slate-300"
+                    style={{ top: isFirst ? '50%' : 0, bottom: isLast ? '50%' : 0 }}
+                  />
                 )}
-                <p className="text-[10px] mt-1 opacity-50" style={{ color: color.text }}>
-                  {isOpen ? 'tap to collapse' : `${branch.children.length} concepts — tap`}
-                </p>
+                <div
+                  className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2"
+                  style={{ background: color.accent, opacity: 0.55 }}
+                />
               </div>
-            </button>
-          </div>
-        );
-      })}
+
+              {/* Branch card */}
+              <div className="py-1.5">
+                <button
+                  type="button"
+                  onClick={() => toggleBranch(i)}
+                  className="rounded-xl border-2 shadow-md transition-all hover:shadow-lg active:scale-[0.98] w-[240px] max-w-[240px] text-left"
+                  style={{ background: color.bg, borderColor: color.border }}
+                >
+                  <div className="px-3 py-2">
+                    <p className="text-sm font-bold leading-snug" style={{ color: color.text }}>
+                      {branch.label}
+                    </p>
+                    {isOpen && (
+                      <ul className="mt-1.5 space-y-0.5">
+                        {branch.children.map((child, ci) => (
+                          <li key={ci} className="flex items-start gap-1.5 text-xs text-slate-600">
+                            <span className="mt-1 w-1 h-1 rounded-full flex-shrink-0" style={{ background: color.accent }} />
+                            <span className="leading-tight">{child}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <p className="text-[10px] mt-1 opacity-50" style={{ color: color.text }}>
+                      {isOpen ? 'tap to collapse' : `${branch.children.length} concepts — tap`}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -131,7 +110,9 @@ interface MindMapTabProps {
 export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
   const bodyRef = React.useRef<HTMLDivElement>(null);
-  const [canvasScale, setCanvasScale] = React.useState(1);
+  const scaleRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  const [natural, setNatural] = React.useState({ w: 0, h: 0 });
   const [userZoom, setUserZoom] = React.useState(1);
 
   const { data, loading, error, generate, cancel } = useAIGeneration<MindMapData>(
@@ -154,19 +135,30 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
     }
   }, [data, document.id, dispatch]);
 
+  // Track the scroll container's width for fit-to-width scaling
   React.useEffect(() => {
     const obs = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const w = entry.contentRect.width - 32;
-        setCanvasScale(w < CANVAS_W ? w / CANVAS_W : 1);
-      }
+      for (const entry of entries) setContainerWidth(entry.contentRect.width);
     });
     if (bodyRef.current) obs.observe(bodyRef.current);
     return () => obs.disconnect();
   }, []);
 
   const displayData = data ?? document.mindMapData ?? null;
-  const effectiveScale = canvasScale * userZoom;
+
+  // Measure the natural (unscaled) size of the rendered tree
+  React.useLayoutEffect(() => {
+    const el = scaleRef.current;
+    if (!el) return;
+    const measure = () => setNatural({ w: el.scrollWidth, h: el.scrollHeight });
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [displayData]);
+
+  const fitScale = natural.w > 0 ? Math.min(1, (containerWidth - 32) / natural.w) : 1;
+  const effectiveScale = fitScale * userZoom;
 
   const zoomIn  = () => setUserZoom(z => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))));
   const zoomOut = () => setUserZoom(z => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))));
@@ -240,25 +232,14 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
-          <div
-            className="flex items-start justify-center p-4 pb-16"
-            style={{ minWidth: 'fit-content' }}
-          >
-            <div
-              style={{
-                width: CANVAS_W * effectiveScale,
-                height: CANVAS_H * effectiveScale,
-                position: 'relative',
-                flexShrink: 0,
-              }}
-            >
+          <div className="p-4 pb-16">
+            <div style={{ width: natural.w * effectiveScale, height: natural.h * effectiveScale }}>
               <div
+                ref={scaleRef}
                 style={{
-                  width: CANVAS_W,
-                  height: CANVAS_H,
                   transform: `scale(${effectiveScale})`,
                   transformOrigin: 'top left',
-                  position: 'absolute',
+                  width: 'fit-content',
                 }}
               >
                 <MindMapCanvas data={displayData} />
