@@ -44,7 +44,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
                 fetchDecks(),
             ]);
             if (!active) return;
-            const docSessions = sessions.filter(s => s.documentName === document.fileName);
+            const docSessions = sessions.filter(s => s.documentId === document.id);
             const docWrongs = wrongs.filter(w => w.documentId === document.id);
             const docDecks = decks.filter(d => d.documentId === document.id);
             setStats({
@@ -56,7 +56,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
             });
         })();
         return () => { active = false; };
-    }, [document.id, document.fileName]);
+    }, [document.id]);
 
     const summaryPreview = (document.summary || '').trim();
 

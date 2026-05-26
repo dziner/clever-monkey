@@ -7,6 +7,7 @@ import { useTierLimits } from '../hooks/useTierLimits';
 import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { renameDocumentReferences } from '../services/wrongAnswersService';
 import { ROUTES } from '../routes';
 import { FolderItem } from './FolderItem';
 import { FileListItem } from './FileListItem';
@@ -135,7 +136,11 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         if (updateError) {
             console.error('문서 이름 변경에 실패했습니다:', updateError);
             showToast('Failed to rename document', 'error');
+            return;
         }
+
+        // Refresh the denormalized name in related history; linkage stays by document_id
+        await renameDocumentReferences(docId, trimmed);
     };
 
     const handleAddNewFolder = async () => {

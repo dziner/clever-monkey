@@ -163,6 +163,7 @@ export async function deleteWrongAnswer(id: string): Promise<boolean> {
 
 export interface QuizSession {
   id: string;
+  documentId: string;
   documentName: string;
   quizType: 'mcq' | 'frq';
   score: number;
@@ -183,6 +184,7 @@ export async function fetchQuizSessions(limit = 30): Promise<QuizSession[]> {
   if (error) { console.error('Failed to fetch quiz sessions:', error); return []; }
   return (data ?? []).map(row => ({
     id: row.id,
+    documentId: row.document_id,
     documentName: row.document_name,
     quizType: row.quiz_type,
     score: row.score,
@@ -190,4 +192,26 @@ export async function fetchQuizSessions(limit = 30): Promise<QuizSession[]> {
     correctCount: row.correct_count,
     createdAt: row.created_at,
   }));
+}
+
+// Keep the stored display name in sync after a document is renamed.
+// Linkage is always by document_id (immutable); this only refreshes the
+// denormalized name shown in history/lists.
+export async function renameDocumentReferences(documentId: string, newName: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const tables = ['quiz_sessions', 'wrong_answers', 'flashcard_decks'] as const;
+  await Promise.all(
+    tables.map(table =>
+      supabase
+        .from(table)
+        .update({ document_name: newName })
+        .eq('user_id', user.id)
+        .eq('document_id', documentId)
+        .then(({ error }) => {
+          if (error) console.error(`Failed to update document_name in ${table}:`, error);
+        })
+    )
+  );
 }
