@@ -475,8 +475,17 @@ export async function synthesizeSpeech(
 export async function generatePodcastScript(
   documentContent: string,
   model: Model,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  instructions?: string
 ): Promise<string> {
+  const trimmedInstructions = instructions?.trim();
+  const instructionBlock = trimmedInstructions
+    ? `\nUSER DIRECTION (follow this closely):
+"""
+${trimmedInstructions}
+"""\n`
+    : '';
+
   const prompt = `Write an engaging podcast-style audio script based on the DOCUMENT CONTENT.
 A single narrator presents the material in a conversational, educational style.
 
@@ -487,7 +496,7 @@ Rules:
 - Close with a 2-sentence recap and sign-off
 - 400-500 words total
 - Plain prose only — absolutely no markdown, no headers, no bullet points
-
+${instructionBlock}
 DOCUMENT CONTENT:
 """
 ${documentContent}

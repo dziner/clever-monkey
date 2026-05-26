@@ -18,16 +18,20 @@ interface PodcastTabProps {
   document: DocumentData;
 }
 
+const DIRECTION_PLACEHOLDER = '예: 챕터 5~7의 범위만을 대상으로, 진행자와 패널의 대화 같은 형식으로 생성해 주세요.';
+
 export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
+
+  const [instructions, setInstructions] = React.useState('');
 
   const { data, loading, error, generate, cancel } = useAIGeneration<string>(
     React.useCallback(
       (signal) => {
         if (!document.documentContent) return Promise.reject(new Error('No document content'));
-        return generatePodcastScript(document.documentContent, document.model, signal);
+        return generatePodcastScript(document.documentContent, document.model, signal, instructions);
       },
-      [document.documentContent, document.model]
+      [document.documentContent, document.model, instructions]
     )
   );
 
@@ -127,6 +131,24 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
       {/* Body */}
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+        {!loading && (
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <label htmlFor="podcast-direction" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+              생성 방향 <span className="font-normal lowercase tracking-normal text-slate-400">(선택)</span>
+            </label>
+            <textarea
+              id="podcast-direction"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder={DIRECTION_PLACEHOLDER}
+              rows={3}
+              className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-400"
+            />
+            <p className="mt-1.5 text-xs text-slate-400">
+              범위·형식·말투 등 원하는 방향을 적어주세요. 비워두면 기본 형식으로 생성됩니다.
+            </p>
+          </div>
+        )}
         {loading ? (
           <div className="flex flex-col items-center gap-3 text-slate-500 mt-8">
             <Spinner />
