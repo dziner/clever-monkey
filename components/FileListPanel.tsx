@@ -113,6 +113,31 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         deletingIdsRef.current.delete(docId);
     };
 
+    const handleRenameDocument = async (docId: string, newName: string) => {
+        const trimmed = newName.trim();
+        if (!trimmed) return;
+        dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { fileName: trimmed } } });
+
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) console.error('사용자 정보를 불러오지 못했습니다:', userError);
+        if (!user) {
+            console.error('로그인이 필요합니다.');
+            showToast('Failed to rename document', 'error');
+            return;
+        }
+
+        const { error: updateError } = await supabase
+            .from('documents')
+            .update({ file_name: trimmed })
+            .eq('id', docId)
+            .eq('user_id', user.id);
+
+        if (updateError) {
+            console.error('문서 이름 변경에 실패했습니다:', updateError);
+            showToast('Failed to rename document', 'error');
+        }
+    };
+
     const handleAddNewFolder = async () => {
         if (isCreatingFolderRef.current) return;
         isCreatingFolderRef.current = true;
@@ -373,6 +398,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                     if (!isDesktop) setIsPanelCollapsed(true);
                                 }}
                                 onDelete={() => requestDeleteDocument(doc.id)}
+                                onRename={handleRenameDocument}
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
                             />
@@ -388,6 +414,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                 isDropTarget={dropTargetId === folder.id}
                                 isDesktop={isDesktop}
                                 onDeleteDocument={requestDeleteDocument}
+                                onRenameDocument={handleRenameDocument}
                                 onDragStart={handleDragStart}
                                 onDragEnd={handleDragEnd}
                                 onDragOver={handleDragOver}
@@ -413,6 +440,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                             if (!isDesktop) setIsPanelCollapsed(true);
                                         }}
                                         onDelete={() => requestDeleteDocument(doc.id)}
+                                        onRename={handleRenameDocument}
                                         onDragStart={handleDragStart}
                                         onDragEnd={handleDragEnd}
                                     />

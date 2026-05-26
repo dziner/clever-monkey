@@ -11,6 +11,7 @@ interface FolderItemProps {
     isDropTarget: boolean;
     isDesktop?: boolean;
     onDeleteDocument: (docId: string) => void;
+    onRenameDocument?: (docId: string, newName: string) => void;
     onDragStart: (e: React.DragEvent, docId: string) => void;
     onDragEnd: () => void;
     onDragOver: (e: React.DragEvent, folderId: string | null) => void;
@@ -20,7 +21,7 @@ interface FolderItemProps {
 }
 
 export const FolderItem: React.FC<FolderItemProps> = React.memo(({
-    folder, documents, isDropTarget, isDesktop, onDeleteDocument,
+    folder, documents, isDropTarget, isDesktop, onDeleteDocument, onRenameDocument,
     onDragStart, onDragEnd, onDragOver, onDrop, onDragLeave, setIsPanelCollapsed
 }) => {
     const { state, dispatch } = useDocuments();
@@ -197,6 +198,7 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                         if (!isDesktop) setIsPanelCollapsed(true);
                     }}
                     onDelete={() => onDeleteDocument(doc.id)}
+                    onRename={onRenameDocument}
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
                 />
