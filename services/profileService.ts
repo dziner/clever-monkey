@@ -5,6 +5,7 @@ function mapRow(d: Record<string, unknown>): UserProfile {
     return {
         id: d.id as string,
         email: d.email as string,
+        displayName: (d.display_name as string | null) ?? null,
         role: d.role as UserRole,
         tier: d.tier as UserTier,
         tierExpiresAt: (d.tier_expires_at as string | null) ?? null,
@@ -20,7 +21,7 @@ export async function getMyProfile(): Promise<UserProfile | null> {
 
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at')
+        .select('id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at')
         .eq('id', user.id)
         .single();
 
@@ -32,6 +33,22 @@ export async function upsertMyProfile(userId: string, email: string): Promise<vo
     await supabase
         .from('profiles')
         .upsert({ id: userId, email }, { onConflict: 'id' });
+}
+
+export async function updateMyDisplayName(displayName: string): Promise<boolean> {
+    const trimmed = displayName.trim();
+    if (!trimmed) return false;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: trimmed })
+        .eq('id', user.id);
+    if (error) {
+        console.error('Failed to update display name:', error);
+        return false;
+    }
+    return true;
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────

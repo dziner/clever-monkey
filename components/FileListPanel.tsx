@@ -526,10 +526,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner flex-shrink-0 ${
                             tierLimits.isPro ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-600'
                         }`}>
-                            {userEmail[0].toUpperCase()}
+                            {(userProfile?.displayName?.trim() || userEmail)[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                            <p className="text-xs font-bold text-slate-700 truncate" title={userEmail}>{userEmail}</p>
+                            <p className="text-xs font-bold text-slate-700 truncate" title={userProfile?.displayName ?? userEmail}>
+                                {userProfile?.displayName?.trim() || userEmail}
+                            </p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
                                     tierLimits.isPro

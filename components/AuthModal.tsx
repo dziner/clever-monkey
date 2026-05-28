@@ -6,11 +6,12 @@ interface AuthModalProps {
     onClose: () => void;
     onGoogleSignIn: () => void;
     onEmailSignIn: (email: string, password: string) => Promise<string | null>;
-    onEmailSignUp: (email: string, password: string) => Promise<string | null>;
+    onEmailSignUp: (email: string, password: string, displayName: string) => Promise<string | null>;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleSignIn, onEmailSignIn, onEmailSignUp }) => {
     const [mode, setMode] = React.useState<'login' | 'signup'>('login');
+    const [name, setName] = React.useState('');
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [error, setError] = React.useState<string | null>(null);
@@ -25,12 +26,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
 
         const responseError = mode === 'login'
             ? await onEmailSignIn(email, password)
-            : await onEmailSignUp(email, password);
+            : await onEmailSignUp(email, password, name);
 
         if (responseError) {
             setError(responseError);
         } else {
             onClose();
+            setName('');
             setEmail('');
             setPassword('');
         }
@@ -98,6 +100,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                     </div>
 
                     <form className="space-y-4" onSubmit={handleSubmit}>
+                        {mode === 'signup' && (
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1">Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="Your name"
+                                    value={name}
+                                    onChange={(event) => setName(event.target.value)}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                    required
+                                    minLength={1}
+                                    maxLength={60}
+                                />
+                            </div>
+                        )}
                         <div>
                             <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1">Email address</label>
                             <input

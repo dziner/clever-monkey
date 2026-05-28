@@ -43,12 +43,14 @@ export const signInWithEmail = async (email: string, password: string) => {
     return { data, error }
 }
 
-export const signUpWithEmail = async (email: string, password: string) => {
+export const signUpWithEmail = async (email: string, password: string, displayName?: string) => {
+    const trimmedName = displayName?.trim() || undefined
     const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
             emailRedirectTo: window.location.origin,
+            data: trimmedName ? { display_name: trimmedName } : undefined,
         }
     })
     if (error) console.error('Error signing up with email:', error.message)

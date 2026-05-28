@@ -1,24 +1,64 @@
 import * as React from 'react';
-import { ChevronLeftIcon, CheckIcon, CleverMonkeyIcon } from './icons';
+import { ChevronLeftIcon, CheckIcon, CleverMonkeyIcon, EditIcon, XIcon } from './icons';
+import { updateMyDisplayName } from '../services/profileService';
 
 interface ProfilePageProps {
   userEmail: string | null;
+  displayName: string | null;
   fileCount: number;
   storageUsage: string;
   planName: string;
   onBack: () => void;
   onUpgrade: () => void;
+  onNameSaved: () => void | Promise<void>;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
   userEmail,
+  displayName,
   fileCount,
   storageUsage,
   planName,
   onBack,
   onUpgrade,
+  onNameSaved,
 }) => {
-  const displayName = userEmail?.split('@')[0] || 'Guest';
+  const fallbackName = userEmail?.split('@')[0] || 'Guest';
+  const shownName = displayName?.trim() || fallbackName;
+
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draftName, setDraftName] = React.useState(displayName ?? '');
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const startEdit = () => {
+    setDraftName(displayName ?? '');
+    setError(null);
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setError(null);
+  };
+
+  const saveEdit = async () => {
+    const trimmed = draftName.trim();
+    if (!trimmed) { setError('이름을 입력해 주세요.'); return; }
+    if (trimmed === (displayName ?? '').trim()) { setIsEditing(false); return; }
+    setIsSaving(true);
+    setError(null);
+    const ok = await updateMyDisplayName(trimmed);
+    setIsSaving(false);
+    if (!ok) { setError('저장에 실패했습니다.'); return; }
+    await onNameSaved();
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') saveEdit();
+    else if (e.key === 'Escape') cancelEdit();
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-50 z-50 overflow-y-auto">
@@ -42,14 +82,59 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       <div className="max-w-3xl mx-auto px-5 py-8 space-y-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
               <CleverMonkeyIcon className="w-8 h-8 text-blue-600" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-slate-900">{displayName}</h2>
-              <p className="text-sm text-slate-500">{userEmail || 'Not signed in'}</p>
+            <div className="flex-1 min-w-0">
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="이름"
+                    autoFocus
+                    maxLength={60}
+                    className="flex-1 min-w-0 text-xl font-bold text-slate-900 bg-white border border-blue-400 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={saveEdit}
+                    disabled={isSaving || !draftName.trim()}
+                    className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 disabled:opacity-40"
+                    aria-label="Save name"
+                  >
+                    <CheckIcon className="text-lg" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEdit}
+                    disabled={isSaving}
+                    className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                    aria-label="Cancel"
+                  >
+                    <XIcon className="text-lg" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-slate-900 truncate">{shownName}</h2>
+                  <button
+                    type="button"
+                    onClick={startEdit}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                    aria-label="Edit name"
+                    title="이름 수정"
+                  >
+                    <EditIcon className="text-base" />
+                  </button>
+                </div>
+              )}
+              <p className="text-sm text-slate-500 truncate">{userEmail || 'Not signed in'}</p>
+              {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
             </div>
-            <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider">
+            <span className="text-[11px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wider flex-shrink-0">
               {planName}
             </span>
           </div>

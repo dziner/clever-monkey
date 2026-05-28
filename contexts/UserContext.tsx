@@ -1,6 +1,6 @@
 import React from 'react';
 import { supabase } from '../services/supabaseClient';
-import { getMyProfile, upsertMyProfile } from '../services/profileService';
+import { getMyProfile, upsertMyProfile, updateMyDisplayName } from '../services/profileService';
 import type { UserProfile } from '../types';
 
 interface UserContextValue {
@@ -29,7 +29,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProfile = React.useCallback(async (uid: string, email: string) => {
         await upsertMyProfile(uid, email);
-        const profile = await getMyProfile();
+        let profile = await getMyProfile();
+
+        // Email signup carries an explicit display_name in user_metadata
+        // — seed the profile so the user doesn't have to re-enter it.
+        // (Google sign-in only has full_name; we leave displayName null so
+        //  the first-time prompt opens and the user confirms/edits it.)
+        if (profile && !profile.displayName) {
+            const { data: { user } } = await supabase.auth.getUser();
+            const meta = user?.user_metadata as { display_name?: string } | undefined;
+            const seed = meta?.display_name?.trim();
+            if (seed) {
+                const ok = await updateMyDisplayName(seed);
+                if (ok) profile = await getMyProfile();
+            }
+        }
+
         setUserProfile(profile);
     }, []);
 

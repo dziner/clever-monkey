@@ -188,6 +188,7 @@ export type UserRole = 'user' | 'admin';
 export interface UserProfile {
   id: string;
   email: string;
+  displayName: string | null;
   role: UserRole;
   tier: UserTier;
   tierExpiresAt: string | null;

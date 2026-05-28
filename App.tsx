@@ -7,6 +7,7 @@ import { useFileHandler } from './hooks/useFileHandler';
 import { PanelLeftCloseIcon, CleverMonkeyIcon, AdminPanelIcon } from './components/icons';
 import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
+import { NamePromptModal } from './components/NamePromptModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
 import { useUser } from './contexts/UserContext';
@@ -43,7 +44,7 @@ const App: React.FC = () => {
     const location = useLocation();
 
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
-    const { userEmail, userProfile, isAuthLoading } = useUser();
+    const { userEmail, userProfile, isAuthLoading, refreshProfile } = useUser();
     const { isOpen: isUpgradeOpen, reason: upgradeReason, openUpgrade, closeUpgrade } = useUpgradeModal();
 
     useKeyboardShortcuts([
@@ -61,8 +62,8 @@ const App: React.FC = () => {
         return error?.message ?? null;
     }, []);
 
-    const handleEmailSignUp = React.useCallback(async (email: string, password: string) => {
-        const { error } = await signUpWithEmail(email, password);
+    const handleEmailSignUp = React.useCallback(async (email: string, password: string, displayName: string) => {
+        const { error } = await signUpWithEmail(email, password, displayName);
         return error?.message ?? null;
     }, []);
 
@@ -87,14 +88,19 @@ const App: React.FC = () => {
     const storageUsage = formatBytes(totalFileSize);
     const planName = userProfile?.tier === 'pro' ? 'Pro' : 'Free';
 
+    const needsName = !!userProfile && !userProfile.displayName;
+
     const authUI = (
-        <AuthModal
-            isOpen={isAuthModalOpen}
-            onClose={() => setIsAuthModalOpen(false)}
-            onGoogleSignIn={handleSignIn}
-            onEmailSignIn={handleEmailSignIn}
-            onEmailSignUp={handleEmailSignUp}
-        />
+        <>
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                onGoogleSignIn={handleSignIn}
+                onEmailSignIn={handleEmailSignIn}
+                onEmailSignUp={handleEmailSignUp}
+            />
+            <NamePromptModal isOpen={needsName} onSaved={refreshProfile} />
+        </>
     );
 
     // Admin page — full screen, no sidebar
@@ -117,11 +123,13 @@ const App: React.FC = () => {
                 {authUI}
                 <ProfilePage
                     userEmail={userEmail}
+                    displayName={userProfile?.displayName ?? null}
                     fileCount={fileCount}
                     storageUsage={storageUsage}
                     planName={planName}
                     onBack={() => navigate(ROUTES.STUDY)}
                     onUpgrade={() => setIsAuthModalOpen(true)}
+                    onNameSaved={refreshProfile}
                 />
             </React.Fragment>
         );
