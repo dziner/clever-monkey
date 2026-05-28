@@ -4,9 +4,20 @@ import { Spinner } from './Spinner';
 import { supabase } from '../services/supabaseClient';
 import { generateFlashcards } from '../services/geminiService';
 import {
-  fetchDecks, fetchDueCards, reviewCard, createDeck, deleteDeck,
+  fetchDecks, fetchDueCards, fetchAllCards, reviewCard, createDeck, deleteDeck, previewIntervalLabel,
 } from '../services/flashcardsService';
 import type { FlashcardDeck, Flashcard, ReviewQuality } from '../services/flashcardsService';
+
+type StudyMode = 'due' | 'practice';
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 import type { DocumentData, Model } from '../types';
 
 interface FlashcardsTabProps {
@@ -16,36 +27,53 @@ interface FlashcardsTabProps {
 // ─── Study Session ─────────────────────────────────────────────
 const StudyView: React.FC<{
   deck: FlashcardDeck;
-  onExit: (studiedCount: number) => void;
-}> = ({ deck, onExit }) => {
-  const [cards, setCards] = React.useState<Flashcard[]>([]);
-  const [index, setIndex] = React.useState(0);
+  mode: StudyMode;
+  onExit: (advancedCount: number) => void;
+}> = ({ deck, mode, onExit }) => {
+  const [queue, setQueue] = React.useState<Flashcard[]>([]);
+  const [position, setPosition] = React.useState(0);
   const [flipped, setFlipped] = React.useState(false);
-  const [studied, setStudied] = React.useState(0);
+  const [done, setDone] = React.useState(0);
+  const [total, setTotal] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isAnimating, setIsAnimating] = React.useState(false);
+  const [isRequeued, setIsRequeued] = React.useState(false);
 
   React.useEffect(() => {
-    fetchDueCards(deck.id).then(c => { setCards(c); setIsLoading(false); });
-  }, [deck.id]);
+    const fetcher = mode === 'practice' ? fetchAllCards : fetchDueCards;
+    fetcher(deck.id).then(c => {
+      const ordered = mode === 'practice' ? shuffle(c) : c;
+      setQueue(ordered);
+      setTotal(ordered.length);
+      setIsLoading(false);
+    });
+  }, [deck.id, mode]);
 
-  const current = cards[index];
-  const total = cards.length;
-  const isDone = index >= total;
+  const current = queue[position];
+  const isDone = position >= queue.length;
 
-  const advance = () => {
+  const advance = (requeueCard?: Flashcard) => {
     setIsAnimating(true);
     setTimeout(() => {
       setFlipped(false);
-      setIndex(i => i + 1);
+      setQueue(prev => requeueCard ? [...prev, requeueCard] : prev);
+      setPosition(p => p + 1);
+      setIsRequeued(Boolean(requeueCard));
       setIsAnimating(false);
     }, 150);
   };
 
   const handleRate = async (quality: ReviewQuality) => {
     if (!current) return;
-    await reviewCard(current.id, current, quality);
-    setStudied(s => s + 1);
+    if (mode === 'due') {
+      await reviewCard(current.id, current, quality);
+      if (quality === 'again') {
+        // Re-queue the same card to keep practicing it in this session.
+        advance(current);
+        return;
+      }
+      setDone(d => d + 1);
+    }
     advance();
   };
 
@@ -57,8 +85,12 @@ const StudyView: React.FC<{
         <CheckIcon className="text-4xl text-green-500" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-slate-700">오늘 복습할 카드가 없습니다</h2>
-        <p className="text-slate-500 mt-1 text-sm">모든 카드가 일정에 맞게 복습됐습니다.</p>
+        <h2 className="text-xl font-bold text-slate-700">
+          {mode === 'practice' ? '카드가 없습니다' : '오늘 복습할 카드가 없습니다'}
+        </h2>
+        <p className="text-slate-500 mt-1 text-sm">
+          {mode === 'practice' ? '먼저 덱에 카드를 추가하세요.' : '모든 카드가 일정에 맞게 복습됐습니다.'}
+        </p>
       </div>
       <button type="button" onClick={() => onExit(0)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
         돌아가기
@@ -73,28 +105,41 @@ const StudyView: React.FC<{
       </div>
       <div>
         <h2 className="text-xl font-bold text-slate-700">세션 완료!</h2>
-        <p className="text-slate-500 mt-1 text-sm">{studied}장의 카드를 복습했습니다.</p>
+        <p className="text-slate-500 mt-1 text-sm">
+          {mode === 'practice' ? `${queue.length}장을 훑어봤습니다.` : `${done}장의 카드를 복습했습니다.`}
+        </p>
       </div>
-      <button type="button" onClick={() => onExit(studied)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
+      <button type="button" onClick={() => onExit(done)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
         덱으로 돌아가기
       </button>
     </div>
   );
 
+  const remaining = queue.length - position;
+  const progressPct = mode === 'due' && total > 0 ? (done / total) * 100 : (position / queue.length) * 100;
+
   return (
     <div className="flex-1 flex flex-col p-4 max-w-lg mx-auto w-full">
       <div className="flex items-center justify-between mb-4">
-        <button type="button" onClick={() => onExit(studied)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+        <button type="button" onClick={() => onExit(done)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
           <XIcon className="text-xl" />
         </button>
         <div className="text-center">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{deck.title}</p>
-          <p className="text-sm font-bold text-slate-700 mt-0.5">{index + 1} / {total}</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate max-w-[200px] mx-auto">
+            {deck.title}
+            {mode === 'practice' && <span className="ml-1.5 text-purple-500 font-bold">· 자유 복습</span>}
+          </p>
+          <p className="text-sm font-bold text-slate-700 mt-0.5">
+            {mode === 'due' ? <>{done} / {total} <span className="text-slate-400 font-normal">· 남은 {remaining}</span></> : <>{position + 1} / {queue.length}</>}
+          </p>
         </div>
         <div className="w-9" />
       </div>
       <div className="w-full h-1.5 bg-slate-200 rounded-full mb-6">
-        <div className="h-1.5 bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${(index / total) * 100}%` }} />
+        <div
+          className={`h-1.5 rounded-full transition-all duration-300 ${mode === 'practice' ? 'bg-purple-500' : 'bg-blue-500'}`}
+          style={{ width: `${progressPct}%` }}
+        />
       </div>
       <div
         className={`flex-1 min-h-[240px] max-h-[360px] rounded-2xl shadow-lg border flex flex-col items-center justify-center p-6 text-center cursor-pointer select-none transition-all duration-150 ${
@@ -104,7 +149,12 @@ const StudyView: React.FC<{
       >
         {!flipped ? (
           <>
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">질문</p>
+            <div className="flex items-center gap-1.5 mb-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">질문</p>
+              {isRequeued && (
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full">🔁 다시</span>
+              )}
+            </div>
             <p className="text-lg font-semibold text-slate-800 leading-relaxed">{current.front}</p>
             <p className="text-xs text-slate-400 mt-6">탭하여 답 확인</p>
           </>
@@ -122,14 +172,16 @@ const StudyView: React.FC<{
           </button>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-center text-slate-500 font-semibold mb-3">얼마나 잘 기억했나요?</p>
+            <p className="text-xs text-center text-slate-500 font-semibold mb-3">
+              {mode === 'practice' ? '확인했으면 다음으로' : '얼마나 잘 기억했나요?'}
+            </p>
             <div className="grid grid-cols-4 gap-2">
               {([
-                { q: 'again', label: '다시', sub: '모름', cls: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
-                { q: 'hard', label: '어려움', sub: '헷갈림', cls: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-                { q: 'good', label: '보통', sub: '맞음', cls: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-                { q: 'easy', label: '쉬움', sub: '완벽', cls: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
-              ] as const).map(({ q, label, sub, cls }) => (
+                { q: 'again', label: '다시', cls: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
+                { q: 'hard', label: '어려움', cls: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
+                { q: 'good', label: '보통', cls: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
+                { q: 'easy', label: '쉬움', cls: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
+              ] as const).map(({ q, label, cls }) => (
                 <button
                   key={q}
                   type="button"
@@ -137,7 +189,9 @@ const StudyView: React.FC<{
                   className={`flex flex-col items-center py-3 rounded-xl border font-semibold text-xs transition-colors ${cls}`}
                 >
                   <span className="text-sm font-bold">{label}</span>
-                  <span className="opacity-60 text-[10px] mt-0.5">{sub}</span>
+                  {mode === 'due' && (
+                    <span className="opacity-60 text-[10px] mt-0.5">{previewIntervalLabel(current, q as ReviewQuality)}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -229,7 +283,7 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
   const [decks, setDecks] = React.useState<FlashcardDeck[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-  const [studyingDeck, setStudyingDeck] = React.useState<FlashcardDeck | null>(null);
+  const [studySession, setStudySession] = React.useState<{ deck: FlashcardDeck; mode: StudyMode } | null>(null);
   const [showGenerate, setShowGenerate] = React.useState(false);
 
   const loadDecks = React.useCallback(async () => {
@@ -248,13 +302,13 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
   // Reload when document changes
   React.useEffect(() => {
     setIsLoading(true);
-    setStudyingDeck(null);
+    setStudySession(null);
     loadDecks();
   }, [document.id, loadDecks]);
 
-  const handleStudyExit = (studied: number) => {
-    setStudyingDeck(null);
-    if (studied > 0) loadDecks();
+  const handleStudyExit = (advancedCount: number) => {
+    setStudySession(null);
+    if (advancedCount > 0) loadDecks();
   };
 
   const handleDeckCreated = (deck: FlashcardDeck) => {
@@ -270,10 +324,10 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
 
   const totalDue = decks.reduce((sum, d) => sum + d.dueCards, 0);
 
-  if (studyingDeck) {
+  if (studySession) {
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-white">
-        <StudyView deck={studyingDeck} onExit={handleStudyExit} />
+        <StudyView deck={studySession.deck} mode={studySession.mode} onExit={handleStudyExit} />
       </div>
     );
   }
@@ -353,15 +407,24 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setStudyingDeck(deck)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                          deck.dueCards > 0 ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        <BrainIcon className="text-base" /> 학습
-                      </button>
+                      {deck.dueCards > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setStudySession({ deck, mode: 'due' })}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors bg-purple-600 text-white hover:bg-purple-700"
+                        >
+                          <BrainIcon className="text-base" /> 학습
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setStudySession({ deck, mode: 'practice' })}
+                          disabled={deck.totalCards === 0}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-50"
+                        >
+                          <BrainIcon className="text-base" /> 전체 복습
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDelete(deck.id)}
@@ -371,6 +434,17 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                       </button>
                     </div>
                   </div>
+                  {deck.dueCards > 0 && deck.totalCards > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setStudySession({ deck, mode: 'practice' })}
+                        className="text-xs font-semibold text-purple-600 hover:text-purple-700"
+                      >
+                        전체 카드 자유 복습 →
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}

@@ -280,14 +280,18 @@ export async function generateFlashcards(
   signal?: AbortSignal
 ): Promise<Array<{ front: string; back: string }>> {
   const prompt = `Based on the DOCUMENT CONTENT provided, generate ${count} flashcards for active recall study.
-Return ONLY valid JSON: an array of objects, each with "front" (a clear question or term) and "back" (the concise answer or definition).
+Return ONLY valid JSON: an array of objects, each with "front" (a question, term, or cloze) and "back" (a short answer).
 
-CRITICAL RULES:
-- Each card must cover a completely different concept from the document.
-- "front" should be a focused question or key term (not a yes/no question).
-- "back" should be the direct, concise answer — 1-3 sentences max.
-- Spread cards across the ENTIRE document, not just the beginning.
-- No two cards should test the same concept.
+ATOMIC SHORT-ANSWER STYLE (most important — follow strictly):
+- Each card tests ONE atomic fact. If a concept needs explanation, split it into multiple cards.
+- "front" is a focused prompt: a key term, a "what/which/how many/define" question, or a cloze ("___ is the process of ..."). Never a yes/no question. Never multi-part.
+- "back" is a SHORT answer: a word, number, name, date, or short phrase. Aim for 1–8 words; hard limit ~15 words. Never a paragraph, never multiple sentences if avoidable.
+- Prefer term → definition, question → short answer, or cloze deletions over essay-style prompts.
+- Match the document's language for both front and back.
+
+GENERAL RULES:
+- Each card covers a different concept; no duplicates.
+- Spread cards across the ENTIRE document.
 
 DOCUMENT CONTENT:
 """

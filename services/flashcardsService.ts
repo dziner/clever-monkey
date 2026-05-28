@@ -36,14 +36,27 @@ function sm2Update(card: Flashcard, quality: ReviewQuality): Partial<Flashcard> 
   const q = QUALITY_MAP[quality];
   let { easinessFactor, intervalDays, repetitions } = card;
 
-  if (q >= 3) {
+  if (quality === 'again') {
+    // Lapse: stays due today so it can re-appear in the same session
+    // (the UI re-queues it locally) and remains due tomorrow if abandoned.
+    repetitions = 0;
+    intervalDays = 0;
+  } else if (quality === 'hard') {
+    // Move on, but keep the next interval short — small bump, never grow via EF.
+    if (repetitions === 0) intervalDays = 1;
+    else intervalDays = Math.max(1, Math.round(intervalDays * 1.2));
+    repetitions += 1;
+  } else if (quality === 'good') {
     if (repetitions === 0) intervalDays = 1;
     else if (repetitions === 1) intervalDays = 6;
     else intervalDays = Math.round(intervalDays * easinessFactor);
     repetitions += 1;
   } else {
-    repetitions = 0;
-    intervalDays = 1;
+    // easy
+    if (repetitions === 0) intervalDays = 4;
+    else if (repetitions === 1) intervalDays = 7;
+    else intervalDays = Math.round(intervalDays * easinessFactor * 1.3);
+    repetitions += 1;
   }
 
   easinessFactor = Math.max(1.3, easinessFactor + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
@@ -58,6 +71,17 @@ function sm2Update(card: Flashcard, quality: ReviewQuality): Partial<Flashcard> 
     dueDate: due.toISOString().split('T')[0],
     lastReviewedAt: new Date().toISOString(),
   };
+}
+
+export function previewIntervalLabel(card: Flashcard, quality: ReviewQuality): string {
+  if (quality === 'again') return '오늘 다시';
+  const { intervalDays } = sm2Update(card, quality);
+  const days = intervalDays ?? 0;
+  if (days <= 0) return '오늘';
+  if (days === 1) return '내일';
+  if (days < 30) return `${days}일 뒤`;
+  if (days < 365) return `${Math.round(days / 30)}개월 뒤`;
+  return `${Math.round(days / 365)}년 뒤`;
 }
 
 function toCard(row: any): Flashcard {
@@ -175,6 +199,16 @@ export async function fetchDueCards(deckId: string): Promise<Flashcard[]> {
     .order('due_date', { ascending: true });
 
   if (error) { console.error('Failed to fetch due cards:', error); return []; }
+  return (data ?? []).map(toCard);
+}
+
+export async function fetchAllCards(deckId: string): Promise<Flashcard[]> {
+  const { data, error } = await supabase
+    .from('flashcards')
+    .select('*')
+    .eq('deck_id', deckId);
+
+  if (error) { console.error('Failed to fetch cards:', error); return []; }
   return (data ?? []).map(toCard);
 }
 
