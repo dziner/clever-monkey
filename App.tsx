@@ -149,13 +149,7 @@ const App: React.FC = () => {
     if (state.documents.length === 0) {
         return (
             <React.Fragment>
-                <AuthModal
-                    isOpen={isAuthModalOpen}
-                    onClose={() => setIsAuthModalOpen(false)}
-                    onGoogleSignIn={handleSignIn}
-                    onEmailSignIn={handleEmailSignIn}
-                    onEmailSignUp={handleEmailSignUp}
-                />
+                {authUI}
                 <IdleStateView
                     onFileSelected={handleFileSelected}
                     userEmail={userEmail}
