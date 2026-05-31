@@ -455,7 +455,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 role="switch"
                 aria-label="Toggle monkey mode"
                 onClick={() => handleMonkeyModeChange(!document.monkeyMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${document.monkeyMode ? 'bg-yellow-500' : 'bg-slate-400'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 ${document.monkeyMode ? 'bg-yellow-500' : 'bg-slate-400'}`}
                 aria-checked={document.monkeyMode}
             >
                 <span
@@ -473,7 +473,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 role="switch"
                 aria-label="Toggle answer scope"
                 onClick={() => handleScopeChange(document.answerScope === 'document' ? 'general' : 'document')}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${document.answerScope === 'document' ? 'bg-blue-600' : 'bg-slate-400'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 ${document.answerScope === 'document' ? 'bg-brand-600' : 'bg-ink-400'}`}
                 aria-checked={document.answerScope === 'document'}
             >
                 <span
@@ -496,36 +496,40 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     ] as const;
 
     const TabsComponent = () => (
-        <div className="flex bg-white w-full">
+        <div className="flex bg-white w-full border-b border-ink-100">
             {studyTabs.map(tab => (
                 <button
                     key={tab.id}
                     type="button"
                     title={tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
-                    className={`flex-1 flex items-center justify-center py-3 border-b-2 transition-colors ${
-                        activeTab === tab.id
-                            ? 'text-blue-600 border-blue-600'
-                            : 'text-slate-400 hover:text-slate-600 border-slate-200'
-                    }`}
+                    className={[
+                        'relative flex-1 flex items-center justify-center py-3 transition-colors',
+                        activeTab === tab.id ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700',
+                    ].join(' ')}
                 >
                     <tab.icon className="text-[18px]" />
+                    {activeTab === tab.id && (
+                        <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-brand-600" />
+                    )}
                 </button>
             ))}
-            <div className="w-px bg-slate-200 flex-shrink-0 my-2" />
+            <div className="w-px bg-ink-200 flex-shrink-0 my-2.5" />
             {createTabs.map(tab => (
                 <button
                     key={tab.id}
                     type="button"
                     title={tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
-                    className={`flex-1 flex items-center justify-center py-3 border-b-2 transition-colors ${
-                        activeTab === tab.id
-                            ? 'text-blue-600 border-blue-600'
-                            : 'text-slate-400 hover:text-slate-600 border-slate-200'
-                    }`}
+                    className={[
+                        'relative flex-1 flex items-center justify-center py-3 transition-colors',
+                        activeTab === tab.id ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700',
+                    ].join(' ')}
                 >
                     <tab.icon className="text-[18px]" />
+                    {activeTab === tab.id && (
+                        <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-brand-600" />
+                    )}
                 </button>
             ))}
         </div>
@@ -545,10 +549,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
                     <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
                         <div className="flex items-center gap-2">
-                            <ChatIcon className="text-xl text-blue-500" />
-                            <span className="font-semibold text-slate-700 text-sm">Chat</span>
+                            <ChatIcon className="text-xl text-brand-500" />
+                            <span className="font-semibold text-ink-700 text-sm">Chat</span>
                             {chatSearch && (
-                                <span className="text-xs text-slate-400">
+                                <span className="text-xs text-ink-400">
                                     {document.chatHistory.filter(m => m.text.toLowerCase().includes(chatSearch.toLowerCase())).length} matches
                                 </span>
                             )}
@@ -556,7 +560,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                         <button
                             type="button"
                             onClick={toggleChatSearch}
-                            className={`p-1.5 rounded-lg transition-colors ${isChatSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                            className={`p-1.5 rounded-lg transition-colors ${isChatSearchOpen ? 'bg-brand-50 text-brand-600' : 'text-ink-400 hover:text-ink-700 hover:bg-ink-100'}`}
                             title="Search chat history"
                             aria-label="Search chat"
                         >
@@ -573,7 +577,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                     value={chatSearch}
                                     onChange={e => setChatSearch(e.target.value)}
                                     placeholder="Search messages…"
-                                    className="w-full pl-8 pr-8 py-1.5 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400"
+                                    className="w-full pl-8 pr-8 py-1.5 text-sm bg-white border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                                 />
                                 {chatSearch && (
                                     <button type="button" onClick={() => setChatSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -594,7 +598,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                             <button
                                                 type="button"
                                                 onClick={() => onTabChange('quiz')}
-                                                className="flex items-center gap-2 bg-white text-blue-800 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors shadow-md border border-blue-200"
+                                                className="flex items-center gap-2 bg-white text-brand-800 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-brand-50 transition-colors shadow-card border border-brand-200"
                                             >
                                                 <AssignmentIcon className="text-xl" />
                                                 <span>Create a Quiz</span>
@@ -610,10 +614,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                 <div key={`chat-item-${document.id}-${index}`} className="chat-message-item">
                                     {msg.type === 'quiz' && msg.quizData && msg.quizState ? (
                                         <div className="message-bubble-wrapper flex items-start gap-2 w-full justify-start mb-4">
-                                            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                                                <AssignmentIcon className="w-8 h-8 text-blue-600" />
+                                            <div className="w-12 h-12 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                                                <AssignmentIcon className="w-8 h-8 text-brand-600" />
                                             </div>
-                                            <div className="bg-blue-50 border border-blue-200 rounded-xl rounded-bl-sm shadow-md p-2 sm:p-4 max-w-xl w-full">
+                                            <div className="bg-brand-50 border border-brand-200 rounded-2xl rounded-bl-sm shadow-card p-2 sm:p-4 max-w-xl w-full">
                                                 <Quiz
                                                     key={`quiz-${document.id}-${index}`}
                                                     data={msg.quizData}
@@ -690,7 +694,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             <button
                                 type="button"
                                 onClick={() => setQuizView('quiz')}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${quizView === 'quiz' ? 'text-blue-600 border-blue-600' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${quizView === 'quiz' ? 'text-brand-600 border-brand-600' : 'text-ink-400 border-transparent hover:text-ink-700'}`}
                             >
                                 <AssignmentIcon className="text-base" /> 퀴즈
                             </button>
@@ -830,7 +834,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     <button
                         type="button"
                         onClick={onPreviewClick}
-                        className={`p-2 rounded-lg hover:bg-slate-100 md:hidden ${isPdfVisible ? 'bg-blue-100 text-blue-600' : 'text-slate-600'}`}
+                        className={`p-2 rounded-lg hover:bg-ink-100 md:hidden ${isPdfVisible ? 'bg-brand-100 text-brand-700' : 'text-ink-600'}`}
                         aria-label={isPdfVisible ? 'Hide document preview' : 'Show document preview'}
                     >
                         <PreviewIcon className="text-2xl" />
