@@ -1,0 +1,58 @@
+/*
+ * Component layer
+ * ───────────────
+ * Reusable, semantic class compositions built from Tailwind utilities.
+ * Use these in markup when a pattern would otherwise be copy-pasted in
+ * many places; for true components prefer the React primitives in
+ * components/ui/ (Button, Card, Modal, …).
+ *
+ * Convention: prefix with semantic intent (surface-, button-, field-, …)
+ * so it's clear at a glance whether a class is a primitive or a composer.
+ */
+
+@layer components {
+  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+  .surface-card {
+    @apply bg-white border border-ink-200 rounded-2xl shadow-soft;
+  }
+  .surface-card-elevated {
+    @apply bg-white border border-ink-200/70 rounded-2xl shadow-card;
+  }
+  .surface-muted {
+    @apply bg-ink-50 border border-ink-200/60 rounded-2xl;
+  }
+  .surface-glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/40 rounded-2xl;
+  }
+
+  /* ── Inputs (raw — for places that don't use the Input primitive) ─────── */
+  .field {
+    @apply w-full text-sm text-ink-900 placeholder:text-ink-400
+           bg-white border border-ink-200 rounded-xl
+           transition-colors duration-150
+           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
+           disabled:bg-ink-50 disabled:text-ink-400 disabled:cursor-not-allowed;
+  }
+  .field-error {
+    @apply border-danger-500 focus:border-danger-500 focus:ring-danger-500/20;
+  }
+
+  /* ── Section headers ───────────────────────────────────────────────────── */
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400;
+  }
+  .heading-display {
+    @apply font-display font-bold tracking-tight text-ink-900;
+  }
+
+  /* ── Decorative containers ─────────────────────────────────────────────── */
+  .ring-focus {
+    @apply ring-2 ring-brand-500/20 ring-offset-2 ring-offset-white;
+  }
+  .divider {
+    @apply h-px bg-ink-200;
+  }
+  .divider-vertical {
+    @apply w-px bg-ink-200;
+  }
+}

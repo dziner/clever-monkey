@@ -1,0 +1,58 @@
+/*
+ * Base layer
+ * ──────────
+ * Global resets, body defaults, focus ring, scrollbar, selection.
+ * Lives in @layer base so app code can always override.
+ */
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: rgb(var(--ink-900));
+    background: rgb(var(--ink-50));
+    overflow: hidden; /* SPA shell never scrolls; inner panes scroll */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  input, button, textarea, select {
+    font-family: inherit;
+  }
+
+  /* Brand text selection */
+  ::selection {
+    background: rgb(var(--brand-100));
+    color: rgb(var(--brand-800));
+  }
+
+  /* Focus ring — single source of truth.
+     Opt-out per element with data-no-ring. */
+  :focus-visible { outline: none; }
+
+  *:focus-visible:not([data-no-ring]) {
+    box-shadow:
+      0 0 0 2px rgb(var(--surface-default)),
+      0 0 0 4px rgb(var(--focus-ring-color) / 0.55);
+    border-radius: var(--radius-md);
+  }
+
+  /* Refined scrollbar — only on hover for desktop polish */
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(var(--ink-400) / 0.45);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--ink-500) / 0.6);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-track { background: transparent; }
+}

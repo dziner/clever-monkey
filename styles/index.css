@@ -1,0 +1,16 @@
+/*
+ * Stylesheet entry point.
+ * ───────────────────────
+ * @import first (PostCSS / CSS spec requirement). The imported files
+ * use explicit @layer base/components/utilities annotations so the
+ * cascade composes correctly regardless of source order.
+ */
+
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './utilities.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

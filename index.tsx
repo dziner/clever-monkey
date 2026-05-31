@@ -7,6 +7,8 @@ import { UserProvider } from './contexts/UserContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 
+// Stylesheet entry — tokens, base, components, utilities
+import './styles/index.css';
 import './types';
 
 if ((window as any).pdfjsLib) {

@@ -1,0 +1,29 @@
+/*
+ * Custom utility layer
+ * ────────────────────
+ * One-off utilities that compose tokens. Anything that's a single
+ * property is fine here; anything compositional belongs in components.css.
+ */
+
+@layer utilities {
+  /* Decorative background patterns */
+  .bg-grid {
+    background-image: radial-gradient(circle at 1px 1px, rgb(var(--ink-400) / 0.18) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+  .bg-brand-glow {
+    background:
+      radial-gradient(60% 50% at 80% 0%,  rgb(var(--brand-600) / 0.12), transparent 70%),
+      radial-gradient(50% 40% at 0% 100%, rgb(var(--brand-500) / 0.10), transparent 70%);
+  }
+
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { scrollbar-width: none; }
+
+  /* Lock scroll snap to pan-only (used by the mobile bottom sheet) */
+  .touch-panning { touch-action: pan-x pan-y; }
+
+  /* Numeric tabular alignment for counters/timers */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+}
