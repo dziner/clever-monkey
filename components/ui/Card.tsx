@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-type Tone = 'default' | 'elevated' | 'soft' | 'outline';
+type Tone = 'default' | 'elevated' | 'soft' | 'outline' | 'chunky';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   tone?: Tone;
@@ -13,6 +13,8 @@ const TONE_CLS: Record<Tone, string> = {
   elevated: 'bg-white border border-ink-200/70 shadow-card',
   soft:     'bg-ink-50 border border-ink-200/60',
   outline:  'bg-white border border-ink-200',
+  // Duolingo-style: thick border + colored bottom shelf for chunky depth
+  chunky:   'bg-white border-2 border-ink-200 shadow-shelf-white',
 };
 
 export const Card: React.FC<CardProps> = ({

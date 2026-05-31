@@ -139,8 +139,8 @@ const App: React.FC = () => {
     if (isAuthLoading || isDocumentsLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-dvh bg-gradient-to-br from-ink-50 via-white to-brand-50 gap-4">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand animate-pulse">
-                    <CleverMonkeyIcon className="w-11 h-11 text-white" />
+                <div className="w-24 h-24 animate-pulse">
+                    <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
                 <p className="text-slate-400 text-sm font-medium">Loading…</p>
             </div>

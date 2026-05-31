@@ -84,8 +84,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 <div className="relative bg-white rounded-3xl border border-ink-200 p-6 shadow-card overflow-hidden">
                     <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-100/40 rounded-full blur-3xl pointer-events-none" />
                     <div className="relative flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center flex-shrink-0 shadow-brand">
-                            <CleverMonkeyIcon className="w-8 h-8 text-white" />
+                        <div className="w-16 h-16 flex-shrink-0">
+                            <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                         </div>
                         <div className="flex-1 min-w-0">
                             {isEditing ? (

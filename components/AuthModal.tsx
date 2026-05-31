@@ -46,13 +46,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="md" zIndex={100}>
             <div className="-mx-7 -mt-3 px-7 pb-2 text-center">
-                <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand mb-4">
-                    <CleverMonkeyIcon className="w-8 h-8 text-white" />
+                <div className="mx-auto w-20 h-20 mb-4">
+                    <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
-                <h2 className="text-2xl font-display font-bold text-ink-900 tracking-tight">
+                <h2 className="text-display-lg">
                     {mode === 'login' ? '다시 오신 것을 환영합니다' : '계정 만들기'}
                 </h2>
-                <p className="mt-1.5 text-sm text-ink-500">
+                <p className="mt-1.5 text-body text-ink-500">
                     {mode === 'login' ? '학습을 이어서 시작해 보세요.' : 'Clever Monkey와 함께 학습을 시작합니다.'}
                 </p>
             </div>
@@ -60,7 +60,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
             <div className="mt-4">
                 <Button
                     type="button"
-                    variant="outline"
+                    variant="raised-ghost"
                     size="lg"
                     fullWidth
                     onClick={onGoogleSignIn}
@@ -107,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                         minLength={6}
                         error={error}
                     />
-                    <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
+                    <Button type="submit" variant="raised" size="lg" fullWidth loading={isSubmitting}>
                         {mode === 'login' ? '로그인' : '계정 만들기'}
                     </Button>
                 </form>

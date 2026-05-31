@@ -55,6 +55,27 @@ export default {
         pop:         'var(--shadow-pop)',
         brand:       'var(--shadow-brand)',
         'inner-soft':'var(--shadow-inner-soft)',
+        // Duolingo "shelf" — the colored bottom band that creates 3D depth
+        'shelf-brand':   'var(--shelf-brand)',
+        'shelf-success': 'var(--shelf-success)',
+        'shelf-warning': 'var(--shelf-warning)',
+        'shelf-danger':  'var(--shelf-danger)',
+        'shelf-ink':     'var(--shelf-ink)',
+        'shelf-white':   'var(--shelf-white)',
+      },
+      // Consistent type scale — used by .text-* component classes and ad-hoc Tailwind use.
+      fontSize: {
+        '2xs':         ['0.6875rem', { lineHeight: '1rem',    letterSpacing: '0.01em',  fontWeight: '600' }],
+        xs:            ['0.75rem',   { lineHeight: '1.125rem' }],
+        sm:            ['0.875rem',  { lineHeight: '1.375rem' }],
+        base:          ['1rem',      { lineHeight: '1.5rem' }],
+        lg:            ['1.125rem',  { lineHeight: '1.625rem' }],
+        xl:            ['1.25rem',   { lineHeight: '1.75rem',  letterSpacing: '-0.005em' }],
+        '2xl':         ['1.5rem',    { lineHeight: '2rem',     letterSpacing: '-0.01em' }],
+        '3xl':         ['1.875rem',  { lineHeight: '2.25rem',  letterSpacing: '-0.015em' }],
+        '4xl':         ['2.25rem',   { lineHeight: '2.625rem', letterSpacing: '-0.02em' }],
+        '5xl':         ['3rem',      { lineHeight: '3.25rem',  letterSpacing: '-0.025em' }],
+        '6xl':         ['3.75rem',   { lineHeight: '4rem',     letterSpacing: '-0.03em' }],
       },
       transitionDuration: {
         250: '250ms',

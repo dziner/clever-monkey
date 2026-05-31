@@ -92,7 +92,7 @@ export const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onGenerate }) => {
 
                 <button
                     type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors shadow-brand"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 h-12 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl font-extrabold text-sm uppercase tracking-wider shadow-shelf-brand hover:-translate-y-px active:translate-y-1 active:shadow-none transition-all"
                 >
                     <AutoAwesomeIcon className="text-base" />
                     퀴즈 생성

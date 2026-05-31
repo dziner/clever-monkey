@@ -167,30 +167,30 @@ const StudyView: React.FC<{
       </div>
       <div className="mt-6">
         {!flipped ? (
-          <button type="button" onClick={() => setFlipped(true)} className="w-full py-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 transition-colors">
+          <button type="button" onClick={() => setFlipped(true)} className="w-full py-3.5 bg-ink-900 text-white rounded-2xl font-extrabold text-sm uppercase tracking-wider shadow-shelf-ink hover:-translate-y-px active:translate-y-1 active:shadow-none transition-all">
             답 보기
           </button>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-center text-slate-500 font-semibold mb-3">
+            <p className="text-caption text-center text-ink-500 mb-3">
               {mode === 'practice' ? '확인했으면 다음으로' : '얼마나 잘 기억했나요?'}
             </p>
             <div className="grid grid-cols-4 gap-2">
               {([
-                { q: 'again', label: '다시', cls: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
-                { q: 'hard', label: '어려움', cls: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-                { q: 'good', label: '보통', cls: 'bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100' },
-                { q: 'easy', label: '쉬움', cls: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
+                { q: 'again', label: '다시',   cls: 'bg-danger-500  text-white shadow-shelf-danger' },
+                { q: 'hard',  label: '어려움', cls: 'bg-warning-500 text-white shadow-shelf-warning' },
+                { q: 'good',  label: '보통',   cls: 'bg-brand-500   text-white shadow-shelf-brand' },
+                { q: 'easy',  label: '쉬움',   cls: 'bg-success-500 text-white shadow-shelf-success' },
               ] as const).map(({ q, label, cls }) => (
                 <button
                   key={q}
                   type="button"
                   onClick={() => handleRate(q as ReviewQuality)}
-                  className={`flex flex-col items-center py-3 rounded-xl border font-semibold text-xs transition-colors ${cls}`}
+                  className={`flex flex-col items-center justify-center py-3 rounded-2xl font-extrabold text-xs uppercase tracking-wider transition-all hover:-translate-y-px active:translate-y-1 active:shadow-none ${cls}`}
                 >
-                  <span className="text-sm font-bold">{label}</span>
+                  <span className="text-xs">{label}</span>
                   {mode === 'due' && (
-                    <span className="opacity-60 text-[10px] mt-0.5">{previewIntervalLabel(current, q as ReviewQuality)}</span>
+                    <span className="opacity-80 text-[10px] mt-0.5 normal-case font-semibold tracking-normal">{previewIntervalLabel(current, q as ReviewQuality)}</span>
                   )}
                 </button>
               ))}

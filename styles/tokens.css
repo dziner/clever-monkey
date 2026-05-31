@@ -85,6 +85,15 @@
   --shadow-brand:      0 8px 24px -6px rgb(var(--brand-600) / 0.30);
   --shadow-inner-soft: inset 0 1px 2px 0 rgb(15 23 42 / 0.06);
 
+  /* Duolingo-style "shelf" shadows — give chunky 3D depth to buttons/cards.
+     The first layer is the colored shelf; the second is a soft ambient shadow. */
+  --shelf-brand:   0 4px 0 0 rgb(var(--brand-800));
+  --shelf-success: 0 4px 0 0 rgb(var(--success-700));
+  --shelf-warning: 0 4px 0 0 rgb(var(--warning-700));
+  --shelf-danger:  0 4px 0 0 rgb(var(--danger-700));
+  --shelf-ink:     0 4px 0 0 rgb(var(--ink-300));
+  --shelf-white:   0 4px 0 0 rgb(var(--ink-200));
+
   /* ── Motion ────────────────────────────────────────────────────────────── */
   --ease-out:         cubic-bezier(0.22, 1, 0.36, 1);
   --ease-emphasized:  cubic-bezier(0.16, 1, 0.3, 1);

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon, TrashIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, BrainIcon } from './icons';
+import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon, TrashIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, BrainIcon, CleverMonkeyIcon } from './icons';
 import { OverviewTab } from './OverviewTab';
 import { MindMapTab } from './MindMapTab';
 import { FlashcardsTab } from './FlashcardsTab';
@@ -861,10 +861,13 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
             </div>
 
             {isProcessing ? (
-                <div className="flex flex-col items-center justify-center flex-1 bg-white text-slate-500 p-8 text-center">
-                    <Spinner />
-                    <h3 className="mt-4 font-semibold text-slate-700 text-lg">Preparing your session...</h3>
-                    <p className="text-sm mt-1">Analyzing the document to create a summary and getting ready for your questions.</p>
+                <div className="flex flex-col items-center justify-center flex-1 bg-white p-8 text-center">
+                    <div className="w-24 h-24 mb-4 animate-pulse">
+                        <CleverMonkeyIcon className="w-full h-full text-brand-500" />
+                    </div>
+                    <h3 className="text-h2">학습 준비 중…</h3>
+                    <p className="text-body text-ink-500 mt-1.5 max-w-xs">문서를 분석해 요약을 만들고, 질문에 답할 준비를 하고 있어요.</p>
+                    <div className="mt-5"><Spinner size="md" /></div>
                 </div>
             ) : (
                 MainContent()
