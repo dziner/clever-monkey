@@ -21,7 +21,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-ink-50 gap-4 p-8 text-center">
+                <div className="flex flex-col items-center justify-center min-h-dvh bg-ink-50 gap-4 p-8 text-center">
                     <div className="w-16 h-16 rounded-2xl bg-danger-50 flex items-center justify-center">
                         <ErrorOutlineIcon className="text-3xl text-danger-600" />
                     </div>

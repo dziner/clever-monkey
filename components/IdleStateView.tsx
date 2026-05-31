@@ -52,7 +52,7 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
 
     return (
         <div
-            className="relative min-h-screen w-full bg-grid bg-ink-50 overflow-y-auto"
+            className="relative min-h-dvh w-full bg-grid bg-ink-50 overflow-y-auto pb-safe"
             onDrop={handleDrop} onDragOver={handleDragOver} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave}
         >
             {/* Brand glow background */}

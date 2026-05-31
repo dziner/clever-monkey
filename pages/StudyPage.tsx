@@ -296,7 +296,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
 
             {/* PDF Viewer — Mobile bottom sheet */}
             <div
-                className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-slate-100 rounded-t-2xl shadow-2xl transform overflow-hidden h-[92vh]"
+                className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-ink-100 rounded-t-3xl shadow-pop transform overflow-hidden h-[92vh]"
                 style={{
                     height: '92dvh',
                     transform: isPdfVisible

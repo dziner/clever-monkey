@@ -7,7 +7,12 @@
 
 @layer base {
   html, body, #root {
-    height: 100%;
+    /* 100vh on iOS Safari / Android Chrome equals the *largest* viewport
+       (URL bar hidden), so content gets cut off when the URL bar is showing.
+       100dvh tracks the current visible viewport — falls back to 100vh on
+       older browsers via the cascade. */
+    height: 100vh;
+    height: 100dvh;
   }
 
   body {

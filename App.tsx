@@ -138,7 +138,7 @@ const App: React.FC = () => {
     // Show loading screen while auth + documents are initializing
     if (isAuthLoading || isDocumentsLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-ink-50 via-white to-brand-50 gap-4">
+            <div className="flex flex-col items-center justify-center min-h-dvh bg-gradient-to-br from-ink-50 via-white to-brand-50 gap-4">
                 <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand animate-pulse">
                     <CleverMonkeyIcon className="w-11 h-11 text-white" />
                 </div>
@@ -165,7 +165,7 @@ const App: React.FC = () => {
 
     // Main layout with sidebar + routed content
     return (
-        <div className="flex h-screen bg-slate-50 font-sans antialiased overflow-hidden">
+        <div className="flex h-dvh bg-ink-50 font-sans antialiased overflow-hidden">
             {authUI}
             <UpgradeModal isOpen={isUpgradeOpen} reason={upgradeReason} onClose={closeUpgrade} />
 

@@ -26,4 +26,13 @@
 
   /* Numeric tabular alignment for counters/timers */
   .tabular-nums { font-variant-numeric: tabular-nums; }
+
+  /* iOS safe-area helpers — for content sitting at viewport edges so it
+     clears the home indicator / notch. Use alongside dvh sizing. */
+  .pt-safe { padding-top:    max(env(safe-area-inset-top), 0px); }
+  .pr-safe { padding-right:  max(env(safe-area-inset-right), 0px); }
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+  .pl-safe { padding-left:   max(env(safe-area-inset-left), 0px); }
+  .px-safe { padding-left:   max(env(safe-area-inset-left), 0px); padding-right: max(env(safe-area-inset-right), 0px); }
+  .py-safe { padding-top:    max(env(safe-area-inset-top), 0px); padding-bottom: max(env(safe-area-inset-bottom), 0px); }
 }
