@@ -1,5 +1,5 @@
-// Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
+import { AssignmentIcon, BrainIcon, AutoAwesomeIcon } from './icons';
 
 interface QuizGeneratorProps {
     onGenerate: (type: 'mcq' | 'frq', count: number) => void;
@@ -15,59 +15,73 @@ export const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onGenerate }) => {
     };
 
     return (
-        <div className="max-w-md mx-auto p-4 bg-white rounded-lg shadow-sm border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 text-center">Create a Quiz</h3>
+        <div className="max-w-md mx-auto p-6 bg-white rounded-2xl shadow-card border border-ink-200">
+            <h3 className="text-lg font-display font-bold text-ink-900 tracking-tight mb-1 text-center">새 퀴즈 만들기</h3>
+            <p className="text-xs text-ink-500 text-center mb-6">유형과 문항 수를 정하면 AI가 즉시 생성합니다.</p>
             <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Type selector */}
                 <div>
+                    <label className="block text-[11px] font-bold text-ink-500 uppercase tracking-[0.14em] mb-2">유형</label>
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             type="button"
                             onClick={() => setQuizType('mcq')}
-                            className={`p-3 rounded-lg border text-sm font-medium transition-all ${quizType === 'mcq' ? 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-300' : 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-700'}`}
+                            className={[
+                                'flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-semibold transition-all',
+                                quizType === 'mcq'
+                                    ? 'bg-brand-50 text-brand-800 border-brand-400 ring-2 ring-brand-500/20'
+                                    : 'bg-white hover:bg-ink-50 border-ink-200 text-ink-700',
+                            ].join(' ')}
                         >
-                            Multiple Choice (MCQ)
+                            <AssignmentIcon className="text-base" />
+                            객관식
                         </button>
                         <button
                             type="button"
                             onClick={() => setQuizType('frq')}
-                             className={`p-3 rounded-lg border text-sm font-medium transition-all ${quizType === 'frq' ? 'bg-green-100 text-green-800 border-green-400 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-700'}`}
+                            className={[
+                                'flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-semibold transition-all',
+                                quizType === 'frq'
+                                    ? 'bg-success-50 text-success-700 border-success-500/60 ring-2 ring-success-500/20'
+                                    : 'bg-white hover:bg-ink-50 border-ink-200 text-ink-700',
+                            ].join(' ')}
                         >
-                            Free Response (FRQ)
+                            <BrainIcon className="text-base" />
+                            주관식
                         </button>
                     </div>
                 </div>
 
+                {/* Count */}
                 <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2 text-center">Number of Questions</label>
+                    <label className="block text-[11px] font-bold text-ink-500 uppercase tracking-[0.14em] mb-2">문항 수</label>
                     <div className="flex flex-wrap items-center justify-center gap-2">
-                        {/* Stepper and Input */}
-                        <button type="button" onClick={() => setQuestionCount(c => Math.max(1, c - 1))} className="w-10 h-10 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-100 text-lg flex items-center justify-center shrink-0">-</button>
-                        <input 
+                        <button type="button" onClick={() => setQuestionCount(c => Math.max(1, c - 1))} className="w-9 h-9 rounded-lg border border-ink-200 bg-white font-bold text-ink-600 hover:bg-ink-50 text-base flex items-center justify-center shrink-0">−</button>
+                        <input
                             type="number"
                             value={questionCount}
                             onChange={(e) => {
                                 const val = parseInt(e.target.value, 10);
-                                if (!isNaN(val)) {
-                                    setQuestionCount(Math.max(1, Math.min(20, val)));
-                                }
+                                if (!isNaN(val)) setQuestionCount(Math.max(1, Math.min(20, val)));
                             }}
-                            className="w-16 h-10 text-center font-bold text-slate-800 bg-white border border-slate-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            min="1"
-                            max="20"
+                            className="w-14 h-9 text-center font-bold text-ink-900 bg-white border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
+                            min={1}
+                            max={20}
                         />
-                        <button type="button" onClick={() => setQuestionCount(c => Math.min(20, c + 1))} className="w-10 h-10 rounded-lg border border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-100 text-lg flex items-center justify-center shrink-0">+</button>
-                        
-                        {/* Separator */}
-                        <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                        
-                        {/* Presets */}
-                        <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => setQuestionCount(c => Math.min(20, c + 1))} className="w-9 h-9 rounded-lg border border-ink-200 bg-white font-bold text-ink-600 hover:bg-ink-50 text-base flex items-center justify-center shrink-0">+</button>
+                        <div className="w-px h-6 bg-ink-200 mx-1" />
+                        <div className="flex items-center gap-1.5">
                             {[5, 10, 20].map(num => (
                                 <button
                                     key={num}
                                     type="button"
                                     onClick={() => setQuestionCount(num)}
-                                    className={`w-10 h-10 rounded-lg border text-sm font-medium transition-colors flex items-center justify-center shrink-0 ${questionCount === num ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700'}`}
+                                    className={[
+                                        'w-9 h-9 rounded-lg border text-sm font-semibold transition-colors flex items-center justify-center shrink-0',
+                                        questionCount === num
+                                            ? 'bg-brand-600 text-white border-brand-600 shadow-brand'
+                                            : 'bg-white hover:bg-ink-50 border-ink-200 text-ink-600',
+                                    ].join(' ')}
                                 >
                                     {num}
                                 </button>
@@ -76,12 +90,12 @@ export const QuizGenerator: React.FC<QuizGeneratorProps> = ({ onGenerate }) => {
                     </div>
                 </div>
 
-
                 <button
                     type="submit"
-                    className="w-full text-center px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors shadow-brand"
                 >
-                    Generate Quiz
+                    <AutoAwesomeIcon className="text-base" />
+                    퀴즈 생성
                 </button>
             </form>
         </div>

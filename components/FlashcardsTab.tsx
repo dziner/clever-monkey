@@ -92,7 +92,7 @@ const StudyView: React.FC<{
           {mode === 'practice' ? '먼저 덱에 카드를 추가하세요.' : '모든 카드가 일정에 맞게 복습됐습니다.'}
         </p>
       </div>
-      <button type="button" onClick={() => onExit(0)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
+      <button type="button" onClick={() => onExit(0)} className="px-5 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700">
         돌아가기
       </button>
     </div>
@@ -100,8 +100,8 @@ const StudyView: React.FC<{
 
   if (isDone) return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
-        <StyleIcon className="text-4xl text-blue-500" />
+      <div className="w-20 h-20 bg-brand-50 rounded-2xl flex items-center justify-center">
+        <StyleIcon className="text-4xl text-brand-500" />
       </div>
       <div>
         <h2 className="text-xl font-bold text-slate-700">세션 완료!</h2>
@@ -109,7 +109,7 @@ const StudyView: React.FC<{
           {mode === 'practice' ? `${queue.length}장을 훑어봤습니다.` : `${done}장의 카드를 복습했습니다.`}
         </p>
       </div>
-      <button type="button" onClick={() => onExit(done)} className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700">
+      <button type="button" onClick={() => onExit(done)} className="px-5 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700">
         덱으로 돌아가기
       </button>
     </div>
@@ -127,7 +127,7 @@ const StudyView: React.FC<{
         <div className="text-center">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate max-w-[200px] mx-auto">
             {deck.title}
-            {mode === 'practice' && <span className="ml-1.5 text-purple-500 font-bold">· 자유 복습</span>}
+            {mode === 'practice' && <span className="ml-1.5 text-brand-500 font-bold">· 자유 복습</span>}
           </p>
           <p className="text-sm font-bold text-slate-700 mt-0.5">
             {mode === 'due' ? <>{done} / {total} <span className="text-slate-400 font-normal">· 남은 {remaining}</span></> : <>{position + 1} / {queue.length}</>}
@@ -137,14 +137,14 @@ const StudyView: React.FC<{
       </div>
       <div className="w-full h-1.5 bg-slate-200 rounded-full mb-6">
         <div
-          className={`h-1.5 rounded-full transition-all duration-300 ${mode === 'practice' ? 'bg-purple-500' : 'bg-blue-500'}`}
+          className={`h-1.5 rounded-full transition-all duration-300 ${mode === 'practice' ? 'bg-brand-400' : 'bg-brand-600'}`}
           style={{ width: `${progressPct}%` }}
         />
       </div>
       <div
         className={`flex-1 min-h-[240px] max-h-[360px] rounded-2xl shadow-lg border flex flex-col items-center justify-center p-6 text-center cursor-pointer select-none transition-all duration-150 ${
           isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-        } ${flipped ? 'bg-blue-50 border-blue-200' : 'bg-white border-slate-200'}`}
+        } ${flipped ? 'bg-brand-50 border-brand-200' : 'bg-white border-ink-200'}`}
         onClick={() => !flipped && setFlipped(true)}
       >
         {!flipped ? (
@@ -160,7 +160,7 @@ const StudyView: React.FC<{
           </>
         ) : (
           <>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-4">답</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-brand-500 mb-4">답</p>
             <p className="text-base text-slate-700 leading-relaxed">{current.back}</p>
           </>
         )}
@@ -179,7 +179,7 @@ const StudyView: React.FC<{
               {([
                 { q: 'again', label: '다시', cls: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
                 { q: 'hard', label: '어려움', cls: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
-                { q: 'good', label: '보통', cls: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
+                { q: 'good', label: '보통', cls: 'bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100' },
                 { q: 'easy', label: '쉬움', cls: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' },
               ] as const).map(({ q, label, cls }) => (
                 <button
@@ -268,7 +268,7 @@ const GenerateModal: React.FC<{
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isGenerating ? <><Spinner /> 생성 중...</> : <><AddIcon className="text-lg" /> 덱 만들기</>}
           </button>
@@ -340,7 +340,7 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
         <button
           type="button"
           onClick={() => setShowGenerate(true)}
-          className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-xl hover:bg-purple-700 transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 text-white text-xs font-semibold rounded-xl hover:bg-brand-700 transition-colors"
         >
           <AddIcon className="text-sm" /> 새 덱
         </button>
@@ -364,11 +364,11 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
               </div>
               <div className="w-px h-5 bg-slate-200" />
               <div className="flex items-center gap-1.5">
-                <span className="text-xl font-bold text-purple-600">{totalDue}</span>
+                <span className="text-xl font-bold text-brand-600">{totalDue}</span>
                 <span className="text-xs text-slate-500 font-medium">오늘 복습</span>
               </div>
               {totalDue > 0 && (
-                <span className="ml-auto px-2.5 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full animate-pulse">복습 필요</span>
+                <span className="ml-auto px-2.5 py-0.5 bg-brand-100 text-brand-700 text-xs font-bold rounded-full animate-pulse">복습 필요</span>
               )}
             </div>
           )}
@@ -376,8 +376,8 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
           <div className="p-4 space-y-3 max-w-2xl mx-auto w-full">
             {decks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
-                <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center">
-                  <StyleIcon className="text-4xl text-purple-300" />
+                <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center">
+                  <StyleIcon className="text-4xl text-brand-300" />
                 </div>
                 <div>
                   <p className="font-semibold text-slate-600">플래시카드 덱이 없습니다</p>
@@ -386,7 +386,7 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                 <button
                   type="button"
                   onClick={() => setShowGenerate(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 text-sm"
                 >
                   <AddIcon className="text-base" /> 첫 번째 덱 만들기
                 </button>
@@ -400,7 +400,7 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                       <div className="flex items-center gap-3 mt-1.5">
                         <span className="text-xs text-slate-500">{deck.totalCards}장</span>
                         {deck.dueCards > 0 ? (
-                          <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">{deck.dueCards}장 복습 대기</span>
+                          <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">{deck.dueCards}장 복습 대기</span>
                         ) : (
                           <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-semibold">오늘 완료</span>
                         )}
@@ -411,7 +411,7 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                         <button
                           type="button"
                           onClick={() => setStudySession({ deck, mode: 'due' })}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors bg-purple-600 text-white hover:bg-purple-700"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-colors bg-brand-600 text-white hover:bg-brand-700"
                         >
                           <BrainIcon className="text-base" /> 학습
                         </button>
@@ -439,7 +439,7 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                       <button
                         type="button"
                         onClick={() => setStudySession({ deck, mode: 'practice' })}
-                        className="text-xs font-semibold text-purple-600 hover:text-purple-700"
+                        className="text-xs font-semibold text-brand-600 hover:text-brand-700"
                       >
                         전체 카드 자유 복습 →
                       </button>

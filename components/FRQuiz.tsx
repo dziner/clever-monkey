@@ -155,7 +155,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                                 return (
                                     <div key={index} className="bg-white p-3 rounded-lg border border-slate-200 text-sm">
                                         <p className="font-semibold mb-2">{q.questionText}</p>
-                                        <p className="p-2 bg-blue-50/50 border border-blue-200 rounded-md"><strong>Your answer:</strong> {userAnswer.userAnswerText}</p>
+                                        <p className="p-2 bg-brand-50/50 border border-brand-200 rounded-md"><strong>Your answer:</strong> {userAnswer.userAnswerText}</p>
                                         <div className="mt-2 p-2 bg-yellow-50/50 border border-yellow-200 rounded-md">
                                             <div className="flex justify-between items-baseline">
                                                 <p><span className="font-bold">Score:</span> <span className={`font-bold ${userAnswer.score >= 70 ? 'text-green-700' : 'text-orange-700'}`}>{userAnswer.score}/100</span></p>
@@ -178,7 +178,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                                     ) : <div />}
                                     <button
                                         onClick={handleRetryAll}
-                                        className={`w-full px-4 py-2 bg-white border border-blue-500 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-sm ${!hasLowScoring ? 'col-span-2' : ''}`}
+                                        className={`w-full px-4 py-2 bg-white border border-brand-500 text-brand-600 rounded-lg font-semibold hover:bg-brand-50 transition-colors text-sm ${!hasLowScoring ? 'col-span-2' : ''}`}
                                     >
                                         Retry All
                                     </button>
@@ -264,7 +264,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                     ) : (
                         <button
                             onClick={handleNext}
-                            className="flex items-center gap-1 px-5 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-1 px-5 py-2.5 bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
                         >
                             Next <ChevronRightIcon />
                         </button>

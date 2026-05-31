@@ -74,12 +74,12 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
     return (
         <div className={`message-bubble-wrapper flex items-start gap-2 w-full ${isUser ? 'justify-end mb-6' : 'justify-start mb-4'}`}>
             {isBot && (
-                 <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${message.wasMonkeyMode ? 'bg-yellow-50' : message.isError ? 'bg-red-50' : 'bg-blue-50'}`}>
-                    <CleverMonkeyIcon className={`w-9 h-9 ${message.wasMonkeyMode ? 'text-yellow-600' : message.isError ? 'text-red-400' : 'text-blue-600'}`} />
+                 <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${message.wasMonkeyMode ? 'bg-yellow-50' : message.isError ? 'bg-danger-50' : 'bg-brand-50'}`}>
+                    <CleverMonkeyIcon className={`w-8 h-8 ${message.wasMonkeyMode ? 'text-yellow-600' : message.isError ? 'text-danger-400' : 'text-brand-600'}`} />
                 </div>
             )}
 
-            <div className={`max-w-xl rounded-xl shadow-md ${isUser ? 'bg-blue-600 text-white rounded-br-sm' : botBubbleStyle}`}>
+            <div className={`max-w-xl rounded-2xl shadow-card ${isUser ? 'bg-brand-600 text-white rounded-br-sm shadow-brand' : botBubbleStyle}`}>
                 <div className="px-4 py-3">
                     {isBot && message.text === '...' ? (
                         <TypingIndicator isMonkeyMode={message.wasMonkeyMode} />

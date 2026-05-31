@@ -37,21 +37,24 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [removeToast]);
 
     const colorMap: Record<ToastType, string> = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        info: 'bg-blue-500',
+        success: 'bg-success-600',
+        error: 'bg-danger-600',
+        info: 'bg-brand-600',
     };
 
     return (
         <ToastContext.Provider value={{ showToast }}>
             {children}
-            <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end pointer-events-none">
+            <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 items-end pointer-events-none">
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
-                        className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-semibold max-w-xs transition-all duration-300 ${colorMap[toast.type]} ${
-                            toast.exiting ? 'opacity-0 translate-x-4' : 'opacity-100 translate-x-0'
-                        }`}
+                        className={[
+                            'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-pop text-white text-sm font-semibold max-w-xs',
+                            'transition-all duration-300 ring-1 ring-white/10',
+                            colorMap[toast.type],
+                            toast.exiting ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0 animate-fade-in-up',
+                        ].join(' ')}
                     >
                         <span>{toast.message}</span>
                     </div>

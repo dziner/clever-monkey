@@ -93,7 +93,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
       {/* Actions bar */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2">
-          <HeadphonesIcon className="text-xl text-pink-500" />
+          <HeadphonesIcon className="text-xl text-brand-500" />
           <span className="font-semibold text-slate-700 text-sm">Podcast</span>
         </div>
         <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               <button
                 type="button"
                 disabled
-                className="flex items-center gap-1 px-3 py-1.5 bg-pink-600 opacity-50 text-white rounded-lg text-xs font-semibold cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 opacity-50 text-white rounded-lg text-xs font-semibold cursor-not-allowed"
               >
                 <AutoAwesomeIcon className="text-sm" />
                 Generating…
@@ -120,7 +120,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               type="button"
               onClick={generate}
               disabled={audioLoading}
-              className="flex items-center gap-1 px-3 py-1.5 bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+              className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
             >
               <AutoAwesomeIcon className="text-sm" />
               {displayScript ? 'New Script' : 'Generate Script'}
@@ -142,7 +142,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               onChange={(e) => setInstructions(e.target.value)}
               placeholder={DIRECTION_PLACEHOLDER}
               rows={3}
-              className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-pink-400"
+              className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
             />
             <p className="mt-1.5 text-xs text-slate-400">
               범위·형식·말투 등 원하는 방향을 적어주세요. 비워두면 기본 형식으로 생성됩니다.
@@ -179,8 +179,8 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                     disabled={audioLoading}
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50 ${
                       voice === v.id
-                        ? 'bg-pink-600 border-pink-600 text-white shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-pink-300 hover:text-pink-700'
+                        ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'
                     }`}
                   >
                     {v.label} <span className="font-normal opacity-70">{v.desc}</span>
@@ -194,7 +194,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                     <span>Synthesizing…</span>
                     <div className="flex items-center gap-2">
                       {audioProgress && (
-                        <span className="font-semibold text-pink-600">
+                        <span className="font-semibold text-brand-600">
                           {audioProgress.done}/{audioProgress.total} segments
                         </span>
                       )}
@@ -209,7 +209,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                   </div>
                   <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-pink-500 rounded-full transition-all duration-500"
+                      className="h-full bg-brand-500 rounded-full transition-all duration-500"
                       style={{
                         width: audioProgress
                           ? `${(audioProgress.done / audioProgress.total) * 100}%`
@@ -222,7 +222,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                 <button
                   type="button"
                   onClick={handleGenerateAudio}
-                  className="w-full flex items-center justify-center gap-2 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
                 >
                   <HeadphonesIcon className="text-sm" />
                   {audioUrl ? 'Regenerate Audio' : 'Generate Audio'} · {voice}
@@ -240,12 +240,12 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                     src={audioUrl}
                     controls
                     className="w-full rounded-lg"
-                    style={{ accentColor: '#db2777' }}
+                    style={{ accentColor: '#7c3aed' }}
                   />
                   <a
                     href={audioUrl}
                     download="podcast.wav"
-                    className="text-center text-xs text-pink-600 hover:text-pink-700 font-medium py-0.5"
+                    className="text-center text-xs text-brand-600 hover:text-brand-700 font-medium py-0.5"
                   >
                     ↓ Download WAV
                   </a>

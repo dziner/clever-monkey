@@ -21,7 +21,7 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
     const activeIndex = PROCESSING_STEPS.findIndex(s => s.state === processingState);
     return (
         <div className="flex flex-col items-center gap-5 w-full max-w-xs">
-            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
             <div className="w-full space-y-2.5">
                 {PROCESSING_STEPS.map((step, i) => {
                     const isDone = i < activeIndex;
@@ -30,13 +30,13 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
                         <div key={step.state} className="flex items-center gap-3">
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors ${
                                 isDone ? 'bg-green-500 text-white' :
-                                isActive ? 'bg-blue-500 text-white' :
+                                isActive ? 'bg-brand-600 text-white' :
                                 'bg-slate-200 text-slate-400'
                             }`}>
                                 {isDone ? '✓' : i + 1}
                             </div>
                             <span className={`text-sm font-medium transition-colors ${
-                                isActive ? 'text-blue-700' :
+                                isActive ? 'text-brand-700' :
                                 isDone ? 'text-green-600' :
                                 'text-slate-400'
                             }`}>{step.label}{isActive ? '…' : ''}</span>
@@ -89,7 +89,7 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                     <button
                         type="button"
                         onClick={onRetryProcessing}
-                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                        className="flex items-center px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 shadow-brand"
                     >
                         Retry
                     </button>
@@ -211,10 +211,10 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 <button
                     type="button"
                     onMouseDown={handleResize}
-                    className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-blue-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
+                    className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-brand-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
                     aria-label="Resize panel"
                 >
-                    <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-blue-400 transition-colors" />
+                    <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-brand-400 transition-colors" />
                 </button>
             )}
 
@@ -246,7 +246,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                                 key={tab.id}
                                 type="button"
                                 onClick={() => { setIsRightPanelCollapsed(false); setActiveTab(tab.id); }}
-                                className={`p-2 rounded-lg transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                                className={`p-2 rounded-lg transition-colors ${activeTab === tab.id ? 'bg-brand-50 text-brand-600' : 'text-ink-400 hover:text-ink-700 hover:bg-ink-100'}`}
                                 title={tab.label}
                             >
                                 <tab.icon className="text-xl" />

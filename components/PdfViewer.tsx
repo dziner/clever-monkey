@@ -423,7 +423,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
                     <span className="text-xs sm:text-sm font-medium text-slate-500 font-mono">{numPages || '--'}</span>
                 </div>
 
-                <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-colors active:scale-95" title="Fit to width">
+                <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-brand-50 hover:text-brand-600 transition-colors active:scale-95" title="Fit to width">
                     <FitScreenIcon className="text-xl" />
                 </button>
             </div>

@@ -36,7 +36,7 @@ const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
     <div className="inline-flex items-center select-none p-8" style={{ minWidth: 'fit-content' }}>
       {/* Root node */}
       <div className="flex-shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl px-5 py-4 text-center shadow-xl max-w-[180px] z-10">
-        <AccountTreeIcon className="text-2xl text-violet-400 mb-1" />
+        <AccountTreeIcon className="text-2xl text-brand-300 mb-1" />
         <p className="text-sm font-bold leading-tight">{data.center}</p>
       </div>
 
@@ -178,7 +178,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
       {/* Actions bar */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2">
-          <AccountTreeIcon className="text-xl text-violet-500" />
+          <AccountTreeIcon className="text-xl text-brand-500" />
           <span className="font-semibold text-slate-700 text-sm">Mind Map</span>
         </div>
         <div className="flex items-center gap-2">
@@ -194,7 +194,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
               <button
                 type="button"
                 disabled
-                className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 opacity-50 text-white rounded-lg text-xs font-semibold cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 opacity-50 text-white rounded-lg text-xs font-semibold cursor-not-allowed"
               >
                 <AutoAwesomeIcon className="text-sm" />
                 Generating…
@@ -204,7 +204,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
             <button
               type="button"
               onClick={generate}
-              className="flex items-center gap-1 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+              className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
             >
               <AutoAwesomeIcon className="text-sm" />
               {displayData ? 'Regenerate' : 'Generate'}

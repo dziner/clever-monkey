@@ -19,7 +19,7 @@ const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ defa
 
 const PageLoader: React.FC = () => (
   <div className="flex-1 flex items-center justify-center bg-slate-50">
-    <div className="w-7 h-7 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+    <div className="w-7 h-7 border-2 border-ink-200 border-t-brand-600 rounded-full animate-spin" />
   </div>
 );
 
@@ -138,8 +138,10 @@ const App: React.FC = () => {
     // Show loading screen while auth + documents are initializing
     if (isAuthLoading || isDocumentsLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 gap-4">
-                <CleverMonkeyIcon className="w-20 h-20 text-blue-600 animate-pulse" />
+            <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-ink-50 via-white to-brand-50 gap-4">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand animate-pulse">
+                    <CleverMonkeyIcon className="w-11 h-11 text-white" />
+                </div>
                 <p className="text-slate-400 text-sm font-medium">Loading…</p>
             </div>
         );

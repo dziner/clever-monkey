@@ -36,7 +36,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
     };
 
     return (
-        <div className="flex items-start gap-2 p-1.5 bg-white border border-slate-300 rounded-xl focus-within:border-blue-400 transition-colors">
+        <div className="flex items-start gap-2 p-1.5 bg-white border border-slate-300 rounded-xl focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/15 transition-colors">
             <button
                 onClick={toggleListening}
                 disabled={!isSupported}
@@ -60,7 +60,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
             <button
                 onClick={handleSend}
                 disabled={isBotTyping || !userInput.trim()}
-                className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center self-end disabled:bg-slate-200 disabled:cursor-not-allowed enabled:bg-blue-500 enabled:text-white hover:enabled:bg-blue-600 transition-colors"
+                className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center self-end disabled:bg-slate-200 disabled:cursor-not-allowed enabled:bg-brand-600 enabled:text-white hover:enabled:bg-brand-700 enabled:shadow-brand transition-colors"
                 aria-label="Send message"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>

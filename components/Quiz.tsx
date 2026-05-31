@@ -126,7 +126,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
         return (
             <div className="space-y-4">
                 {/* Results Card */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl shadow-md p-4 text-slate-800 space-y-4">
+                <div className="bg-brand-50 border border-brand-200 rounded-xl shadow-md p-4 text-slate-800 space-y-4">
                     <h2 className="text-lg font-bold text-center">{data.title} - Results</h2>
                     
                     <div className="my-4 text-center">
@@ -147,7 +147,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                             ) : <div />}
                             <button
                                 onClick={handleRetryAll}
-                                className={`w-full px-4 py-2 bg-white border border-blue-500 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-sm ${!hasIncorrect ? 'col-span-2' : ''}`}
+                                className={`w-full px-4 py-2 bg-white border border-brand-500 text-brand-600 rounded-lg font-semibold hover:bg-brand-50 transition-colors text-sm ${!hasIncorrect ? 'col-span-2' : ''}`}
                             >
                                 Retry All
                             </button>
@@ -182,7 +182,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
 
     return (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl shadow-md p-4">
+        <div className="bg-brand-50 border border-brand-200 rounded-xl shadow-md p-4">
             <div className="text-slate-800 space-y-4">
                 <h2 className="text-lg font-bold">{data.title}</h2>
                 
@@ -193,7 +193,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                     </p>
                     <div className="w-full bg-slate-200 rounded-full h-1.5">
                         <div 
-                            className="bg-blue-500 h-1.5 rounded-full transition-all duration-300" 
+                            className="bg-brand-500 h-1.5 rounded-full transition-all duration-300" 
                             style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
                         ></div>
                     </div>
@@ -220,7 +220,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                                 }
                             } else {
                                 if (isOptionSelectedByUser) {
-                                    stateClasses = 'bg-blue-100 text-blue-800 border-blue-400 ring-2 ring-blue-300';
+                                    stateClasses = 'bg-brand-100 text-brand-800 border-brand-400 ring-2 ring-brand-300';
                                 } else {
                                     stateClasses = 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-700';
                                 }
@@ -259,7 +259,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                     ) : (
                         <button
                             onClick={handleNext}
-                            className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-1 px-4 py-2 bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 transition-colors"
                         >
                             {isLastQuestion ? 'See Results' : 'Next'} <ChevronRightIcon />
                         </button>

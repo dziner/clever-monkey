@@ -59,8 +59,8 @@ export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQ
                             onClick={() => onQuestionClick(q)}
                             className={`p-3 rounded-lg text-left border transition-all shadow-sm flex items-start space-x-2 animate-fade-in-up ${
                                 isQuizQuestion
-                                ? 'bg-blue-100 border-blue-300 text-blue-900 hover:bg-blue-200 font-semibold'
-                                : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:bg-blue-50'
+                                ? 'bg-brand-100 border-brand-300 text-brand-900 hover:bg-brand-200 font-semibold'
+                                : 'bg-white text-ink-700 border-ink-200 hover:border-brand-400 hover:bg-brand-50'
                             }`}
                              style={{ animationDelay: `${i * 100}ms` }}
                         >
