@@ -149,8 +149,8 @@ const WrongAnswersPanel: React.FC<{
                             <ErrorOutlineIcon className="text-3xl text-rose-300" />
                         </div>
                         <div>
-                            <p className="font-semibold text-slate-600">오답이 아직 없습니다</p>
-                            <p className="text-sm text-slate-400 mt-1">퀴즈를 풀면 틀린 문제가 여기에 저장됩니다.</p>
+                            <p className="font-handwritten font-bold text-2xl text-ink-700 -rotate-1 inline-block">오답 0개</p>
+                            <p className="text-sm text-ink-400 mt-2">너무 잘하잖아 🐒 일단 퀴즈부터 좀 풀어봐.</p>
                         </div>
                     </div>
                 ) : (
@@ -160,6 +160,35 @@ const WrongAnswersPanel: React.FC<{
                 )}
             </div>
         </div>
+    );
+};
+
+// ─── Processing chatter — rotating playful messages while AI works ──────
+
+const PROCESSING_LINES = [
+    { head: '원숭이가 페이지 넘기는 중…',  sub: '바나나도 좀 먹고.' },
+    { head: '어 이거 좀 어렵네',            sub: '잠깐 생각 좀 해볼게.' },
+    { head: '거의 다 됐어',                 sub: '근데 너 진짜 이거 다 읽을 거야?' },
+    { head: '머리에서 김 나는 중',          sub: '요약, 퀴즈, 카드 — 한 번에 만드는 중.' },
+    { head: '필기 정리해놨음',              sub: '곧 보여줄게.' },
+];
+
+const ProcessingChatter: React.FC = () => {
+    const [i, setI] = React.useState(0);
+    React.useEffect(() => {
+        const t = setInterval(() => setI(n => (n + 1) % PROCESSING_LINES.length), 2800);
+        return () => clearInterval(t);
+    }, []);
+    const line = PROCESSING_LINES[i];
+    return (
+        <>
+            <h3 className="font-handwritten font-bold text-3xl text-ink-900 -rotate-1 inline-block animate-fade-in" key={`h-${i}`}>
+                {line.head}
+            </h3>
+            <p className="text-body text-ink-500 mt-2 max-w-xs animate-fade-in" key={`s-${i}`}>
+                {line.sub}
+            </p>
+        </>
     );
 };
 
@@ -865,8 +894,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     <div className="w-24 h-24 mb-4 animate-pulse">
                         <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                     </div>
-                    <h3 className="text-h2">학습 준비 중…</h3>
-                    <p className="text-body text-ink-500 mt-1.5 max-w-xs">문서를 분석해 요약을 만들고, 질문에 답할 준비를 하고 있어요.</p>
+                    <ProcessingChatter />
                     <div className="mt-5"><Spinner size="md" /></div>
                 </div>
             ) : (

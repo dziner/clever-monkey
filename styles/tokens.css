@@ -65,8 +65,11 @@
   --info-700:  29  78 216;
 
   /* ── Typography ────────────────────────────────────────────────────────── */
-  --font-sans:    'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
-  --font-display: 'Outfit', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-sans:        'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  --font-display:     'Outfit', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  /* Crayon-style hand-drawn font — for hero headlines, kitsch accents.
+     Use sparingly: never on body copy, only for personality moments. */
+  --font-handwritten: 'Gaegu', 'Apple SD Gothic Neo', cursive;
 
   /* ── Radii ─────────────────────────────────────────────────────────────── */
   --radius-xs:  0.25rem;

@@ -380,15 +380,15 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                   <StyleIcon className="text-4xl text-brand-300" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-600">플래시카드 덱이 없습니다</p>
-                  <p className="text-sm text-slate-400 mt-1">이 교재에서 카드를 자동 생성하세요.</p>
+                  <p className="font-handwritten font-bold text-2xl text-ink-700 -rotate-1 inline-block">여긴 휑하네</p>
+                  <p className="text-sm text-ink-400 mt-2">카드 한 장 만들어보자. 외울 때까지 들이댈게.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowGenerate(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 text-sm"
                 >
-                  <AddIcon className="text-base" /> 첫 번째 덱 만들기
+                  <AddIcon className="text-base" /> 첫 카드 만들기
                 </button>
               </div>
             ) : (

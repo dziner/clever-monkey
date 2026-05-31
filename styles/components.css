@@ -29,6 +29,20 @@
   .text-caption     { @apply text-2xs font-semibold text-ink-500; }
   .text-eyebrow     { @apply text-2xs font-extrabold uppercase tracking-[0.16em] text-ink-400; }
 
+  /* ── Crayon / handwritten — kitsch personality moments ─────────────────────
+   * Use ONLY for hero headlines, callouts, mascot signatures. Never on body.
+   * .text-scribble adds a tiny rotation so it reads as drawn-by-hand.
+   */
+  .text-handwritten { @apply font-handwritten font-bold; line-height: 0.95; }
+  .text-scribble    { @apply font-handwritten font-bold; line-height: 0.95; transform: rotate(-1.5deg); display: inline-block; }
+  .text-scribble-r  { @apply font-handwritten font-bold; line-height: 0.95; transform: rotate(1.5deg);  display: inline-block; }
+
+  /* Slight tape/polaroid tilt for kitsch surfaces. Pair with surface-chunky. */
+  .tilt-1   { transform: rotate(-1deg); }
+  .tilt-1r  { transform: rotate(1deg); }
+  .tilt-2   { transform: rotate(-2deg); }
+  .tilt-2r  { transform: rotate(2deg); }
+
   /* ── Surfaces ──────────────────────────────────────────────────────────── */
   .surface-card {
     @apply bg-white border border-ink-200 rounded-2xl shadow-soft;

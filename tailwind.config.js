@@ -36,8 +36,9 @@ export default {
         info:    paletteSemantic('info'),
       },
       fontFamily: {
-        sans:    ['var(--font-sans)'],
-        display: ['var(--font-display)'],
+        sans:        ['var(--font-sans)'],
+        display:     ['var(--font-display)'],
+        handwritten: ['var(--font-handwritten)'],
       },
       borderRadius: {
         xs:    'var(--radius-xs)',
