@@ -4,7 +4,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { useTierLimits } from '../hooks/useTierLimits';
-import { AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon, SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon } from './icons';
+import {
+    AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon,
+    SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon,
+} from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { renameDocumentReferences } from '../services/wrongAnswersService';
@@ -12,12 +15,11 @@ import { ROUTES } from '../routes';
 import { FolderItem } from './FolderItem';
 import { FileListItem } from './FileListItem';
 import { useToast } from './Toast';
+import { Button, IconButton } from './ui/Button';
+import { Badge } from './ui/Badge';
 
 const NAV_GROUPS = [
-    {
-        heading: null,
-        items: [{ path: ROUTES.STUDY, label: 'Study', icon: HomeIcon }],
-    },
+    { heading: null, items: [{ path: ROUTES.STUDY, label: 'Study', icon: HomeIcon }] },
 ] as const;
 
 interface FileListPanelProps {
@@ -30,7 +32,9 @@ interface FileListPanelProps {
     onAdminClick?: () => void;
 }
 
-export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut, onUpgradeClick, onAdminClick }) => {
+export const FileListPanel: React.FC<FileListPanelProps> = ({
+    onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut, onUpgradeClick, onAdminClick,
+}) => {
     const { state, dispatch } = useDocuments();
     const navigate = useNavigate();
     const location = useLocation();
@@ -46,10 +50,6 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
     const [confirmDelete, setConfirmDelete] = React.useState<{ docId: string; fileName: string } | null>(null);
     const deletingIdsRef = React.useRef(new Set<string>());
     const isCreatingFolderRef = React.useRef(false);
-    
-    const totalTokens = React.useMemo(() => {
-        return state.documents.reduce((acc, doc) => acc + (doc.tokenCount || 0), 0);
-    }, [state.documents]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -62,7 +62,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             if (!isDesktop) setIsPanelCollapsed(true);
         }
     };
-    
+
     const requestDeleteDocument = (docId: string) => {
         const doc = state.documents.find(d => d.id === docId);
         if (!doc) return;
@@ -78,9 +78,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
 
         try {
             const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError) {
-                console.error('사용자 정보를 불러오지 못했습니다:', userError);
-            }
+            if (userError) console.error('사용자 정보를 불러오지 못했습니다:', userError);
             if (!user) {
                 console.error('로그인이 필요합니다.');
                 showToast('Failed to delete document', 'error');
@@ -91,9 +89,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             const storagePath = targetDoc?.storagePath || (targetDoc ? `${user.id}/${targetDoc.fileName}` : null);
             if (storagePath) {
                 const { error: storageError } = await supabase.storage.from('docs').remove([storagePath]);
-                if (storageError) {
-                    console.error('스토리지 파일 삭제에 실패했습니다:', storageError);
-                }
+                if (storageError) console.error('스토리지 파일 삭제에 실패했습니다:', storageError);
             }
 
             const { error: deleteError } = await supabase
@@ -138,29 +134,20 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             showToast('Failed to rename document', 'error');
             return;
         }
-
-        // Refresh the denormalized name in related history; linkage stays by document_id
         await renameDocumentReferences(docId, trimmed);
     };
 
     const handleAddNewFolder = async () => {
         if (isCreatingFolderRef.current) return;
         isCreatingFolderRef.current = true;
-        let newName = "New Folder";
+        let newName = 'New Folder';
         let counter = 1;
         const existingNames = new Set(state.folders.map(f => f.name));
-        while (existingNames.has(newName)) {
-            newName = `New Folder (${counter++})`;
-        }
+        while (existingNames.has(newName)) newName = `New Folder (${counter++})`;
 
         const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-            console.error('사용자 정보를 불러오지 못했습니다:', userError);
-        }
-        if (!user) {
-            console.error('로그인이 필요합니다.');
-            return;
-        }
+        if (userError) console.error('사용자 정보를 불러오지 못했습니다:', userError);
+        if (!user) { console.error('로그인이 필요합니다.'); isCreatingFolderRef.current = false; return; }
 
         const newFolder = { id: `folder-${Date.now()}`, name: newName };
         const { error: insertError } = await supabase
@@ -181,64 +168,43 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         e.dataTransfer.effectAllowed = 'move';
         setDraggedItemId(docId);
     };
-
-    const handleDragEnd = () => {
-        setDraggedItemId(null);
-        setDropTargetId(null);
-    };
-
+    const handleDragEnd = () => { setDraggedItemId(null); setDropTargetId(null); };
     const handleDragOver = (e: React.DragEvent, folderId: string | null) => {
         e.preventDefault();
-        if (draggedItemId) {
-            setDropTargetId(folderId);
-        }
+        if (draggedItemId) setDropTargetId(folderId);
     };
-    
     const handleDrop = async (e: React.DragEvent, folderId: string | null) => {
         e.preventDefault();
         if (draggedItemId) {
             dispatch({ type: 'MOVE_DOCUMENT_TO_FOLDER', payload: { docId: draggedItemId, folderId } });
-
-            const { data: { user }, error: userError } = await supabase.auth.getUser();
-            if (userError) {
-                console.error('사용자 정보를 불러오지 못했습니다:', userError);
-            }
-            if (!user) {
-                console.error('로그인이 필요합니다.');
-            } else {
-                const { error: updateError } = await supabase
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { error } = await supabase
                     .from('documents')
                     .update({ folder_id: folderId })
                     .eq('id', draggedItemId)
                     .eq('user_id', user.id);
-
-                if (updateError) {
-                    console.error('문서 폴더 이동에 실패했습니다:', updateError);
-                }
+                if (error) console.error('문서 폴더 이동에 실패했습니다:', error);
             }
         }
         setDropTargetId(null);
         setDraggedItemId(null);
     };
-
-    const handleDragLeave = () => {
-        setDropTargetId(null);
-    };
+    const handleDragLeave = () => setDropTargetId(null);
 
     const docsByFolder = React.useMemo(() => {
         const map = new Map<string, DocumentData[]>();
         state.folders.forEach(f => map.set(f.id, []));
         state.documents.forEach(doc => {
-            if (doc.folderId && map.has(doc.folderId)) {
-                map.get(doc.folderId)!.push(doc);
-            }
+            if (doc.folderId && map.has(doc.folderId)) map.get(doc.folderId)!.push(doc);
         });
         return map;
     }, [state.documents, state.folders]);
 
-    const unfiledDocs = React.useMemo(() => {
-        return state.documents.filter(doc => !doc.folderId);
-    }, [state.documents]);
+    const unfiledDocs = React.useMemo(
+        () => state.documents.filter(doc => !doc.folderId),
+        [state.documents]
+    );
 
     const filteredDocs = React.useMemo(() => {
         if (!searchQuery.trim()) return null;
@@ -246,78 +212,71 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
         return state.documents.filter(doc => doc.fileName.toLowerCase().includes(q));
     }, [state.documents, searchQuery]);
 
+    const profileInitial = (userProfile?.displayName?.trim() || userEmail || '?')[0].toUpperCase();
+    const profileShownName = userProfile?.displayName?.trim() || userEmail || '';
 
     return (
         <>
-        {/* Delete confirmation modal — portalled to document.body to escape stacking contexts */}
+        {/* Delete confirmation modal */}
         {confirmDelete && ReactDOM.createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                 <button
                     type="button"
-                    className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                    className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm"
                     onClick={() => setConfirmDelete(null)}
                     aria-label="Cancel"
                 />
-                <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                            <TrashIcon className="text-red-600 text-xl" />
+                <div className="relative bg-white rounded-3xl shadow-pop w-full max-w-sm p-6 animate-scale-in">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-danger-50 flex items-center justify-center flex-shrink-0">
+                            <TrashIcon className="text-danger-600 text-xl" />
                         </div>
-                        <div>
-                            <p className="font-bold text-slate-800 text-sm">Delete document?</p>
-                            <p className="text-slate-500 text-xs mt-0.5 leading-snug">
-                                This will permanently delete <span className="font-semibold text-slate-700">"{confirmDelete.fileName}"</span> and all associated data.
+                        <div className="flex-1 min-w-0">
+                            <p className="font-bold text-ink-900 text-base">문서를 삭제하시겠습니까?</p>
+                            <p className="text-ink-500 text-xs mt-1 leading-relaxed">
+                                <span className="font-semibold text-ink-700">"{confirmDelete.fileName}"</span> 및 관련 데이터가 영구적으로 삭제됩니다.
                             </p>
                         </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
-                        <button
-                            type="button"
-                            onClick={() => setConfirmDelete(null)}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleDeleteDocument(confirmDelete.docId)}
-                            className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
-                        >
-                            Delete
-                        </button>
+                    <div className="flex gap-2 justify-end mt-5">
+                        <Button variant="ghost" size="md" onClick={() => setConfirmDelete(null)}>취소</Button>
+                        <Button variant="danger" size="md" onClick={() => handleDeleteDocument(confirmDelete.docId)}>삭제</Button>
                     </div>
                 </div>
             </div>,
             document.body
         )}
+
         <div className="flex flex-col h-full bg-white">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-6 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                    <CleverMonkeyIcon className="w-9 h-9 text-blue-600 flex-shrink-0" />
-                    <div>
-                        <span className="block font-bold text-slate-900 text-lg font-outfit leading-tight tracking-tight">Clever Monkey</span>
-                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Sources</p>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand flex-shrink-0">
+                        <CleverMonkeyIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                        <span className="block font-display font-bold text-ink-900 text-base leading-tight tracking-tight">Clever Monkey</span>
+                        <p className="text-[10px] font-bold text-ink-400 uppercase tracking-[0.14em]">Sources</p>
                     </div>
                 </div>
-                <button
-                    type="button"
+                <IconButton
+                    variant="ghost"
+                    size="md"
+                    aria-label={isDesktop ? 'Collapse sources panel' : 'Close menu'}
+                    title={isDesktop ? 'Collapse sources panel' : 'Close menu'}
                     onClick={() => setIsPanelCollapsed(true)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                    title="Collapse sources panel"
-                    aria-label="Collapse sources panel"
                 >
                     {isDesktop ? <PanelLeftCloseIcon /> : <XIcon className="text-xl" />}
-                </button>
+                </IconButton>
             </div>
 
-            {/* App navigation — desktop sidebar (mobile uses the bottom tab bar) */}
+            {/* App navigation — desktop only */}
             {isDesktop && (
-                <nav className="px-3 pb-4 flex-shrink-0">
+                <nav className="px-3 pb-3 flex-shrink-0">
                     {NAV_GROUPS.map((group, gi) => (
                         <div key={group.heading ?? `nav-group-${gi}`} className={gi > 0 ? 'mt-3' : ''}>
                             {group.heading && (
-                                <div className="px-3 mb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                <div className="px-3 mb-1 text-[10px] font-bold text-ink-400 uppercase tracking-[0.14em]">
                                     {group.heading}
                                 </div>
                             )}
@@ -329,11 +288,12 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                             key={item.path}
                                             type="button"
                                             onClick={() => navigate(item.path)}
-                                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                                            className={[
+                                                'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors',
                                                 isActive
-                                                    ? 'bg-blue-50 text-blue-700'
-                                                    : 'text-slate-600 hover:bg-slate-100'
-                                            }`}
+                                                    ? 'bg-brand-50 text-brand-700'
+                                                    : 'text-ink-600 hover:bg-ink-100 hover:text-ink-800',
+                                            ].join(' ')}
                                         >
                                             <item.icon className="text-xl flex-shrink-0" />
                                             <span className="truncate">{item.label}</span>
@@ -346,22 +306,23 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 </nav>
             )}
 
-            <div className="px-5 pb-6 flex-shrink-0">
-                <div className="grid grid-cols-2 gap-3">
+            {/* Action buttons */}
+            <div className="px-5 pb-4 flex-shrink-0">
+                <div className="grid grid-cols-2 gap-2">
                     <button
                         type="button"
                         onClick={() => inputRef.current?.click()}
-                        className="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-semibold transition-all duration-200 border border-blue-100 hover:border-blue-200 shadow-sm hover:shadow-md group"
+                        className="group flex flex-col items-center justify-center gap-1.5 py-3 bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl font-semibold transition-all duration-200 shadow-brand hover:shadow-lift active:scale-[0.98]"
                     >
-                        <AddIcon className="text-2xl group-hover:scale-110 transition-transform" />
-                        <span className="text-xs">New PDF</span>
+                        <AddIcon className="text-xl group-hover:scale-110 transition-transform" />
+                        <span className="text-xs">New File</span>
                     </button>
                     <button
                         type="button"
                         onClick={handleAddNewFolder}
-                        className="flex flex-col items-center justify-center gap-2 p-3 bg-white hover:bg-slate-50 text-slate-600 rounded-xl font-semibold transition-all duration-200 border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-md group"
+                        className="group flex flex-col items-center justify-center gap-1.5 py-3 bg-white text-ink-600 rounded-xl font-semibold transition-all duration-200 border border-ink-200 hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-700 active:scale-[0.98]"
                     >
-                        <FolderPlusIcon className="text-2xl group-hover:scale-110 transition-transform text-slate-400 group-hover:text-slate-600" />
+                        <FolderPlusIcon className="text-xl group-hover:scale-110 transition-transform" />
                         <span className="text-xs">New Folder</span>
                     </button>
                 </div>
@@ -370,16 +331,21 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             {/* Search */}
             <div className="px-5 pb-3 flex-shrink-0">
                 <div className="relative">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base" />
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-base pointer-events-none" />
                     <input
                         type="text"
-                        placeholder="Search documents..."
+                        placeholder="문서 검색..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-slate-700 placeholder-slate-400"
+                        className="w-full pl-9 pr-9 py-2 text-sm bg-ink-50 border border-transparent rounded-xl focus:outline-none focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-500/15 text-ink-700 placeholder-ink-400 transition-all"
                     />
                     {searchQuery && (
-                        <button type="button" onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
+                            aria-label="Clear search"
+                        >
                             <XIcon className="text-base" />
                         </button>
                     )}
@@ -387,30 +353,32 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
             </div>
 
             {/* File List */}
-            <div className="flex-1 overflow-y-auto px-3 space-y-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                 <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">My Library</div>
-                 {filteredDocs !== null ? (
+            <div className="flex-1 overflow-y-auto px-3 pb-2">
+                <div className="px-2 mb-2 text-[10px] font-bold text-ink-400 uppercase tracking-[0.14em]">My Library</div>
+                {filteredDocs !== null ? (
                     filteredDocs.length === 0 ? (
-                        <div className="px-2 py-4 text-sm text-slate-400 text-center">No results</div>
+                        <div className="px-2 py-6 text-sm text-ink-400 text-center">검색 결과 없음</div>
                     ) : (
-                        filteredDocs.map(doc => (
-                            <FileListItem
-                                key={doc.id}
-                                doc={doc}
-                                isActive={doc.id === state.activeDocumentId}
-                                onClick={() => {
-                                    dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
-                                    if (!isDesktop) setIsPanelCollapsed(true);
-                                }}
-                                onDelete={() => requestDeleteDocument(doc.id)}
-                                onRename={handleRenameDocument}
-                                onDragStart={handleDragStart}
-                                onDragEnd={handleDragEnd}
-                            />
-                        ))
+                        <div className="space-y-0.5">
+                            {filteredDocs.map(doc => (
+                                <FileListItem
+                                    key={doc.id}
+                                    doc={doc}
+                                    isActive={doc.id === state.activeDocumentId}
+                                    onClick={() => {
+                                        dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
+                                        if (!isDesktop) setIsPanelCollapsed(true);
+                                    }}
+                                    onDelete={() => requestDeleteDocument(doc.id)}
+                                    onRename={handleRenameDocument}
+                                    onDragStart={handleDragStart}
+                                    onDragEnd={handleDragEnd}
+                                />
+                            ))}
+                        </div>
                     )
-                 ) : (
-                    <>
+                ) : (
+                    <div className="space-y-2">
                         {state.folders.map(folder => (
                             <FolderItem
                                 key={folder.id}
@@ -433,7 +401,10 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                 onDragOver={(e) => handleDragOver(e, null)}
                                 onDrop={(e) => handleDrop(e, null)}
                                 onDragLeave={handleDragLeave}
-                                className={`rounded-lg transition-colors ${dropTargetId === null && draggedItemId ? 'bg-blue-100' : ''}`}
+                                className={[
+                                    'rounded-xl transition-colors',
+                                    dropTargetId === null && draggedItemId ? 'bg-brand-50 ring-1 ring-brand-200' : '',
+                                ].join(' ')}
                             >
                                 {unfiledDocs.map(doc => (
                                     <FileListItem
@@ -452,25 +423,27 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                                 ))}
                             </div>
                         )}
-                    </>
-                 )}
+                    </div>
+                )}
             </div>
-            
-            <div className="flex-shrink-0 p-4 border-t border-slate-100 bg-slate-50/50 space-y-3">
-                {/* Document usage bar */}
+
+            {/* Footer: usage + profile */}
+            <div className="flex-shrink-0 px-4 py-3 border-t border-ink-100 bg-ink-50/50 space-y-2.5">
+                {/* Document usage */}
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-semibold text-slate-500">문서</span>
-                        <span className="text-xs font-mono font-medium text-slate-600">
+                        <span className="text-[11px] font-semibold text-ink-500">문서</span>
+                        <span className="text-[11px] font-mono font-medium text-ink-600">
                             {state.documents.length}{tierLimits.maxDocuments !== Infinity ? ` / ${tierLimits.maxDocuments}` : ''}
                         </span>
                     </div>
                     {tierLimits.maxDocuments !== Infinity && (
-                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                        <div className="w-full bg-ink-200/70 rounded-full h-1 overflow-hidden">
                             <div
-                                className={`h-1.5 rounded-full transition-all ${
-                                    tierLimits.isAtDocumentLimit(state.documents.length) ? 'bg-red-500' : 'bg-blue-500'
-                                }`}
+                                className={[
+                                    'h-1 rounded-full transition-all',
+                                    tierLimits.isAtDocumentLimit(state.documents.length) ? 'bg-danger-500' : 'bg-brand-500',
+                                ].join(' ')}
                                 style={{ width: `${Math.min((state.documents.length / tierLimits.maxDocuments) * 100, 100)}%` }}
                             />
                         </div>
@@ -481,14 +454,20 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                 {!tierLimits.isPro && userProfile && (
                     <div>
                         <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-semibold text-slate-500">AI 사용</span>
-                            <span className={`text-xs font-mono font-medium ${tierLimits.isAtAiLimit ? 'text-red-600' : 'text-slate-600'}`}>
+                            <span className="text-[11px] font-semibold text-ink-500">AI 사용</span>
+                            <span className={[
+                                'text-[11px] font-mono font-medium',
+                                tierLimits.isAtAiLimit ? 'text-danger-600' : 'text-ink-600',
+                            ].join(' ')}>
                                 {tierLimits.aiActionsToday} / {tierLimits.maxAiActionsPerDay}
                             </span>
                         </div>
-                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                        <div className="w-full bg-ink-200/70 rounded-full h-1 overflow-hidden">
                             <div
-                                className={`h-1.5 rounded-full transition-all ${tierLimits.isAtAiLimit ? 'bg-red-500' : 'bg-green-500'}`}
+                                className={[
+                                    'h-1 rounded-full transition-all',
+                                    tierLimits.isAtAiLimit ? 'bg-danger-500' : 'bg-success-500',
+                                ].join(' ')}
                                 style={{ width: `${Math.min((tierLimits.aiActionsToday / tierLimits.maxAiActionsPerDay) * 100, 100)}%` }}
                             />
                         </div>
@@ -496,7 +475,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                             <button
                                 type="button"
                                 onClick={() => onUpgradeClick?.('ai_actions')}
-                                className="mt-1.5 w-full text-xs text-center text-blue-600 font-semibold hover:underline"
+                                className="mt-1.5 w-full text-[11px] text-center text-brand-600 font-semibold hover:underline"
                             >
                                 Pro로 업그레이드 →
                             </button>
@@ -509,7 +488,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                     <button
                         type="button"
                         onClick={onAdminClick}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-xl hover:bg-orange-100 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-warning-700 bg-warning-50 border border-warning-100 rounded-xl hover:bg-warning-100 transition-colors"
                     >
                         <AdminPanelIcon className="text-base" />
                         Admin Panel
@@ -521,48 +500,46 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({ onFileSelected, se
                     <button
                         type="button"
                         onClick={onProfileClick}
-                        className="w-full flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
+                        className="w-full flex items-center gap-3 p-2.5 bg-white border border-ink-200 rounded-xl hover:border-brand-200 hover:bg-brand-50/30 transition-colors group"
                     >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-inner flex-shrink-0 ${
-                            tierLimits.isPro ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-600'
-                        }`}>
-                            {(userProfile?.displayName?.trim() || userEmail)[0].toUpperCase()}
+                        <div className={[
+                            'w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
+                            tierLimits.isPro
+                                ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-brand'
+                                : 'bg-brand-100 text-brand-700',
+                        ].join(' ')}>
+                            {profileInitial}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                            <p className="text-xs font-bold text-slate-700 truncate" title={userProfile?.displayName ?? userEmail}>
-                                {userProfile?.displayName?.trim() || userEmail}
-                            </p>
+                            <p className="text-xs font-bold text-ink-800 truncate" title={profileShownName}>{profileShownName}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border ${
-                                    tierLimits.isPro
-                                        ? 'bg-violet-100 text-violet-700 border-violet-200'
-                                        : 'bg-blue-100 text-blue-700 border-blue-200'
-                                }`}>{planName}</span>
+                                <Badge tone={tierLimits.isPro ? 'brand' : 'neutral'} variant="soft" size="sm">
+                                    {planName}
+                                </Badge>
                                 {!tierLimits.isPro && onUpgradeClick && (
                                     <button
                                         type="button"
                                         onClick={e => { e.stopPropagation(); onUpgradeClick('generic'); }}
-                                        className="text-[10px] text-slate-400 hover:text-violet-600 font-semibold flex items-center gap-0.5 transition-colors"
+                                        className="text-[10px] text-ink-400 hover:text-brand-600 font-semibold flex items-center gap-0.5 transition-colors"
                                     >
                                         <WorkspacePremiumIcon className="text-xs" /> 업그레이드
                                     </button>
                                 )}
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={e => { e.stopPropagation(); onSignOut(); }}
-                            className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-                            title="Log out"
+                        <IconButton
+                            variant="ghost"
+                            size="sm"
                             aria-label="Log out"
+                            title="Log out"
+                            onClick={e => { e.stopPropagation(); onSignOut(); }}
                         >
                             <LogOutIcon className="text-base" />
-                        </button>
+                        </IconButton>
                     </button>
                 )}
             </div>
 
-            {/* Hidden File Input */}
             <input
                 ref={inputRef}
                 type="file"

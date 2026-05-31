@@ -1,4 +1,7 @@
 import * as React from 'react';
+import { Modal } from './ui/Modal';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 import { CleverMonkeyIcon } from './icons';
 import { supabase } from '../services/supabaseClient';
 import { updateMyDisplayName } from '../services/profileService';
@@ -16,7 +19,6 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onSave
 
     React.useEffect(() => {
         if (!isOpen || hasPrefilled) return;
-        // Pre-fill with auth provider's suggested name (e.g. Google full_name)
         supabase.auth.getUser().then(({ data: { user } }) => {
             const meta = user?.user_metadata as { full_name?: string; name?: string; display_name?: string } | undefined;
             const suggested = meta?.display_name?.trim() || meta?.full_name?.trim() || meta?.name?.trim() || '';
@@ -25,63 +27,47 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onSave
         });
     }, [isOpen, hasPrefilled]);
 
-    if (!isOpen) return null;
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setIsSubmitting(true);
         const ok = await updateMyDisplayName(name);
         setIsSubmitting(false);
-        if (!ok) {
-            setError('이름을 저장하지 못했습니다. 다시 시도해 주세요.');
-            return;
-        }
+        if (!ok) { setError('이름을 저장하지 못했습니다. 다시 시도해 주세요.'); return; }
         onSaved();
     };
 
     return (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" aria-hidden="true" />
-            <div
-                className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl ring-1 ring-slate-900/5 overflow-hidden animate-fade-in-up"
-                role="dialog"
-                aria-modal="true"
-            >
-                <div className="px-8 pt-8 pb-6 text-center">
-                    <div className="mx-auto w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
-                        <CleverMonkeyIcon className="w-7 h-7 text-blue-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-slate-900 font-outfit">반갑습니다 👋</h2>
-                    <p className="mt-2 text-sm text-slate-500">
-                        프로필에 표시할 이름을 알려주세요. 나중에 언제든지 수정할 수 있습니다.
-                    </p>
+        <Modal isOpen={isOpen} onClose={() => { /* mandatory */ }} dismissible={false} size="md" zIndex={110}>
+            <div className="-mx-7 -mt-3 px-7 pb-2 text-center">
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand mb-4">
+                    <CleverMonkeyIcon className="w-8 h-8 text-white" />
                 </div>
-                <form className="px-8 pb-8" onSubmit={handleSubmit}>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1.5 ml-1">이름</label>
-                    <input
-                        type="text"
-                        placeholder="예: 김민준"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        required
-                        autoFocus
-                        minLength={1}
-                        maxLength={60}
-                    />
-                    {error && (
-                        <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{error}</p>
-                    )}
-                    <button
-                        type="submit"
-                        disabled={isSubmitting || !name.trim()}
-                        className="mt-5 w-full bg-slate-900 text-white font-bold py-3 rounded-xl shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-colors disabled:opacity-60"
-                    >
-                        {isSubmitting ? '저장 중...' : '시작하기'}
-                    </button>
-                </form>
+                <h2 className="text-2xl font-display font-bold text-ink-900 tracking-tight">반갑습니다 👋</h2>
+                <p className="mt-1.5 text-sm text-ink-500">
+                    프로필에 표시할 이름을 알려주세요.
+                    <br />
+                    언제든지 프로필에서 수정할 수 있습니다.
+                </p>
             </div>
-        </div>
+
+            <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+                <Input
+                    label="이름"
+                    type="text"
+                    placeholder="예: 김민준"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoFocus
+                    minLength={1}
+                    maxLength={60}
+                    error={error}
+                />
+                <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting} disabled={!name.trim()}>
+                    시작하기
+                </Button>
+            </form>
+        </Modal>
     );
 };

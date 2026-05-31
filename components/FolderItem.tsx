@@ -140,69 +140,97 @@ export const FolderItem: React.FC<FolderItemProps> = React.memo(({
                 onDragOver={(e) => onDragOver(e, folder.id)}
                 onDrop={(e) => onDrop(e, folder.id)}
                 onDragLeave={onDragLeave}
-                className={`group flex items-center justify-between w-full pr-2 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                    isDropTarget ? 'bg-blue-200' : isFolderActive ? 'bg-blue-100' : 'hover:bg-slate-200'
-                }`}
+                className={[
+                    'group flex items-center justify-between w-full pr-2 py-1.5 rounded-xl transition-colors cursor-pointer',
+                    isDropTarget
+                        ? 'bg-brand-100 ring-1 ring-brand-300'
+                        : isFolderActive
+                            ? 'bg-brand-50'
+                            : 'hover:bg-ink-100/70',
+                ].join(' ')}
             >
                 <div className="flex items-center flex-1 min-w-0">
-                    <button type="button" onClick={(e) => { e.stopPropagation(); if (!isEditing) setIsExpanded(v => !v); }} className="p-1 rounded-md text-slate-500 hover:bg-slate-300 disabled:cursor-not-allowed" disabled={isEditing}>
-                         {isExpanded ? <ChevronDownIcon className="text-base"/> : <ChevronRightIcon className="text-base"/>}
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); if (!isEditing) setIsExpanded(v => !v); }}
+                        className="p-1 rounded-md text-ink-400 hover:text-ink-700 hover:bg-white disabled:cursor-not-allowed"
+                        disabled={isEditing}
+                        aria-label={isExpanded ? 'Collapse folder' : 'Expand folder'}
+                    >
+                        {isExpanded ? <ChevronDownIcon className="text-base"/> : <ChevronRightIcon className="text-base"/>}
                     </button>
-                    <FolderIcon className="text-xl text-slate-500 mx-1 flex-shrink-0" />
+                    <FolderIcon className={`text-lg mx-1 flex-shrink-0 ${isFolderActive ? 'text-brand-600' : 'text-ink-400'}`} />
                     <div className="flex items-baseline min-w-0 flex-1">
                         {isEditing ? (
                             <input
-                               type="text"
-                               value={editingName}
-                               onChange={(e) => setEditingName(e.target.value)}
-                               onBlur={handleConfirmRename}
-                               onKeyDown={handleRenameKeyDown}
-                               autoFocus
-                               className="text-sm font-semibold text-slate-900 bg-white border border-blue-400 rounded px-1 -my-0.5 w-full"
-                               onClick={(e) => e.stopPropagation()}
+                                type="text"
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                onBlur={handleConfirmRename}
+                                onKeyDown={handleRenameKeyDown}
+                                autoFocus
+                                className="text-sm font-semibold text-ink-900 bg-white border border-brand-400 rounded-md px-1.5 py-0.5 -my-0.5 w-full focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                                onClick={(e) => e.stopPropagation()}
                             />
                         ) : (
-                           <span className={`text-sm font-semibold truncate ${isFolderActive ? 'text-blue-800' : 'text-slate-700'}`}>{folder.name}</span>
+                            <span className={`text-sm font-semibold truncate ${isFolderActive ? 'text-brand-800' : 'text-ink-700'}`}>{folder.name}</span>
                         )}
-                        {!isEditing && documents.length > 0 && <span className="ml-2 text-xs font-mono text-slate-500">{documents.length}</span>}
+                        {!isEditing && documents.length > 0 && (
+                            <span className="ml-2 text-[11px] font-mono text-ink-400">{documents.length}</span>
+                        )}
                     </div>
                 </div>
 
                 <div className="flex items-center flex-shrink-0">
                     {isConfirmingDelete ? (
-                        <div className="flex items-center animate-pulse">
-                            <span className="text-xs text-red-600 font-semibold mr-1">Sure?</span>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-green-600 hover:bg-green-100 rounded"><CheckIcon className="text-xl"/></button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(false); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><XIcon className="text-xl"/></button>
+                        <div className="flex items-center gap-0.5">
+                            <span className="text-[11px] text-danger-600 font-bold mr-1">정말?</span>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-success-600 hover:bg-success-50 rounded-md" aria-label="Confirm delete">
+                                <CheckIcon className="text-base"/>
+                            </button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsConfirmingDelete(false); }} className="p-1 text-ink-500 hover:bg-ink-200 rounded-md" aria-label="Cancel">
+                                <XIcon className="text-base"/>
+                            </button>
                         </div>
                     ) : !isEditing ? (
-                         <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleStartRename(); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><EditIcon className="text-base"/></button>
-                            {state.folders.length > 1 && <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-slate-500 hover:bg-slate-300 rounded"><TrashIcon className="text-base"/></button>}
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleStartRename(); }} className="p-1 text-ink-400 hover:text-ink-700 hover:bg-white rounded-md" aria-label="Rename folder" title="이름 수정">
+                                <EditIcon className="text-sm"/>
+                            </button>
+                            {state.folders.length > 1 && (
+                                <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(); }} className="p-1 text-ink-400 hover:text-danger-600 hover:bg-white rounded-md" aria-label="Delete folder" title="삭제">
+                                    <TrashIcon className="text-sm"/>
+                                </button>
+                            )}
                         </div>
                     ) : null}
                 </div>
             </div>
             {isExpanded && documents.length === 0 && (
-                <div className="pl-8 pr-2 py-2 text-xs text-slate-400 italic select-none">
-                    No files yet — upload one above
+                <div className="pl-9 pr-2 py-2 text-xs text-ink-400 italic select-none">
+                    아직 파일이 없습니다
                 </div>
             )}
-            {isExpanded && documents.map(doc => (
-                <FileListItem
-                    key={doc.id}
-                    doc={doc}
-                    isActive={doc.id === state.activeDocumentId}
-                    onClick={() => {
-                        dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
-                        if (!isDesktop) setIsPanelCollapsed(true);
-                    }}
-                    onDelete={() => onDeleteDocument(doc.id)}
-                    onRename={onRenameDocument}
-                    onDragStart={onDragStart}
-                    onDragEnd={onDragEnd}
-                />
-            ))}
+            {isExpanded && documents.length > 0 && (
+                <div className="pl-3 space-y-0.5 mt-0.5">
+                    {documents.map(doc => (
+                        <FileListItem
+                            key={doc.id}
+                            doc={doc}
+                            isActive={doc.id === state.activeDocumentId}
+                            onClick={() => {
+                                dispatch({ type: 'SET_ACTIVE_DOCUMENT', payload: { docId: doc.id } });
+                                if (!isDesktop) setIsPanelCollapsed(true);
+                            }}
+                            onDelete={() => onDeleteDocument(doc.id)}
+                            onRename={onRenameDocument}
+                            onDragStart={onDragStart}
+                            onDragEnd={onDragEnd}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 });
+FolderItem.displayName = 'FolderItem';
