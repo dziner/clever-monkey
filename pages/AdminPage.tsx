@@ -90,13 +90,13 @@ const UserRow: React.FC<UserRowProps> = ({ user, currentUserId, onTierChange, on
         <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
             <td className="px-4 py-3 min-w-0">
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm flex-shrink-0">
                         {(user.email[0] ?? '?').toUpperCase()}
                     </div>
                     <div className="min-w-0">
                         <p className="text-sm font-medium text-slate-800 truncate max-w-[200px]" title={user.email}>
                             {user.email}
-                            {isMe && <span className="ml-1.5 text-xs text-blue-600 font-semibold">(나)</span>}
+                            {isMe && <span className="ml-1.5 text-xs text-brand-600 font-semibold">(나)</span>}
                         </p>
                         <p className="text-xs text-slate-400">
                             {new Date(user.createdAt).toLocaleDateString('ko-KR')}에 가입
@@ -115,7 +115,7 @@ const UserRow: React.FC<UserRowProps> = ({ user, currentUserId, onTierChange, on
                 <div className="flex items-center gap-2 min-w-[80px]">
                     <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                            className={`h-1.5 rounded-full transition-all ${isNearLimit ? 'bg-orange-500' : 'bg-blue-400'}`}
+                            className={`h-1.5 rounded-full transition-all ${isNearLimit ? 'bg-orange-500' : 'bg-brand-400'}`}
                             style={{ width: `${user.tier === 'pro' ? 0 : aiPct}%` }}
                         />
                     </div>
@@ -174,7 +174,7 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({ data }) => {
                 <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group relative">
                     <div className="relative flex-1 w-full flex items-end">
                         <div
-                            className="w-full bg-blue-500 rounded-t transition-all duration-500 hover:bg-blue-600"
+                            className="w-full bg-brand-500 rounded-t transition-all duration-500 hover:bg-brand-600"
                             style={{ height: `${Math.max((d.totalActions / max) * 100, 4)}%`, minHeight: d.totalActions > 0 ? 4 : 0 }}
                         />
                         {/* Tooltip */}
@@ -284,7 +284,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                     <p className="text-sm text-slate-500 mt-1">관리자 권한이 필요한 페이지입니다.</p>
                 </div>
                 <button type="button" onClick={() => navigate(ROUTES.STUDY)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors">
+                    className="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold text-sm hover:bg-brand-700 transition-colors">
                     홈으로 돌아가기
                 </button>
             </div>
@@ -335,7 +335,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                         <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
                                 activeTab === tab.id
-                                    ? 'border-blue-500 text-blue-700'
+                                    ? 'border-brand-500 text-brand-700'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}>
                             {tab.label}
@@ -355,7 +355,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                             <section>
                                 <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">사용자 현황</h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <StatCard icon={PeopleIcon}           label="전체 사용자"  value={totalUsers}  color="text-blue-600"   bg="bg-blue-50" />
+                                    <StatCard icon={PeopleIcon}           label="전체 사용자"  value={totalUsers}  color="text-brand-600"   bg="bg-brand-50" />
                                     <StatCard icon={WorkspacePremiumIcon} label="Pro 사용자"   value={proUsers}    sub={`Free ${freeUsers}명`} color="text-violet-600" bg="bg-violet-50" />
                                     <StatCard icon={DocumentIcon}         label="전체 문서"    value={dbStats?.documentCount ?? '—'} color="text-green-600" bg="bg-green-50" />
                                     <StatCard icon={BoltIcon}             label="오늘 AI 호출" value={apiStats?.totalActionsToday ?? '—'} color="text-orange-600" bg="bg-orange-50" />
@@ -439,7 +439,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                 </h2>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                                     <StatCard icon={BoltIcon}      label="오늘 총 AI 호출"  value={apiStats?.totalActionsToday ?? 0} color="text-orange-600" bg="bg-orange-50" />
-                                    <StatCard icon={PeopleIcon}    label="오늘 활성 사용자" value={apiStats?.activeUsersToday ?? 0}  color="text-blue-600"   bg="bg-blue-50" />
+                                    <StatCard icon={PeopleIcon}    label="오늘 활성 사용자" value={apiStats?.activeUsersToday ?? 0}  color="text-brand-600"   bg="bg-brand-50" />
                                     <StatCard icon={WarningIcon}   label="한도 근접 사용자"
                                         value={apiStats?.usersNearLimit ?? 0}
                                         sub="Free · 15회 이상"
@@ -453,7 +453,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     <div className="flex items-center justify-between mb-4">
                                         <p className="text-sm font-semibold text-slate-700">최근 7일 AI 호출 추이</p>
                                         <div className="flex items-center gap-3 text-xs text-slate-400">
-                                            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-blue-500 rounded-sm" />총 호출</span>
+                                            <span className="flex items-center gap-1"><span className="w-2 h-2 bg-brand-500 rounded-sm" />총 호출</span>
                                         </div>
                                     </div>
                                     {apiStats && apiStats.last7Days.length > 0 ? (
@@ -505,7 +505,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                                                     ) : (
                                                                         <div className="flex items-center gap-2">
                                                                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[80px]">
-                                                                                <div className={`h-1.5 rounded-full ${isNear ? 'bg-orange-500' : 'bg-blue-400'}`} style={{ width: `${pct}%` }} />
+                                                                                <div className={`h-1.5 rounded-full ${isNear ? 'bg-orange-500' : 'bg-brand-400'}`} style={{ width: `${pct}%` }} />
                                                                             </div>
                                                                             <span className="text-xs text-slate-400 flex-shrink-0">{Math.round(pct)}%</span>
                                                                         </div>
@@ -527,7 +527,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     Supabase DB · 스토리지 현황
                                 </h2>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                                    <StatCard icon={DocumentIcon}   label="총 문서"        value={dbStats?.documentCount ?? '—'}  sub={`오늘 +${dbStats?.docsCreatedToday ?? 0}`} color="text-blue-600"   bg="bg-blue-50" />
+                                    <StatCard icon={DocumentIcon}   label="총 문서"        value={dbStats?.documentCount ?? '—'}  sub={`오늘 +${dbStats?.docsCreatedToday ?? 0}`} color="text-brand-600"   bg="bg-brand-50" />
                                     <StatCard icon={QuizIcon}       label="퀴즈 세션"       value={dbStats?.quizSessions ?? '—'}   color="text-green-600"  bg="bg-green-50" />
                                     <StatCard icon={ErrorOutlineIcon} label="오답 기록"     value={dbStats?.wrongAnswers ?? '—'}   color="text-red-500"    bg="bg-red-50" />
                                     <StatCard icon={FolderOpenIcon} label="폴더"            value={dbStats?.folders ?? '—'}        color="text-yellow-600" bg="bg-yellow-50" />
@@ -617,13 +617,13 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                         placeholder="이메일로 검색..."
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-1 focus:ring-blue-400 outline-none bg-white"
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 bg-white"
                                     />
                                 </div>
                                 <select
                                     value={filterTier}
                                     onChange={e => setFilterTier(e.target.value as 'all' | UserTier)}
-                                    className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:ring-1 focus:ring-blue-400 outline-none"
+                                    className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                                 >
                                     <option value="all">모든 플랜</option>
                                     <option value="free">Free</option>

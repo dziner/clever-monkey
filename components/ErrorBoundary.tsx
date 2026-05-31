@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ErrorOutlineIcon } from './icons';
 
 interface Props { children: React.ReactNode; }
 interface State { hasError: boolean; error: Error | null; }
@@ -20,18 +21,18 @@ export class ErrorBoundary extends React.Component<Props, State> {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-4 p-8 text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-3xl">
-                        ⚠️
+                <div className="flex flex-col items-center justify-center min-h-screen bg-ink-50 gap-4 p-8 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-danger-50 flex items-center justify-center">
+                        <ErrorOutlineIcon className="text-3xl text-danger-600" />
                     </div>
-                    <h2 className="text-xl font-bold text-slate-800">Something went wrong</h2>
-                    <p className="text-sm text-slate-500 max-w-sm">{this.state.error?.message ?? 'An unexpected error occurred.'}</p>
+                    <h2 className="text-xl font-display font-bold text-ink-900 tracking-tight">문제가 발생했습니다</h2>
+                    <p className="text-sm text-ink-500 max-w-sm">{this.state.error?.message ?? '예상치 못한 오류가 발생했습니다.'}</p>
                     <button
                         type="button"
                         onClick={() => window.location.reload()}
-                        className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                        className="px-5 py-2.5 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 transition-colors shadow-brand"
                     >
-                        Reload App
+                        앱 새로고침
                     </button>
                 </div>
             );

@@ -51,7 +51,7 @@ const WrongAnswerCard: React.FC<{
     return (
         <div className={`rounded-xl border transition-all duration-200 ${isReviewed ? 'border-slate-100 bg-slate-50/50' : 'border-slate-200 bg-white shadow-sm'}`}>
             <button type="button" className="w-full text-left p-3 flex items-start gap-3" onClick={() => setExpanded(e => !e)}>
-                <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${item.quizType === 'mcq' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${item.quizType === 'mcq' ? 'bg-info-50 text-info-600' : 'bg-success-50 text-success-600'}`}>
                     {item.quizType === 'mcq' ? <AssignmentIcon className="text-sm" /> : <BrainIcon className="text-sm" />}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -94,8 +94,8 @@ const WrongAnswerCard: React.FC<{
                             <span className="text-slate-700">{item.userAnswerText}</span>
                         </div>
                     )}
-                    <div className="text-xs p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
-                        <span className="font-semibold text-blue-700 block mb-0.5">{item.quizType === 'frq' ? '모범 답안' : '해설'}</span>
+                    <div className="text-xs p-2.5 bg-brand-50 border border-brand-100 rounded-lg">
+                        <span className="font-semibold text-brand-700 block mb-0.5">{item.quizType === 'frq' ? '모범 답안' : '해설'}</span>
                         <span className="text-slate-700 leading-relaxed">{item.explanation}</span>
                     </div>
                     <div className="flex items-center justify-end gap-2 pt-0.5">
