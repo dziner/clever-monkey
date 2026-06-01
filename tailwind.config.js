@@ -56,13 +56,6 @@ export default {
         pop:         'var(--shadow-pop)',
         brand:       'var(--shadow-brand)',
         'inner-soft':'var(--shadow-inner-soft)',
-        // Duolingo "shelf" — the colored bottom band that creates 3D depth
-        'shelf-brand':   'var(--shelf-brand)',
-        'shelf-success': 'var(--shelf-success)',
-        'shelf-warning': 'var(--shelf-warning)',
-        'shelf-danger':  'var(--shelf-danger)',
-        'shelf-ink':     'var(--shelf-ink)',
-        'shelf-white':   'var(--shelf-white)',
       },
       // Consistent type scale — used by .text-* component classes and ad-hoc Tailwind use.
       fontSize: {

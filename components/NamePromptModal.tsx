@@ -43,13 +43,11 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onSave
                 <div className="mx-auto w-20 h-20 mb-4">
                     <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
-                <h2 className="font-handwritten font-bold text-4xl text-ink-900 -rotate-1 inline-block">
-                    이름이 뭐야?
-                </h2>
-                <p className="mt-2 text-body text-ink-500">
-                    원숭이가 외워둘게. 헷갈리면 안 되니까.
+                <h2 className="text-display-lg">반갑습니다 👋</h2>
+                <p className="mt-1.5 text-body text-ink-500">
+                    프로필에 표시할 이름을 알려주세요.
                     <br />
-                    나중에 프로필에서 바꿔도 돼.
+                    언제든지 프로필에서 수정할 수 있습니다.
                 </p>
             </div>
 
@@ -66,7 +64,7 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onSave
                     maxLength={60}
                     error={error}
                 />
-                <Button type="submit" variant="raised" size="lg" fullWidth loading={isSubmitting} disabled={!name.trim()}>
+                <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting} disabled={!name.trim()}>
                     시작하기
                 </Button>
             </form>

@@ -64,11 +64,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
         <div className="flex-1 overflow-y-auto bg-ink-50">
             <div className="max-w-2xl w-full mx-auto p-4 sm:p-6 space-y-5">
                 {/* Summary card */}
-                <section className="surface-chunky relative p-5 overflow-hidden">
+                <section className="relative bg-white border border-ink-200 rounded-2xl p-5 shadow-soft overflow-hidden">
                     <div className="absolute -top-12 -right-12 w-48 h-48 bg-brand-50 rounded-full blur-3xl pointer-events-none" />
                     <div className="relative">
                         <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 rounded-xl bg-brand-100 border-2 border-brand-200 flex items-center justify-center">
+                            <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center">
                                 <AutoAwesomeIcon className="text-base text-brand-600" />
                             </div>
                             <h2 className="text-h3">요약</h2>
@@ -138,12 +138,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
                                 key={tool.id}
                                 type="button"
                                 onClick={() => onSelectTab(tool.id)}
-                                className="group flex flex-col items-center gap-1.5 p-3 bg-white border-2 border-ink-200 rounded-2xl shadow-shelf-white hover:border-brand-300 hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all"
+                                className="group flex flex-col items-center gap-1.5 p-3 bg-white border border-ink-200 rounded-xl shadow-soft hover:border-brand-300 hover:shadow-card transition-all"
                             >
-                                <div className="w-9 h-9 rounded-xl bg-ink-50 group-hover:bg-brand-100 flex items-center justify-center transition-colors">
+                                <div className="w-9 h-9 rounded-lg bg-ink-50 group-hover:bg-brand-50 flex items-center justify-center transition-colors">
                                     <tool.icon className="text-lg text-ink-500 group-hover:text-brand-600 transition-colors" />
                                 </div>
-                                <span className="text-2xs font-extrabold leading-none text-center text-ink-600 group-hover:text-brand-700 transition-colors">
+                                <span className="text-[10px] font-bold leading-none text-center text-ink-600 group-hover:text-brand-700 transition-colors">
                                     {tool.label}
                                 </span>
                             </button>
@@ -177,16 +177,16 @@ const StatTile: React.FC<StatTileProps> = ({ tone, label, value, sub, icon: Icon
             type="button"
             onClick={onClick}
             className={[
-                'group flex flex-col items-start gap-1.5 p-4 bg-white border-2 border-ink-200 rounded-2xl shadow-shelf-white',
-                'hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all text-left',
+                'group flex flex-col items-start gap-1 p-4 bg-white border border-ink-200 rounded-2xl shadow-soft',
+                'hover:shadow-card hover:-translate-y-0.5 transition-all text-left',
                 t.hover,
             ].join(' ')}
         >
-            <div className={`w-9 h-9 rounded-xl border-2 border-ink-200 ${t.iconBg} flex items-center justify-center`}>
+            <div className={`w-8 h-8 rounded-lg ${t.iconBg} flex items-center justify-center`}>
                 <Icon className={`text-base ${t.iconText}`} />
             </div>
             <span className="text-eyebrow">{label}</span>
-            <span className="text-2xl font-display font-extrabold text-ink-900 leading-none tracking-tight">{value}</span>
+            <span className="text-xl font-display font-bold text-ink-900 leading-none tracking-tight">{value}</span>
             <span className="text-caption text-ink-500">{sub}</span>
         </button>
     );

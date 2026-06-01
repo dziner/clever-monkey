@@ -49,18 +49,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                 <div className="mx-auto w-20 h-20 mb-4">
                     <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
-                <h2 className="font-handwritten font-bold text-4xl text-ink-900 -rotate-1 inline-block">
-                    {mode === 'login' ? '어, 왔어?' : '이름표 만들자'}
+                <h2 className="text-display-lg">
+                    {mode === 'login' ? '다시 오신 것을 환영합니다' : '계정 만들기'}
                 </h2>
-                <p className="mt-2 text-body text-ink-500">
-                    {mode === 'login' ? '원숭이가 기다리고 있었어.' : '오래 걸리진 않아. 30초면 돼.'}
+                <p className="mt-1.5 text-body text-ink-500">
+                    {mode === 'login' ? '학습을 이어서 시작해 보세요.' : 'Clever Monkey와 함께 학습을 시작합니다.'}
                 </p>
             </div>
 
             <div className="mt-4">
                 <Button
                     type="button"
-                    variant="raised-ghost"
+                    variant="outline"
                     size="lg"
                     fullWidth
                     onClick={onGoogleSignIn}
@@ -107,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                         minLength={6}
                         error={error}
                     />
-                    <Button type="submit" variant="raised" size="lg" fullWidth loading={isSubmitting}>
+                    <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
                         {mode === 'login' ? '로그인' : '계정 만들기'}
                     </Button>
                 </form>

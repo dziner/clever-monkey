@@ -310,7 +310,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
                     <button
                         type="button"
                         onClick={() => inputRef.current?.click()}
-                        className="group flex flex-col items-center justify-center gap-1.5 py-3 bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-xl font-semibold transition-all duration-200 shadow-brand hover:shadow-lift active:scale-[0.98]"
+                        className="group flex flex-col items-center justify-center gap-1.5 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold transition-colors duration-150 shadow-soft"
                     >
                         <AddIcon className="text-xl group-hover:scale-110 transition-transform" />
                         <span className="text-xs">New File</span>

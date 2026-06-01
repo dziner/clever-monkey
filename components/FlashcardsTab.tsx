@@ -167,30 +167,30 @@ const StudyView: React.FC<{
       </div>
       <div className="mt-6">
         {!flipped ? (
-          <button type="button" onClick={() => setFlipped(true)} className="w-full py-3.5 bg-ink-900 text-white rounded-2xl font-extrabold text-sm uppercase tracking-wider shadow-shelf-ink hover:-translate-y-px active:translate-y-1 active:shadow-none transition-all">
+          <button type="button" onClick={() => setFlipped(true)} className="w-full py-3 bg-ink-900 text-white rounded-lg font-semibold hover:bg-ink-800 transition-colors">
             답 보기
           </button>
         ) : (
           <div className="space-y-2">
-            <p className="text-caption text-center text-ink-500 mb-3">
+            <p className="text-xs text-center text-ink-500 font-semibold mb-3">
               {mode === 'practice' ? '확인했으면 다음으로' : '얼마나 잘 기억했나요?'}
             </p>
             <div className="grid grid-cols-4 gap-2">
               {([
-                { q: 'again', label: '다시',   cls: 'bg-danger-500  text-white shadow-shelf-danger' },
-                { q: 'hard',  label: '어려움', cls: 'bg-warning-500 text-white shadow-shelf-warning' },
-                { q: 'good',  label: '보통',   cls: 'bg-brand-500   text-white shadow-shelf-brand' },
-                { q: 'easy',  label: '쉬움',   cls: 'bg-success-500 text-white shadow-shelf-success' },
+                { q: 'again', label: '다시',   cls: 'bg-danger-50  text-danger-700  border-danger-200  hover:bg-danger-100' },
+                { q: 'hard',  label: '어려움', cls: 'bg-warning-50 text-warning-700 border-warning-200 hover:bg-warning-100' },
+                { q: 'good',  label: '보통',   cls: 'bg-brand-50   text-brand-700   border-brand-200   hover:bg-brand-100' },
+                { q: 'easy',  label: '쉬움',   cls: 'bg-success-50 text-success-700 border-success-200 hover:bg-success-100' },
               ] as const).map(({ q, label, cls }) => (
                 <button
                   key={q}
                   type="button"
                   onClick={() => handleRate(q as ReviewQuality)}
-                  className={`flex flex-col items-center justify-center py-3 rounded-2xl font-extrabold text-xs uppercase tracking-wider transition-all hover:-translate-y-px active:translate-y-1 active:shadow-none ${cls}`}
+                  className={`flex flex-col items-center justify-center py-3 rounded-lg border font-semibold text-xs transition-colors ${cls}`}
                 >
-                  <span className="text-xs">{label}</span>
+                  <span className="text-sm font-bold">{label}</span>
                   {mode === 'due' && (
-                    <span className="opacity-80 text-[10px] mt-0.5 normal-case font-semibold tracking-normal">{previewIntervalLabel(current, q as ReviewQuality)}</span>
+                    <span className="opacity-60 text-[10px] mt-0.5 font-medium">{previewIntervalLabel(current, q as ReviewQuality)}</span>
                   )}
                 </button>
               ))}
@@ -380,15 +380,15 @@ export const FlashcardsTab: React.FC<FlashcardsTabProps> = ({ document }) => {
                   <StyleIcon className="text-4xl text-brand-300" />
                 </div>
                 <div>
-                  <p className="font-handwritten font-bold text-2xl text-ink-700 -rotate-1 inline-block">여긴 휑하네</p>
-                  <p className="text-sm text-ink-400 mt-2">카드 한 장 만들어보자. 외울 때까지 들이댈게.</p>
+                  <p className="font-semibold text-ink-600">플래시카드 덱이 없습니다</p>
+                  <p className="text-sm text-ink-400 mt-1">이 교재에서 카드를 자동 생성하세요.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowGenerate(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 text-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg font-semibold hover:bg-brand-700 text-sm"
                 >
-                  <AddIcon className="text-base" /> 첫 카드 만들기
+                  <AddIcon className="text-base" /> 첫 번째 덱 만들기
                 </button>
               </div>
             ) : (
