@@ -30,17 +30,19 @@ interface FileListPanelProps {
     onSignOut: () => void;
     onUpgradeClick?: (reason?: 'documents' | 'ai_actions' | 'generic') => void;
     onAdminClick?: () => void;
+    /** When set, the sidebar shows a sign-in pill instead of the user card. */
+    onSignInClick?: () => void;
 }
 
 export const FileListPanel: React.FC<FileListPanelProps> = ({
-    onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut, onUpgradeClick, onAdminClick,
+    onFileSelected, setIsPanelCollapsed, isDesktop, onProfileClick, onSignOut, onUpgradeClick, onAdminClick, onSignInClick,
 }) => {
     const { state, dispatch } = useDocuments();
     const navigate = useNavigate();
     const location = useLocation();
     const { userEmail, userProfile } = useUser();
     const tierLimits = useTierLimits(state.documents.length);
-    const planName = tierLimits.isPro ? 'Pro' : 'Free';
+    const planName = tierLimits.isGuest ? 'Guest' : tierLimits.isPro ? 'Pro' : 'Free';
     const { showToast } = useToast();
     const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -490,6 +492,23 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
                     >
                         <AdminPanelIcon className="text-base" />
                         Admin Panel
+                    </button>
+                )}
+
+                {/* Guest sign-in pill (shown when there's no signed-in user) */}
+                {!userEmail && onSignInClick && (
+                    <button
+                        type="button"
+                        onClick={onSignInClick}
+                        className="w-full flex items-center gap-3 p-2.5 bg-brand-50 border border-brand-200 rounded-xl hover:bg-brand-100 transition-colors"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-brand-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                            G
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <p className="text-xs font-bold text-ink-800">게스트로 사용 중</p>
+                            <p className="text-[11px] text-ink-500 mt-0.5">로그인하면 모든 기능 사용 →</p>
+                        </div>
                     </button>
                 )}
 

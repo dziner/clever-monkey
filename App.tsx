@@ -187,6 +187,7 @@ const App: React.FC = () => {
                         onSignOut={handleSignOut}
                         onUpgradeClick={openUpgrade}
                         onAdminClick={isAdmin ? () => navigate(ROUTES.ADMIN) : undefined}
+                        onSignInClick={() => setIsAuthModalOpen(true)}
                     />
                 </aside>
             </div>
@@ -214,6 +215,7 @@ const App: React.FC = () => {
                         onSignOut={handleSignOut}
                         onUpgradeClick={openUpgrade}
                         onAdminClick={isAdmin ? () => navigate(ROUTES.ADMIN) : undefined}
+                        onSignInClick={() => setIsAuthModalOpen(true)}
                     />
                 )}
             </aside>
@@ -222,8 +224,8 @@ const App: React.FC = () => {
             <main className="flex-1 flex min-w-0 relative">
               <React.Suspense fallback={<PageLoader />}>
                 <Routes>
-                    <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
-                    <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} />} />
+                    <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} />} />
+                    <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} />} />
                 </Routes>
               </React.Suspense>
             </main>

@@ -119,9 +119,12 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
 
 interface StudyPageProps {
     onMenuClick: () => void;
+    /** Plumbed to the InteractionPanel so guest-locked tabs can offer sign-in. */
+    isGuest?: boolean;
+    onSignInClick?: () => void;
 }
 
-export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
+export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSignInClick }) => {
     const { state, dispatch } = useDocuments();
     const [isPdfVisible, setIsPdfVisible] = React.useState(false);
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
@@ -265,6 +268,8 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         onToggleRightPanel={() => setIsRightPanelCollapsed(true)}
                         activeTab={activeTab}
                         onTabChange={setActiveTab}
+                        isGuest={isGuest}
+                        onSignInClick={onSignInClick}
                     />
                 )}
             </aside>
@@ -281,6 +286,8 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                     onTogglePdfViewer={() => setIsPdfViewerCollapsed(v => !v)}
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
+                    isGuest={isGuest}
+                    onSignInClick={onSignInClick}
                 />
             </section>
 

@@ -202,6 +202,22 @@ export const TIER_LIMITS = {
   pro:  { maxDocuments: Infinity, maxAiActionsPerDay: Infinity, label: 'Pro' },
 } as const;
 
+/**
+ * Guest (signed-out) limits. Guest documents live in memory only —
+ * they are NOT synced to Supabase and disappear on refresh / sign-in.
+ * Only Chat (and the per-document Overview) are unlocked; richer tools
+ * (Quiz, Mind Map, Flashcards, Podcast) require sign-in.
+ */
+export const GUEST_LIMITS = {
+  maxDocuments: 3,
+  maxFileSizeBytes: 5 * 1024 * 1024, // 5 MB
+  label: 'Guest',
+} as const;
+
+/** Tabs that work without a Supabase-backed account. */
+export const GUEST_ALLOWED_TABS = ['overview', 'chat'] as const;
+export type GuestAllowedTab = typeof GUEST_ALLOWED_TABS[number];
+
 // ─── Document State ───────────────────────────────────────────────────────────
 
 export type DocumentAction =

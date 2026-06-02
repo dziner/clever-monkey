@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseClient';
 import { getErrorMessage } from '../utils/errors';
 import { initialBotMessage } from '../constants';
 import { maybeCompressPdf } from '../utils/pdfCompression';
+import { GUEST_LIMITS } from '../types';
 import type { DocumentData, DocumentProcessingState, ProcessingModel } from '../types';
 
 const SUPPORTED_MIME_TYPES = [
@@ -45,7 +46,22 @@ const getFileType = (file: File): 'pdf' | 'image' | 'text' => {
     return 'text';
 };
 
-export const useFileHandler = (onAuthRequired?: () => void) => {
+/**
+ * File upload handler.
+ *
+ * Guest path (no signed-in user):
+ *   - Cap docs at GUEST_LIMITS.maxDocuments and per-file size at
+ *     GUEST_LIMITS.maxFileSizeBytes.
+ *   - Skip Supabase storage / metadata writes — documents live in
+ *     memory only and disappear on refresh (matches the spec for
+ *     "session-bound, no account sync").
+ *   - Gemini-backed processing still works (the Netlify proxy
+ *     falls back to IP rate limiting when no auth header is sent).
+ *
+ * Authed path: unchanged — uploads to storage, inserts metadata,
+ * runs processing, then writes the result back.
+ */
+export const useFileHandler = (_onAuthRequired?: () => void) => {
     const { state, dispatch } = useDocuments();
 
     return React.useCallback(async (file: File) => {
@@ -55,21 +71,65 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
         if (userError) {
             console.error('사용자 정보를 불러오지 못했습니다:', userError);
         }
-        if (!user) {
-            onAuthRequired?.();
-            return;
-        }
-        
+        const isGuest = !user;
+
         const safeFileName = sanitizeFileName(file.name);
         const safeExtensionMatch = safeFileName.match(/\.([a-zA-Z0-9]+)$/);
         const safeExtension = safeExtensionMatch ? `.${safeExtensionMatch[1].toLowerCase()}` : '';
         const safeBaseName = safeExtensionMatch ? safeFileName.slice(0, -safeExtension.length) : safeFileName;
         const storageName = `${safeBaseName}-${Date.now()}${safeExtension}`;
         const docId = storageName;
-        
+
         let targetFolderId: string | null = state.activeFolderId;
         if (!targetFolderId && state.folders.length > 0) {
             targetFolderId = state.folders[0].id;
+        }
+
+        // ── Guest-specific gating ─────────────────────────────────────────────
+        if (isGuest) {
+            if (state.documents.length >= GUEST_LIMITS.maxDocuments) {
+                const errorDoc: DocumentData = {
+                    id: docId,
+                    file: null,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: 'pdf',
+                    summary: '',
+                    chat: null,
+                    chatHistory: [],
+                    processingState: 'error',
+                    errorMessage: `게스트는 최대 ${GUEST_LIMITS.maxDocuments}개의 파일만 업로드할 수 있어요. 로그인하면 더 많이 올릴 수 있습니다.`,
+                    model: 'gemini-2.5-flash',
+                    answerScope: 'document',
+                    monkeyMode: false,
+                    folderId: null,
+                    currentPage: 1,
+                };
+                dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                return;
+            }
+            if (file.size > GUEST_LIMITS.maxFileSizeBytes) {
+                const mb = (GUEST_LIMITS.maxFileSizeBytes / (1024 * 1024)).toFixed(0);
+                const errorDoc: DocumentData = {
+                    id: docId,
+                    file: null,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: 'pdf',
+                    summary: '',
+                    chat: null,
+                    chatHistory: [],
+                    processingState: 'error',
+                    errorMessage: `게스트는 한 파일에 ${mb}MB까지 업로드할 수 있어요. 로그인하면 더 큰 파일도 가능합니다.`,
+                    model: 'gemini-2.5-flash',
+                    answerScope: 'document',
+                    monkeyMode: false,
+                    folderId: null,
+                    currentPage: 1,
+                };
+                dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                return;
+            }
         }
 
         if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
@@ -93,10 +153,10 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
             dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
             return;
         }
-        
+
         const fileType = getFileType(file);
         const { file: uploadFile } = await maybeCompressPdf(file);
-        const storagePath = `${user.id}/${storageName}`;
+        const storagePath = isGuest ? '' : `${user.id}/${storageName}`;
         
         const newDoc: DocumentData = {
             id: docId,
@@ -120,7 +180,10 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
 
         dispatch({ type: 'ADD_DOCUMENT', payload: newDoc });
 
-        try {
+        // Guests skip the Supabase storage upload + metadata insert entirely.
+        // Their document lives in memory only and is processed via the
+        // unauthenticated Gemini path (IP-rate-limited by the Netlify proxy).
+        if (!isGuest) try {
             let uploadError: { status?: number; message?: string } | null = null;
             for (let attempt = 1; attempt <= 3; attempt += 1) {
                 const { error } = await supabase.storage
@@ -157,7 +220,7 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
                 .from('documents')
                 .insert({
                     id: docId,
-                    user_id: user.id,
+                    user_id: user!.id,
                     folder_id: targetFolderId,
                     file_name: file.name,
                     file_size: uploadFile.size,
@@ -227,22 +290,24 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
                 }
             });
 
-            const { error: updateError } = await supabase
-                .from('documents')
-                .update({
-                    summary,
-                    preset_questions: presetQuestions ?? null,
-                    chat_history: newDoc.chatHistory,
-                    token_count: tokenCount ?? null,
-                    document_content: documentContent ?? null,
-                    processing_state: 'done',
-                    error_message: null,
-                })
-                .eq('id', docId)
-                .eq('user_id', user.id);
+            if (!isGuest) {
+                const { error: updateError } = await supabase
+                    .from('documents')
+                    .update({
+                        summary,
+                        preset_questions: presetQuestions ?? null,
+                        chat_history: newDoc.chatHistory,
+                        token_count: tokenCount ?? null,
+                        document_content: documentContent ?? null,
+                        processing_state: 'done',
+                        error_message: null,
+                    })
+                    .eq('id', docId)
+                    .eq('user_id', user!.id);
 
-            if (updateError) {
-                console.error('문서 처리 결과 저장에 실패했습니다:', updateError);
+                if (updateError) {
+                    console.error('문서 처리 결과 저장에 실패했습니다:', updateError);
+                }
             }
         } catch (error) {
             console.error('Failed to process document:', error);
@@ -257,14 +322,16 @@ export const useFileHandler = (onAuthRequired?: () => void) => {
                 }
             });
 
-            await supabase
-                .from('documents')
-                .update({
-                    processing_state: 'error',
-                    error_message: getErrorMessage(error),
-                })
-                .eq('id', docId)
-                .eq('user_id', user.id);
+            if (!isGuest) {
+                await supabase
+                    .from('documents')
+                    .update({
+                        processing_state: 'error',
+                        error_message: getErrorMessage(error),
+                    })
+                    .eq('id', docId)
+                    .eq('user_id', user!.id);
+            }
         }
     }, [dispatch, state.activeFolderId, state.folders]);
 };
