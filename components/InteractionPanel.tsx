@@ -5,6 +5,7 @@ import { OverviewTab } from './OverviewTab';
 import { MindMapTab } from './MindMapTab';
 import { FlashcardsTab } from './FlashcardsTab';
 import { PodcastTab } from './PodcastTab';
+import { LoginRequired } from './LoginRequired';
 import { fetchWrongAnswers, markReviewed, deleteWrongAnswer } from '../services/wrongAnswersService';
 import type { WrongAnswerRecord } from '../services/wrongAnswersService';
 import { supabase } from '../services/supabaseClient';
@@ -34,6 +35,14 @@ interface InteractionPanelProps {
 
     activeTab: ActiveTab;
     onTabChange: (tab: ActiveTab) => void;
+
+    /**
+     * Guest mode locks Quiz/Mind Map/Flashcards/Podcast. When true the
+     * corresponding tabs render a <LoginRequired/> gate instead of their
+     * normal content, and their tab buttons show a small lock indicator.
+     */
+    isGuest?: boolean;
+    onSignInClick?: () => void;
 }
 
 // ─── Wrong Answers Panel (document-scoped, used inside Quiz tab) ──
@@ -175,6 +184,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onToggleRightPanel,
     activeTab,
     onTabChange,
+    isGuest = false,
+    onSignInClick,
 }) => {
     const { dispatch } = useDocuments();
     // activeTab is controlled by prop from StudyPage
@@ -495,43 +506,64 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         { id: 'podcast', icon: HeadphonesIcon, label: 'Podcast' },
     ] as const;
 
+    // Tabs that are unlocked for guests. Everything else shows a small lock badge
+    // and renders <LoginRequired/> when activated.
+    const isGuestLockedTab = (id: ActiveTab) =>
+        isGuest && id !== 'overview' && id !== 'chat';
+
     const TabsComponent = () => (
         <div className="flex bg-white w-full border-b border-ink-100">
-            {studyTabs.map(tab => (
+            {studyTabs.map(tab => {
+                const locked = isGuestLockedTab(tab.id as ActiveTab);
+                return (
                 <button
                     key={tab.id}
                     type="button"
-                    title={tab.label}
+                    title={locked ? `${tab.label} — 로그인 필요` : tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
                     className={[
                         'relative flex-1 flex items-center justify-center py-3 transition-colors',
-                        activeTab === tab.id ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700',
+                        activeTab === tab.id ? 'text-brand-600' : locked ? 'text-ink-300 hover:text-ink-500' : 'text-ink-400 hover:text-ink-700',
                     ].join(' ')}
                 >
-                    <tab.icon className="text-[18px]" />
+                    <span className="relative inline-flex">
+                        <tab.icon className="text-[18px]" />
+                        {locked && (
+                            <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-ink-300" aria-hidden="true" />
+                        )}
+                    </span>
                     {activeTab === tab.id && (
                         <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-brand-600" />
                     )}
                 </button>
-            ))}
+                );
+            })}
             <div className="w-px bg-ink-200 flex-shrink-0 my-2.5" />
-            {createTabs.map(tab => (
+            {createTabs.map(tab => {
+                const locked = isGuestLockedTab(tab.id as ActiveTab);
+                return (
                 <button
                     key={tab.id}
                     type="button"
-                    title={tab.label}
+                    title={locked ? `${tab.label} — 로그인 필요` : tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
                     className={[
                         'relative flex-1 flex items-center justify-center py-3 transition-colors',
-                        activeTab === tab.id ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700',
+                        activeTab === tab.id ? 'text-brand-600' : locked ? 'text-ink-300 hover:text-ink-500' : 'text-ink-400 hover:text-ink-700',
                     ].join(' ')}
                 >
-                    <tab.icon className="text-[18px]" />
+                    <span className="relative inline-flex">
+                        <tab.icon className="text-[18px]" />
+                        {locked && (
+                            <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-ink-300" aria-hidden="true" />
+                        )}
+                    </span>
                     {activeTab === tab.id && (
                         <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-brand-600" />
                     )}
                 </button>
-            ))}
+                );
+            })}
         </div>
     );
 
@@ -676,18 +708,28 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'mindmap' ? 'flex' : 'hidden'}`}>
-                    <MindMapTab document={document} />
+                    {isGuest
+                        ? <LoginRequired feature="마인드맵" onSignInClick={onSignInClick} />
+                        : <MindMapTab document={document} />}
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'flashcards' ? 'flex' : 'hidden'}`}>
-                    <FlashcardsTab document={document} />
+                    {isGuest
+                        ? <LoginRequired feature="플래시카드" onSignInClick={onSignInClick} />
+                        : <FlashcardsTab document={document} />}
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'podcast' ? 'flex' : 'hidden'}`}>
-                    <PodcastTab document={document} />
+                    {isGuest
+                        ? <LoginRequired feature="팟캐스트" onSignInClick={onSignInClick} />
+                        : <PodcastTab document={document} />}
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'quiz' ? 'flex' : 'hidden'}`}>
+                    {isGuest ? (
+                        <LoginRequired feature="퀴즈" onSignInClick={onSignInClick} />
+                    ) : (
+                    <>
                     {/* Sub-tab strip: Quiz | 오답노트 */}
                     <div className="flex-shrink-0 border-b border-ink-100 bg-white">
                         <div className="flex">
@@ -786,6 +828,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             onMarkReviewed={handleMarkReviewed}
                             onDelete={handleDeleteWA}
                         />
+                    )}
+                    </>
                     )}
                 </div>
 
