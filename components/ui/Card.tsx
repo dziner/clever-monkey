@@ -1,5 +1,9 @@
 import * as React from 'react';
 
+/**
+ * Card primitive — Kopay guideline §3.3 / §4: surface separated by
+ * tone + radius, single shadow-card (no shadow stacking).
+ */
 type Tone = 'default' | 'elevated' | 'soft' | 'outline';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -9,9 +13,9 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const TONE_CLS: Record<Tone, string> = {
-  default:  'bg-white border border-ink-200 shadow-soft',
-  elevated: 'bg-white border border-ink-200/70 shadow-card',
-  soft:     'bg-ink-50 border border-ink-200/60',
+  default:  'bg-white border border-ink-200 shadow-card',
+  elevated: 'bg-white border border-ink-200 shadow-card',
+  soft:     'bg-ink-150',
   outline:  'bg-white border border-ink-200',
 };
 
@@ -25,10 +29,10 @@ export const Card: React.FC<CardProps> = ({
 }) => (
   <div
     className={[
-      'rounded-2xl',
+      'rounded-lg',
       TONE_CLS[tone],
-      interactive ? 'transition-all duration-200 hover:shadow-lift hover:-translate-y-0.5 cursor-pointer' : '',
-      padded ? 'p-5' : '',
+      interactive ? 'transition-transform duration-200 active:scale-[0.99] cursor-pointer' : '',
+      padded ? 'p-4' : '',
       className,
     ].join(' ')}
     {...rest}
@@ -38,19 +42,19 @@ export const Card: React.FC<CardProps> = ({
 );
 
 export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className = '', children, ...rest }) => (
-  <div className={['flex items-center gap-2 mb-3', className].join(' ')} {...rest}>
+  <div className={['flex items-center justify-between mb-4', className].join(' ')} {...rest}>
     {children}
   </div>
 );
 
 export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({ className = '', children, ...rest }) => (
-  <h3 className={['text-sm font-bold text-ink-800', className].join(' ')} {...rest}>
+  <h3 className={['text-h2', className].join(' ')} {...rest}>
     {children}
   </h3>
 );
 
 export const CardEyebrow: React.FC<React.HTMLAttributes<HTMLParagraphElement>> = ({ className = '', children, ...rest }) => (
-  <p className={['text-[11px] font-bold uppercase tracking-wider text-ink-400', className].join(' ')} {...rest}>
+  <p className={['text-eyebrow', className].join(' ')} {...rest}>
     {children}
   </p>
 );

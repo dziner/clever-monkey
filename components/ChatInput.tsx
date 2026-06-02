@@ -36,11 +36,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
     };
 
     return (
-        <div className="flex items-start gap-2 p-1.5 bg-white border border-slate-300 rounded-xl focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/15 transition-colors">
+        <div className="flex items-start gap-2 p-1.5 bg-white border border-ink-300 rounded-xl focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/15 transition-colors">
             <button
                 onClick={toggleListening}
                 disabled={!isSupported}
-                className={`flex-shrink-0 p-2 rounded-full ${isListening ? 'text-red-500 bg-red-100' : 'text-slate-500 hover:bg-slate-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`flex-shrink-0 p-2 rounded-full ${isListening ? 'text-danger-500 bg-danger-100' : 'text-ink-500 hover:bg-ink-100'} disabled:opacity-50 disabled:cursor-not-allowed`}
                 aria-label={isListening ? 'Stop listening' : 'Start listening'}
                 title={!isSupported ? "Speech recognition is not supported by your browser." : (isListening ? 'Stop listening' : 'Start listening')}
             >
@@ -52,7 +52,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
                 onChange={handleTextAreaChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask a question..."
-                className="w-full border-none focus:ring-0 focus:outline-none resize-none bg-transparent py-3 text-base placeholder-slate-500 text-slate-900"
+                className="w-full border-none focus:ring-0 focus:outline-none resize-none bg-transparent py-3 text-base placeholder-ink-500 text-ink-900"
                 style={{ minHeight: '56px', maxHeight: '150px' }}
                 disabled={isBotTyping}
                 aria-label="Chat input"
@@ -60,7 +60,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
             <button
                 onClick={handleSend}
                 disabled={isBotTyping || !userInput.trim()}
-                className="flex-shrink-0 w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center self-end disabled:bg-slate-200 disabled:cursor-not-allowed enabled:bg-brand-600 enabled:text-white hover:enabled:bg-brand-700 enabled:shadow-brand transition-colors"
+                className="flex-shrink-0 w-10 h-10 rounded-full bg-ink-200 text-ink-700 flex items-center justify-center self-end disabled:bg-ink-200 disabled:cursor-not-allowed enabled:bg-brand-600 enabled:text-white hover:enabled:bg-brand-700 enabled:shadow-brand transition-colors"
                 aria-label="Send message"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>

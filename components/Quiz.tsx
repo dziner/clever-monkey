@@ -126,12 +126,12 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
         return (
             <div className="space-y-4">
                 {/* Results Card */}
-                <div className="bg-brand-50 border border-brand-200 rounded-xl shadow-md p-4 text-slate-800 space-y-4">
+                <div className="bg-brand-50 border border-brand-200 rounded-xl shadow-md p-4 text-ink-800 space-y-4">
                     <h2 className="text-lg font-bold text-center">{data.title} - Results</h2>
                     
                     <div className="my-4 text-center">
-                        <p className="text-sm text-slate-600">You scored</p>
-                        <p className="text-4xl font-bold text-slate-800 my-1">{score}%</p>
+                        <p className="text-sm text-ink-700">You scored</p>
+                        <p className="text-4xl font-bold text-ink-800 my-1">{score}%</p>
                         <p className="text-sm font-semibold">{numCorrect} out of {totalQuestions} correct</p>
                     </div>
                     
@@ -140,7 +140,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                             {hasIncorrect && onRestartWithNewData ? (
                                 <button
                                     onClick={handleRetryIncorrect}
-                                    className="w-full px-4 py-2 bg-white border border-orange-500 text-orange-600 rounded-lg font-semibold hover:bg-orange-50 transition-colors text-sm"
+                                    className="w-full px-4 py-2 bg-white border border-orange-500 text-warning-600 rounded-lg font-semibold hover:bg-warning-50 transition-colors text-sm"
                                 >
                                     Retry Incorrect
                                 </button>
@@ -154,7 +154,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                         </div>
                         <button
                             onClick={onCreateAnotherQuiz}
-                            className="w-full text-center text-sm px-4 py-2 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-colors"
+                            className="w-full text-center text-sm px-4 py-2 text-ink-700 rounded-lg font-semibold hover:bg-ink-200 transition-colors"
                         >
                             Create a New Quiz
                         </button>
@@ -164,12 +164,12 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                 {/* Study Tips Card */}
                 {documentContent && (
                     isGeneratingTips ? (
-                        <div className="bg-white border border-slate-200 rounded-xl shadow-md p-4 flex flex-col items-center justify-center min-h-[10rem]">
+                        <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 flex flex-col items-center justify-center min-h-[10rem]">
                             <Spinner />
-                            <p className="mt-2 text-sm font-semibold text-slate-600">Generating study tips...</p>
+                            <p className="mt-2 text-sm font-semibold text-ink-700">Generating study tips...</p>
                         </div>
                     ) : studyTips && (
-                        <div className="bg-white border border-slate-200 rounded-xl shadow-md p-4 animate-fade-in-up text-slate-800">
+                        <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 animate-fade-in-up text-ink-800">
                             <MarkdownRenderer content={studyTips} />
                         </div>
                     )
@@ -183,15 +183,15 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
 
     return (
         <div className="bg-brand-50 border border-brand-200 rounded-xl shadow-md p-4">
-            <div className="text-slate-800 space-y-4">
+            <div className="text-ink-800 space-y-4">
                 <h2 className="text-lg font-bold">{data.title}</h2>
                 
                 {/* Progress */}
                 <div>
-                    <p className="text-sm font-semibold text-slate-600 mb-1 text-right">
+                    <p className="text-sm font-semibold text-ink-700 mb-1 text-right">
                         Question {currentQuestionIndex + 1} of {totalQuestions}
                     </p>
-                    <div className="w-full bg-slate-200 rounded-full h-1.5">
+                    <div className="w-full bg-ink-200 rounded-full h-1.5">
                         <div 
                             className="bg-brand-500 h-1.5 rounded-full transition-all duration-300" 
                             style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
@@ -200,7 +200,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                 </div>
 
                 {/* Question */}
-                <div key={currentQuestionIndex} className="bg-white p-3 rounded-lg border border-slate-200">
+                <div key={currentQuestionIndex} className="bg-white p-3 rounded-lg border border-ink-200">
                     <p className="font-semibold text-sm mb-2">
                         {renderInline(currentQuestion.questionText)}
                     </p>
@@ -212,17 +212,17 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                             let stateClasses = '';
                             if (isChecked) {
                                 if (isCorrectOption) {
-                                    stateClasses = 'border-green-400 bg-green-50 text-green-800 font-semibold';
+                                    stateClasses = 'border-success-500 bg-success-50 text-success-700 font-semibold';
                                 } else if (isOptionSelectedByUser) { // and not correct
-                                    stateClasses = 'border-red-400 bg-red-50 text-red-800 font-semibold';
+                                    stateClasses = 'border-danger-500 bg-danger-50 text-danger-700 font-semibold';
                                 } else {
-                                    stateClasses = 'bg-slate-50 border-slate-300 text-slate-700 opacity-70';
+                                    stateClasses = 'bg-ink-50 border-ink-300 text-ink-700 opacity-70';
                                 }
                             } else {
                                 if (isOptionSelectedByUser) {
                                     stateClasses = 'bg-brand-100 text-brand-800 border-brand-400 ring-2 ring-brand-300';
                                 } else {
-                                    stateClasses = 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-700';
+                                    stateClasses = 'bg-ink-50 hover:bg-ink-100 border-ink-300 text-ink-700';
                                 }
                             }
 
@@ -240,7 +240,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                         })}
                     </div>
                     {isChecked && (
-                        <div className="mt-3 p-2 bg-yellow-50 rounded-md text-sm animate-fade-in-up">
+                        <div className="mt-3 p-2 bg-warning-50 rounded-md text-sm animate-fade-in-up">
                             <strong>Explanation:</strong> {renderInline(currentQuestion.explanation)}
                         </div>
                     )}
@@ -252,7 +252,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                         <button
                             onClick={handleCheckAnswer}
                             disabled={selectedOption === undefined}
-                            className="flex items-center gap-1 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1 px-4 py-2 bg-success-600 text-white rounded-lg font-semibold hover:bg-success-700 transition-colors disabled:bg-ink-300 disabled:cursor-not-allowed"
                         >
                             Check Answer <CheckIcon />
                         </button>
@@ -268,7 +268,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                 
                 <button
                     onClick={onCreateAnotherQuiz}
-                    className="w-full text-center text-sm px-4 py-2 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-colors"
+                    className="w-full text-center text-sm px-4 py-2 text-ink-700 rounded-lg font-semibold hover:bg-ink-200 transition-colors"
                 >
                     Create a New Quiz
                 </button>

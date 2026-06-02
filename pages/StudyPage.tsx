@@ -31,14 +31,14 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors ${
                                 isDone ? 'bg-green-500 text-white' :
                                 isActive ? 'bg-brand-600 text-white' :
-                                'bg-slate-200 text-slate-400'
+                                'bg-ink-200 text-ink-400'
                             }`}>
                                 {isDone ? '✓' : i + 1}
                             </div>
                             <span className={`text-sm font-medium transition-colors ${
                                 isActive ? 'text-brand-700' :
                                 isDone ? 'text-green-600' :
-                                'text-slate-400'
+                                'text-ink-400'
                             }`}>{step.label}{isActive ? '…' : ''}</span>
                         </div>
                     );
@@ -49,10 +49,10 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
 };
 
 const ViewerPlaceholder = () => (
-    <div className="flex flex-col items-center justify-center h-full bg-slate-100 p-8 text-center">
-        <DocumentIcon className="text-5xl text-slate-400" />
-        <h3 className="text-lg font-bold text-slate-700 mt-4">File content not available</h3>
-        <p className="text-slate-500 mt-2 max-w-sm">
+    <div className="flex flex-col items-center justify-center h-full bg-ink-100 p-8 text-center">
+        <DocumentIcon className="text-5xl text-ink-400" />
+        <h3 className="text-lg font-bold text-ink-700 mt-4">File content not available</h3>
+        <p className="text-ink-500 mt-2 max-w-sm">
             To view the document, please upload the file again. Your summary and chat history have been saved.
         </p>
     </div>
@@ -77,7 +77,7 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
 }) => (
     <React.Fragment>
         {isProcessing && (
-            <div className="absolute inset-0 bg-slate-50/95 flex flex-col items-center justify-center z-10 p-8">
+            <div className="absolute inset-0 bg-ink-50/95 flex flex-col items-center justify-center z-10 p-8">
                 <ProcessingProgress processingState={processingState} />
             </div>
         )}
@@ -96,7 +96,7 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                     <button
                         type="button"
                         onClick={onDeleteDocument}
-                        className="flex items-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-300"
+                        className="flex items-center px-4 py-2 bg-ink-200 text-ink-700 rounded-lg font-semibold hover:bg-ink-300"
                     >
                         <XIcon className="text-base mr-1.5" /> Close
                     </button>
@@ -180,7 +180,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
 
     if (!activeDocument) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-500">
+            <div className="w-full h-full flex items-center justify-center bg-ink-50 text-ink-500">
                 <p>Select a document to get started.</p>
             </div>
         );
@@ -189,7 +189,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
     return (
         <div className="flex-1 flex min-w-0">
             {/* PDF Viewer — Desktop */}
-            <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-slate-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
+            <section className={`relative hidden md:flex flex-col flex-1 min-w-0 min-h-0 bg-ink-100 transition-all duration-300 ease-in-out ${isPdfViewerCollapsed ? 'flex-basis-0 w-0 p-0' : ''}`}>
                 <div className={`flex-1 relative min-h-0 w-full flex flex-col ${isPdfViewerCollapsed ? 'overflow-hidden' : ''}`}>
                     <PdfContentPanel
                         file={activeDocument.file}
@@ -211,16 +211,16 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 <button
                     type="button"
                     onMouseDown={handleResize}
-                    className={`hidden md:flex items-center justify-center w-3 h-full bg-slate-50 border-l border-slate-200 hover:bg-brand-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
+                    className={`hidden md:flex items-center justify-center w-3 h-full bg-ink-50 border-l border-ink-200 hover:bg-brand-50 cursor-col-resize flex-shrink-0 transition-colors group z-20 ${isPdfViewerCollapsed ? 'hidden' : ''}`}
                     aria-label="Resize panel"
                 >
-                    <div className="w-1 h-8 rounded-full bg-slate-300 group-hover:bg-brand-400 transition-colors" />
+                    <div className="w-1 h-8 rounded-full bg-ink-300 group-hover:bg-brand-400 transition-colors" />
                 </button>
             )}
 
             {/* Right Panel — collapsed icon strip or full InteractionPanel */}
             <aside
-                className={`hidden md:flex flex-col flex-shrink-0 h-full bg-white border-l border-slate-200 transition-all duration-300 ${isRightPanelCollapsed ? 'w-14' : ''}`}
+                className={`hidden md:flex flex-col flex-shrink-0 h-full bg-white border-l border-ink-200 transition-all duration-300 ${isRightPanelCollapsed ? 'w-14' : ''}`}
                 style={isRightPanelCollapsed ? {} : (isPdfViewerCollapsed ? { width: '100%' } : { width: interactionPanelWidth })}
             >
                 {isRightPanelCollapsed ? (
@@ -228,12 +228,12 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                         <button
                             type="button"
                             onClick={() => setIsRightPanelCollapsed(false)}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 text-ink-400 hover:text-ink-700 hover:bg-ink-100 rounded-lg transition-colors"
                             title="Expand tools panel"
                         >
                             <PanelRightCloseIcon />
                         </button>
-                        <div className="w-8 h-px bg-slate-200 mb-1" />
+                        <div className="w-8 h-px bg-ink-200 mb-1" />
                         {([
                             { id: 'overview', icon: SpaceDashboardIcon, label: 'Overview' },
                             { id: 'chat', icon: ChatIcon, label: 'Chat' },
@@ -270,7 +270,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
             </aside>
 
             {/* Interaction Panel — Mobile (full width) */}
-            <section className="min-h-0 h-full w-full md:hidden bg-white border-l border-slate-200 shadow-xl z-10">
+            <section className="min-h-0 h-full w-full md:hidden bg-white border-l border-ink-200 shadow-xl z-10">
                 <InteractionPanel
                     key={`mobile-${activeDocument.id}`}
                     document={activeDocument}
@@ -306,12 +306,12 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick }) => {
                 }}
             >
                 <div
-                    className="absolute top-0 left-0 right-0 h-7 flex items-center justify-center z-30 bg-white border-b border-slate-100 rounded-t-2xl touch-none"
+                    className="absolute top-0 left-0 right-0 h-7 flex items-center justify-center z-30 bg-white border-b border-ink-100 rounded-t-2xl touch-none"
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <div className="w-10 h-1.5 bg-slate-300 rounded-full" />
+                    <div className="w-10 h-1.5 bg-ink-300 rounded-full" />
                 </div>
                 <div className="relative h-full w-full pt-7 flex flex-col">
                     <PdfContentPanel

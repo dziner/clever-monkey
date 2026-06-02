@@ -49,62 +49,62 @@ const WrongAnswerCard: React.FC<{
     const [expanded, setExpanded] = React.useState(false);
     const isReviewed = !!item.reviewedAt;
     return (
-        <div className={`rounded-xl border transition-all duration-200 ${isReviewed ? 'border-slate-100 bg-slate-50/50' : 'border-slate-200 bg-white shadow-sm'}`}>
+        <div className={`rounded-xl border transition-all duration-200 ${isReviewed ? 'border-ink-100 bg-ink-50/50' : 'border-ink-200 bg-white shadow-sm'}`}>
             <button type="button" className="w-full text-left p-3 flex items-start gap-3" onClick={() => setExpanded(e => !e)}>
                 <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${item.quizType === 'mcq' ? 'bg-info-50 text-info-600' : 'bg-success-50 text-success-600'}`}>
                     {item.quizType === 'mcq' ? <AssignmentIcon className="text-sm" /> : <BrainIcon className="text-sm" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium leading-snug ${isReviewed ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{item.questionText}</p>
+                    <p className={`text-sm font-medium leading-snug ${isReviewed ? 'text-ink-400 line-through' : 'text-ink-800'}`}>{item.questionText}</p>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-xs text-slate-400">{formatDate(item.createdAt)}</span>
+                        <span className="text-xs text-ink-400">{formatDate(item.createdAt)}</span>
                         {item.quizType === 'frq' && item.score !== undefined && (
-                            <span className={`text-xs font-semibold ${item.score < 40 ? 'text-red-500' : 'text-orange-500'}`}>{item.score}점</span>
+                            <span className={`text-xs font-semibold ${item.score < 40 ? 'text-danger-500' : 'text-warning-500'}`}>{item.score}점</span>
                         )}
-                        {isReviewed && <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">복습완료</span>}
+                        {isReviewed && <span className="text-xs bg-success-100 text-success-700 px-1.5 py-0.5 rounded-full font-medium">복습완료</span>}
                     </div>
                 </div>
-                <div className="flex-shrink-0 text-slate-300">
+                <div className="flex-shrink-0 text-ink-300">
                     {expanded ? <ChevronUpIcon className="text-lg" /> : <ChevronDownIcon className="text-lg" />}
                 </div>
             </button>
             {expanded && (
-                <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2">
+                <div className="px-3 pb-3 space-y-2 border-t border-ink-100 pt-2">
                     {item.quizType === 'mcq' && item.options && (
                         <div className="space-y-1">
                             {item.options.map((opt, i) => {
                                 const isCorrect = i === item.correctAnswerIndex;
                                 const isUser = i === item.userAnswerIndex;
-                                let cls = 'text-slate-500 bg-slate-50';
-                                if (isCorrect) cls = 'text-green-700 bg-green-50 border border-green-200 font-semibold';
-                                else if (isUser) cls = 'text-red-700 bg-red-50 border border-red-200 line-through';
+                                let cls = 'text-ink-500 bg-ink-50';
+                                if (isCorrect) cls = 'text-success-700 bg-success-50 border border-success-200 font-semibold';
+                                else if (isUser) cls = 'text-danger-700 bg-danger-50 border border-danger-200 line-through';
                                 return (
                                     <div key={i} className={`text-xs px-3 py-1.5 rounded-lg ${cls}`}>
                                         <span className="font-bold mr-1.5">{String.fromCharCode(65 + i)}.</span>{opt}
-                                        {isCorrect && <span className="ml-1.5 text-green-600">✓ 정답</span>}
-                                        {isUser && !isCorrect && <span className="ml-1.5 text-red-500">✗ 내 답</span>}
+                                        {isCorrect && <span className="ml-1.5 text-success-600">✓ 정답</span>}
+                                        {isUser && !isCorrect && <span className="ml-1.5 text-danger-500">✗ 내 답</span>}
                                     </div>
                                 );
                             })}
                         </div>
                     )}
                     {item.quizType === 'frq' && item.userAnswerText && (
-                        <div className="text-xs p-2.5 bg-red-50 border border-red-100 rounded-lg">
-                            <span className="font-semibold text-red-700 block mb-0.5">내 답</span>
-                            <span className="text-slate-700">{item.userAnswerText}</span>
+                        <div className="text-xs p-2.5 bg-danger-50 border border-danger-100 rounded-lg">
+                            <span className="font-semibold text-danger-700 block mb-0.5">내 답</span>
+                            <span className="text-ink-700">{item.userAnswerText}</span>
                         </div>
                     )}
                     <div className="text-xs p-2.5 bg-brand-50 border border-brand-100 rounded-lg">
                         <span className="font-semibold text-brand-700 block mb-0.5">{item.quizType === 'frq' ? '모범 답안' : '해설'}</span>
-                        <span className="text-slate-700 leading-relaxed">{item.explanation}</span>
+                        <span className="text-ink-700 leading-relaxed">{item.explanation}</span>
                     </div>
                     <div className="flex items-center justify-end gap-2 pt-0.5">
                         {!isReviewed && (
-                            <button type="button" onClick={() => onMarkReviewed(item.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg">
+                            <button type="button" onClick={() => onMarkReviewed(item.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-success-700 bg-success-50 hover:bg-success-100 border border-success-200 rounded-lg">
                                 <CheckIcon className="text-xs" /> 복습완료
                             </button>
                         )}
-                        <button type="button" onClick={() => onDelete(item.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 border border-slate-200 rounded-lg">
+                        <button type="button" onClick={() => onDelete(item.id)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-ink-500 hover:text-danger-600 hover:bg-danger-50 border border-ink-200 rounded-lg">
                             <TrashIcon className="text-xs" /> 삭제
                         </button>
                     </div>
@@ -126,20 +126,20 @@ const WrongAnswersPanel: React.FC<{
     if (isLoading) return <div className="flex-1 flex items-center justify-center"><Spinner /></div>;
     if (!isLoggedIn) return (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-3">
-            <ErrorOutlineIcon className="text-3xl text-slate-300" />
-            <p className="font-semibold text-slate-600">로그인이 필요합니다</p>
+            <ErrorOutlineIcon className="text-3xl text-ink-300" />
+            <p className="font-semibold text-ink-700">로그인이 필요합니다</p>
         </div>
     );
 
     return (
         <div className="flex-1 overflow-y-auto">
             {items.length > 0 && (
-                <div className="px-4 py-2.5 border-b border-slate-100 bg-white flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-800">{items.length}</span>
-                    <span className="text-xs text-slate-500">전체</span>
-                    <span className="w-px h-4 bg-slate-200" />
+                <div className="px-4 py-2.5 border-b border-ink-100 bg-white flex items-center gap-3">
+                    <span className="text-sm font-bold text-ink-800">{items.length}</span>
+                    <span className="text-xs text-ink-500">전체</span>
+                    <span className="w-px h-4 bg-ink-200" />
                     <span className="text-sm font-bold text-rose-600">{pendingCount}</span>
-                    <span className="text-xs text-slate-500">복습 필요</span>
+                    <span className="text-xs text-ink-500">복습 필요</span>
                 </div>
             )}
             <div className="p-3 space-y-2">
@@ -448,14 +448,14 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
 
     const MonkeyModeToggle = () => (
-        <div className="flex items-center justify-end gap-2 text-sm text-slate-600" title="Toggle mischievous monkey mode">
+        <div className="flex items-center justify-end gap-2 text-sm text-ink-700" title="Toggle mischievous monkey mode">
             <span className="font-medium">🍌 Monkey</span>
             <button
                 type="button"
                 role="switch"
                 aria-label="Toggle monkey mode"
                 onClick={() => handleMonkeyModeChange(!document.monkeyMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 ${document.monkeyMode ? 'bg-yellow-500' : 'bg-slate-400'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 ${document.monkeyMode ? 'bg-yellow-500' : 'bg-ink-400'}`}
                 aria-checked={document.monkeyMode}
             >
                 <span
@@ -466,7 +466,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     );
 
     const AnswerScopeToggle = () => (
-        <div className="flex items-center justify-end gap-2 text-sm text-slate-600" title={document.answerScope === 'document' ? 'Answers are strictly from the document' : 'Answers can include general knowledge'}>
+        <div className="flex items-center justify-end gap-2 text-sm text-ink-700" title={document.answerScope === 'document' ? 'Answers are strictly from the document' : 'Answers can include general knowledge'}>
             <span className="font-medium">📚 From Document Only</span>
             <button
                 type="button"
@@ -547,7 +547,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'chat' ? 'flex' : 'hidden'}`}>
-                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
+                    <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-ink-100 bg-white">
                         <div className="flex items-center gap-2">
                             <ChatIcon className="text-xl text-brand-500" />
                             <span className="font-semibold text-ink-700 text-sm">Chat</span>
@@ -568,9 +568,9 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                         </button>
                     </div>
                     {isChatSearchOpen && (
-                        <div className="flex-shrink-0 px-4 py-2 border-b border-slate-100 bg-slate-50">
+                        <div className="flex-shrink-0 px-4 py-2 border-b border-ink-100 bg-ink-50">
                             <div className="relative">
-                                <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                                <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-400 text-sm" />
                                 <input
                                     ref={chatSearchRef}
                                     type="text"
@@ -580,7 +580,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                     className="w-full pl-8 pr-8 py-1.5 text-sm bg-white border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                                 />
                                 {chatSearch && (
-                                    <button type="button" onClick={() => setChatSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                    <button type="button" onClick={() => setChatSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700">
                                         <XIcon className="text-sm" />
                                     </button>
                                 )}
@@ -658,7 +658,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             />
                         )}
                     </div>
-                    <div className="p-4 bg-slate-50 border-t border-slate-200">
+                    <div className="p-4 bg-ink-50 border-t border-ink-200">
                         <div className="max-w-3xl mx-auto">
                             <div className="mb-2 flex flex-row flex-wrap justify-end items-center gap-x-4 gap-y-2">
                                 <MonkeyModeToggle />
@@ -689,7 +689,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
                 <div className={`flex-1 flex-col bg-white overflow-hidden ${activeTab === 'quiz' ? 'flex' : 'hidden'}`}>
                     {/* Sub-tab strip: Quiz | 오답노트 */}
-                    <div className="flex-shrink-0 border-b border-slate-100 bg-white">
+                    <div className="flex-shrink-0 border-b border-ink-100 bg-white">
                         <div className="flex">
                             <button
                                 type="button"
@@ -701,7 +701,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             <button
                                 type="button"
                                 onClick={() => setQuizView('wrong_answers')}
-                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${quizView === 'wrong_answers' ? 'text-rose-600 border-rose-500' : 'text-slate-400 border-transparent hover:text-slate-600'}`}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${quizView === 'wrong_answers' ? 'text-rose-600 border-rose-500' : 'text-ink-400 border-transparent hover:text-ink-700'}`}
                             >
                                 <ErrorOutlineIcon className="text-base" /> 오답노트
                             </button>
@@ -714,13 +714,13 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             {isGeneratingQuiz && (
                                 <div className="flex flex-col items-center justify-center h-full text-center">
                                     <Spinner />
-                                    <p className="mt-4 font-semibold text-slate-700">Generating your quiz... 🧠</p>
+                                    <p className="mt-4 font-semibold text-ink-700">Generating your quiz... 🧠</p>
                                 </div>
                             )}
                             {!isGeneratingQuiz && quizError && (
-                                <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-red-50 rounded-lg">
-                                    <p className="font-bold text-red-700">Quiz Generation Failed</p>
-                                    <p className="text-red-600 mt-2 text-sm">{quizError}</p>
+                                <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-danger-50 rounded-lg">
+                                    <p className="font-bold text-danger-700">Quiz Generation Failed</p>
+                                    <p className="text-danger-600 mt-2 text-sm">{quizError}</p>
                                     <button onClick={handleStartNewQuizInTab} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">Try Again</button>
                                 </div>
                             )}
@@ -753,8 +753,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                                             onStudyTipsGenerated={handleStudyTipsGenerated}
                                         />
                                     )}
-                                    <div className="mt-6 pt-4 border-t border-slate-100">
-                                        <p className="text-xs font-semibold text-slate-400 mb-2">복습하기</p>
+                                    <div className="mt-6 pt-4 border-t border-ink-100">
+                                        <p className="text-xs font-semibold text-ink-400 mb-2">복습하기</p>
                                         <div className="flex flex-col sm:flex-row gap-2">
                                             <button
                                                 type="button"
@@ -805,15 +805,15 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     return (
         <div className="flex flex-col h-full bg-white relative">
             {/* Header for both Mobile and Desktop */}
-            <div className="flex-shrink-0 border-b border-slate-200 bg-white">
+            <div className="flex-shrink-0 border-b border-ink-200 bg-white">
                 <div className="p-3 h-14 flex items-center justify-between gap-2">
                     {/* Left side: Menu for mobile, PDF toggle for desktop */}
-                    <button type="button" onClick={onMenuClick} className="p-2 text-slate-600 rounded-lg hover:bg-slate-100 md:hidden" aria-label="Open file menu">
+                    <button type="button" onClick={onMenuClick} className="p-2 text-ink-700 rounded-lg hover:bg-ink-100 md:hidden" aria-label="Open file menu">
                         <MenuIcon className="text-2xl" />
                     </button>
                     <button
                         onClick={onTogglePdfViewer}
-                        className="hidden md:inline-flex p-2 text-slate-400 rounded-lg hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                        className="hidden md:inline-flex p-2 text-ink-400 rounded-lg hover:text-ink-700 hover:bg-ink-100 transition-colors"
                         aria-label={isPdfViewerCollapsed ? "Show document viewer" : "Collapse document viewer"}
                         title={isPdfViewerCollapsed ? "Show document viewer" : "Collapse document viewer"}
                     >
@@ -822,10 +822,10 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
                     {/* Center: Active tab name (desktop) / File name (mobile) */}
                     <div className="flex-1 min-w-0 text-center">
-                        <p className="font-semibold text-slate-700 truncate px-2 hidden md:block">
+                        <p className="font-semibold text-ink-700 truncate px-2 hidden md:block">
                             {activeTabLabel[activeTab]}
                         </p>
-                        <p className="font-semibold text-slate-700 truncate px-2 md:hidden" title={document.fileName}>
+                        <p className="font-semibold text-ink-700 truncate px-2 md:hidden" title={document.fileName}>
                             {document.fileName}
                         </p>
                     </div>
@@ -843,7 +843,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     {onToggleRightPanel ? (
                         <button
                             onClick={onToggleRightPanel}
-                            className="hidden md:inline-flex p-2 text-slate-400 rounded-lg hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            className="hidden md:inline-flex p-2 text-ink-400 rounded-lg hover:text-ink-700 hover:bg-ink-100 transition-colors"
                             aria-label="Collapse tools panel"
                             title="Collapse tools panel"
                         >

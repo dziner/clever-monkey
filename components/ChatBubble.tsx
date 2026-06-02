@@ -13,7 +13,7 @@ interface TypingIndicatorProps {
 }
 
 const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isMonkeyMode }) => {
-    const dotColor = isMonkeyMode ? 'bg-yellow-600' : 'bg-slate-400';
+    const dotColor = isMonkeyMode ? 'bg-yellow-600' : 'bg-ink-400';
     return (
         <div className="flex items-center space-x-1">
             <div className={`w-2 h-2 ${dotColor} rounded-full animate-bounce`} style={{ animationDelay: '0s' }}></div>
@@ -66,10 +66,10 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
     }
 
     const botBubbleStyle = message.wasMonkeyMode
-        ? 'bg-yellow-50 border border-yellow-200 text-slate-800 rounded-bl-sm'
+        ? 'bg-yellow-50 border border-yellow-200 text-ink-800 rounded-bl-sm'
         : message.isError
-          ? 'bg-red-50 border border-red-200 text-slate-800 rounded-bl-sm'
-          : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm';
+          ? 'bg-red-50 border border-red-200 text-ink-800 rounded-bl-sm'
+          : 'bg-white border border-ink-200 text-ink-800 rounded-bl-sm';
 
     return (
         <div className={`message-bubble-wrapper flex items-start gap-2 w-full ${isUser ? 'justify-end mb-6' : 'justify-start mb-4'}`}>

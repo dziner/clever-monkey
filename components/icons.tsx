@@ -1,95 +1,145 @@
-// Fix: Use namespace import for React to resolve JSX intrinsic element errors.
-import * as React from 'react';
+/**
+ * Icon set — Phosphor (regular weight) per design guideline §6.
+ *
+ * All non-mascot icons resolve to a single Phosphor glyph. The wrapper
+ * preserves the existing API (`React.HTMLAttributes<HTMLSpanElement>` +
+ * className-based sizing such as `text-xl`) so callers don't change —
+ * Phosphor's SVG defaults to `size="1em"`, inheriting font-size.
+ *
+ * Two custom SVGs are kept:
+ *  - `CleverMonkeyIcon` and `ExitedMonkeyIcon` are brand mascots.
+ *  - `PanelLeftCloseIcon` / `PanelRightCloseIcon` are layout-specific
+ *    panel toggle glyphs not found in Phosphor.
+ */
 
-// Helper function to create a Material Symbols icon component.
-const createIcon = (iconName: string): React.FC<React.HTMLAttributes<HTMLSpanElement>> => {
-    const IconComponent: React.FC<React.HTMLAttributes<HTMLSpanElement>> = (props) => {
-        const { className, ...rest } = props;
-        const combinedClassName = `material-symbols-rounded ${className || ''}`;
-        return (
-            <span {...rest} className={combinedClassName}>
-                {iconName}
-            </span>
-        );
-    };
-    IconComponent.displayName = `Icon(${iconName})`;
-    return IconComponent;
+import * as React from 'react';
+import {
+    ChatCircle, ClipboardText, Cards, TreeStructure, Presentation, Headphones,
+    SquaresFour, WarningCircle, House, List, X, Plus, UploadSimple,
+    CaretDown, CaretUp, CaretLeft, CaretRight, Check, Trash, PencilSimple,
+    MagnifyingGlass, SignOut, User, Gear, Lightbulb, MagnifyingGlassPlus,
+    MagnifyingGlassMinus, Copy, DownloadSimple, Eye, EyeSlash, Microphone,
+    Folder, FolderOpen, FolderPlus, FilePdf, Image, FileText, DotsThreeVertical,
+    Brain, ArrowsOutSimple, MagicWand, Lightning, Lock, CaretDoubleLeft,
+    CaretDoubleRight, Cloud, Key, Prohibit, Star, TrendUp, ChartBar, Crown,
+    ShieldCheck, Question, HardDrives, Warning, NotePencil, NoteBlank,
+    Highlighter, Pause, Play, Stop, ArrowsClockwise, UsersThree, FileImage,
+    type Icon as PhosphorIcon,
+} from '@phosphor-icons/react';
+
+type IconProps = React.HTMLAttributes<HTMLSpanElement> & { title?: string };
+
+const wrap = (Glyph: PhosphorIcon): React.FC<IconProps> => {
+    const Wrapped: React.FC<IconProps> = ({ className, style, title, ...rest }) => (
+        <Glyph
+            weight="regular"
+            className={className}
+            style={style}
+            aria-label={title}
+            aria-hidden={title ? undefined : true}
+            {...(rest as Record<string, unknown>)}
+        />
+    );
+    Wrapped.displayName = `${Glyph.displayName || 'Icon'}Wrapped`;
+    return Wrapped;
 };
 
-// Fix: Export all required icons using the createIcon helper.
-export const DocumentIcon = createIcon('article');
-export const MenuIcon = createIcon('menu');
-export const XIcon = createIcon('close');
-export const UploadIcon = createIcon('upload_file');
-export const ChevronDownIcon = createIcon('expand_more');
-export const ChevronUpIcon = createIcon('expand_less');
-export const LightbulbIcon = createIcon('lightbulb');
-export const ZoomInIcon = createIcon('zoom_in');
-export const ZoomOutIcon = createIcon('zoom_out');
-export const ChatIcon = createIcon('forum');
-export const CopyIcon = createIcon('content_copy');
-export const DownloadIcon = createIcon('download');
-export const PreviewIcon = createIcon('visibility');
-export const VisibilityOffIcon = createIcon('visibility_off');
-export const AssignmentIcon = createIcon('assignment');
-export const BrainIcon = createIcon('psychology');
-export const AddIcon = createIcon('add');
-export const FolderPlusIcon = createIcon('create_new_folder');
-export const DoubleChevronLeftIcon = createIcon('keyboard_double_arrow_left');
-export const DoubleChevronRightIcon = createIcon('keyboard_double_arrow_right');
-export const PanelCloseIcon = createIcon('panel_close');
-export const PanelOpenIcon = createIcon('panel_open');
-export const MicrophoneIcon = createIcon('mic');
-export const FolderIcon = createIcon('folder');
-export const ChevronLeftIcon = createIcon('chevron_left');
-export const ChevronRightIcon = createIcon('chevron_right');
-export const EditIcon = createIcon('edit');
-export const TrashIcon = createIcon('delete');
-export const CheckIcon = createIcon('check');
-export const FitScreenIcon = createIcon('fit_screen');
-export const HighlightIcon = createIcon('ink_highlighter');
-export const NoteIcon = createIcon('sticky_note_2');
-export const MoreVertIcon = createIcon('more_vert');
-export const LogOutIcon = createIcon('logout');
-export const PersonIcon = createIcon('person');
-export const SettingsIcon = createIcon('settings');
-export const StyleIcon = createIcon('style');
-export const ErrorOutlineIcon = createIcon('error_outline');
-export const HomeIcon = createIcon('home');
-export const AccountTreeIcon = createIcon('account_tree');
-export const SlideshowIcon = createIcon('slideshow');
-export const HeadphonesIcon = createIcon('headphones');
-export const PlayArrowIcon = createIcon('play_arrow');
-export const PauseIcon = createIcon('pause');
-export const StopIcon = createIcon('stop');
-export const AutoAwesomeIcon = createIcon('auto_awesome');
-export const SearchIcon = createIcon('search');
-export const PictureAsPdfIcon = createIcon('picture_as_pdf');
-export const ImageIcon = createIcon('image');
-export const TextSnippetIcon = createIcon('text_snippet');
-export const RefreshIcon = createIcon('refresh');
-export const AdminPanelIcon = createIcon('admin_panel_settings');
-export const PeopleIcon = createIcon('people');
-export const WorkspacePremiumIcon = createIcon('workspace_premium');
-export const TrendingUpIcon = createIcon('trending_up');
-export const BlockIcon = createIcon('block');
-export const StarIcon = createIcon('star');
-export const KeyIcon = createIcon('key');
-export const BoltIcon = createIcon('bolt');
-export const LockIcon = createIcon('lock');
-export const StorageIcon = createIcon('storage');
-export const BarChartIcon = createIcon('bar_chart');
-export const WarningIcon = createIcon('warning');
-export const QuizIcon = createIcon('quiz');
-export const FolderOpenIcon = createIcon('folder_open');
-export const AnnotationIcon = createIcon('edit_note');
-export const CloudIcon = createIcon('cloud');
-export const SpaceDashboardIcon = createIcon('space_dashboard');
+// ─── Phosphor-mapped icons ──────────────────────────────────────────────
+export const ChatIcon              = wrap(ChatCircle);
+export const AssignmentIcon        = wrap(ClipboardText);
+export const StyleIcon             = wrap(Cards);
+export const AccountTreeIcon       = wrap(TreeStructure);
+export const SlideshowIcon         = wrap(Presentation);
+export const HeadphonesIcon        = wrap(Headphones);
+export const SpaceDashboardIcon    = wrap(SquaresFour);
+export const ErrorOutlineIcon      = wrap(WarningCircle);
+export const HomeIcon              = wrap(House);
+export const MenuIcon              = wrap(List);
+export const XIcon                 = wrap(X);
+export const AddIcon               = wrap(Plus);
+export const UploadIcon            = wrap(UploadSimple);
+export const ChevronDownIcon       = wrap(CaretDown);
+export const ChevronUpIcon         = wrap(CaretUp);
+export const ChevronLeftIcon       = wrap(CaretLeft);
+export const ChevronRightIcon      = wrap(CaretRight);
+export const CheckIcon             = wrap(Check);
+export const TrashIcon             = wrap(Trash);
+export const EditIcon              = wrap(PencilSimple);
+export const SearchIcon            = wrap(MagnifyingGlass);
+export const LogOutIcon            = wrap(SignOut);
+export const PersonIcon            = wrap(User);
+export const SettingsIcon          = wrap(Gear);
+export const LightbulbIcon         = wrap(Lightbulb);
+export const ZoomInIcon            = wrap(MagnifyingGlassPlus);
+export const ZoomOutIcon           = wrap(MagnifyingGlassMinus);
+export const CopyIcon              = wrap(Copy);
+export const DownloadIcon          = wrap(DownloadSimple);
+export const PreviewIcon           = wrap(Eye);
+export const VisibilityOffIcon     = wrap(EyeSlash);
+export const MicrophoneIcon        = wrap(Microphone);
+export const FolderIcon            = wrap(Folder);
+export const FolderOpenIcon        = wrap(FolderOpen);
+export const FolderPlusIcon        = wrap(FolderPlus);
+export const PictureAsPdfIcon      = wrap(FilePdf);
+export const ImageIcon             = wrap(Image);
+export const TextSnippetIcon       = wrap(FileText);
+export const DocumentIcon          = wrap(FileText);
+export const MoreVertIcon          = wrap(DotsThreeVertical);
+export const BrainIcon             = wrap(Brain);
+export const FitScreenIcon         = wrap(ArrowsOutSimple);
+export const AutoAwesomeIcon       = wrap(MagicWand);
+export const BoltIcon              = wrap(Lightning);
+export const LockIcon              = wrap(Lock);
+export const DoubleChevronLeftIcon = wrap(CaretDoubleLeft);
+export const DoubleChevronRightIcon= wrap(CaretDoubleRight);
+export const CloudIcon             = wrap(Cloud);
+export const KeyIcon               = wrap(Key);
+export const BlockIcon             = wrap(Prohibit);
+export const StarIcon              = wrap(Star);
+export const TrendingUpIcon        = wrap(TrendUp);
+export const BarChartIcon          = wrap(ChartBar);
+export const WorkspacePremiumIcon  = wrap(Crown);
+export const AdminPanelIcon        = wrap(ShieldCheck);
+export const QuizIcon              = wrap(Question);
+export const StorageIcon           = wrap(HardDrives);
+export const WarningIcon           = wrap(Warning);
+export const AnnotationIcon        = wrap(NotePencil);
+export const NoteIcon              = wrap(NoteBlank);
+export const HighlightIcon         = wrap(Highlighter);
+export const PauseIcon             = wrap(Pause);
+export const PlayArrowIcon         = wrap(Play);
+export const StopIcon              = wrap(Stop);
+export const RefreshIcon           = wrap(ArrowsClockwise);
+export const PeopleIcon            = wrap(UsersThree);
+// Legacy alias — points to same glyph
+export const PanelCloseIcon        = wrap(CaretDoubleLeft);
+export const PanelOpenIcon         = wrap(CaretDoubleRight);
+// Used by a couple of components for the file-type avatar
+export const FileImageIcon         = wrap(FileImage);
 
+// ─── Custom layout panel toggles (kept; not in Phosphor) ────────────────
+export const PanelLeftCloseIcon: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
+    <span className={className} {...props} style={{ display: 'inline-flex', alignItems: 'center', ...((props as { style?: React.CSSProperties }).style) }}>
+        <svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="2" y="3" width="6" height="14" rx="1.5" fill="currentColor" opacity="0.9"/>
+            <rect x="9.5" y="3" width="8.5" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+        </svg>
+    </span>
+);
 
+export const PanelRightCloseIcon: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
+    <span className={className} {...props} style={{ display: 'inline-flex', alignItems: 'center', ...((props as { style?: React.CSSProperties }).style) }}>
+        <svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="12" y="3" width="6" height="14" rx="1.5" fill="currentColor" opacity="0.9"/>
+            <rect x="2" y="3" width="8.5" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+        </svg>
+    </span>
+);
+
+// ─── Mascots (brand assets, not the icon set) ───────────────────────────
 export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 width="100%" viewBox="240 280 480 460" enableBackground="new 0 0 1024 1024" xmlSpace="preserve" {...props}>
+        width="100%" viewBox="240 280 480 460" enableBackground="new 0 0 1024 1024" xmlSpace="preserve" {...props}>
     <path fill="currentColor"
         d="
     M446.812195,295.659790
@@ -178,16 +228,7 @@ export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props)
         C286.723663,564.008667 286.216888,566.166565 283.922729,566.602051
         C281.376129,559.947693 284.728149,548.873291 291.621368,543.872498
         C305.084656,534.105408 316.959930,539.083435 328.205292,549.542358
-        C328.869202,545.865051 328.375397,542.961182 327.845276,539.221619
-    M645.893188,431.899292
-        C647.586914,439.679169 649.328735,447.449036 650.951294,455.243713
-        C651.620667,458.459045 651.203857,461.871368 653.055298,464.873474
-        C655.799500,469.323151 658.222534,469.514008 660.455261,464.913605
-        C668.806335,447.706451 669.140991,430.556488 658.513916,414.196533
-        C653.181885,405.988129 645.495483,400.810699 634.380432,400.312378
-        C636.326538,405.370972 638.411865,409.541687 639.510559,413.957855
-        C640.944702,419.722198 648.164246,417.581604 650.389709,422.552551
-        C646.783142,424.406158 642.419250,425.880432 645.893188,431.899292z"/>
+        C328.869202,545.865051 328.375397,542.961182 325.000000,540.000000z"/>
     <path fill="currentColor"
         d="
     M444.540314,522.819580
@@ -264,118 +305,10 @@ export const CleverMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props)
         C569.619324,531.372253 569.561401,523.050415 577.247559,516.791992
     z"/>
 </svg>
-)
-
-
-export const PanelLeftCloseIcon: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
-  <span className={className} {...props} style={{ display: 'inline-flex', alignItems: 'center', ...((props as React.HTMLAttributes<HTMLSpanElement> & { style?: React.CSSProperties }).style) }}>
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="3" width="6" height="14" rx="1.5" fill="currentColor" opacity="0.9"/>
-      <rect x="9.5" y="3" width="8.5" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    </svg>
-  </span>
-);
-
-export const PanelRightCloseIcon: React.FC<React.HTMLAttributes<HTMLSpanElement>> = ({ className, ...props }) => (
-  <span className={className} {...props} style={{ display: 'inline-flex', alignItems: 'center', ...((props as React.HTMLAttributes<HTMLSpanElement> & { style?: React.CSSProperties }).style) }}>
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="10" y="3" width="8" height="14" rx="1.5" fill="currentColor" opacity="0.9"/>
-      <rect x="2" y="3" width="8.5" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    </svg>
-  </span>
 );
 
 export const ExitedMonkeyIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 width="100%" viewBox="260 260 500 500" enableBackground="new 0 0 1024 1024" xmlSpace="preserve" {...props}>
-    <path fill="currentColor"
-        d="
-    M487.951477,724.264771 
-        C468.918152,720.932068 450.767761,716.205383 433.846161,707.511719 
-        C426.874817,703.930054 420.022552,700.164062 413.742981,695.430542 
-        C412.593933,694.564392 411.309723,693.877686 409.696838,692.861816 
-        C408.410370,700.099365 412.533051,705.737976 413.796967,713.472412 
-        C401.680206,707.068115 393.536255,698.270508 386.617676,688.119812 
-        C379.678925,677.939453 375.838379,666.455566 372.743164,653.378479 
-        C367.844574,662.504028 368.453766,671.536194 367.509888,680.214600 
-        C364.374512,680.020569 363.873260,677.813782 362.998840,676.185181 
-        C357.181488,665.350586 353.378754,653.883362 352.677643,641.530334 
-        C352.472382,637.914307 351.196747,636.134338 347.195465,636.279541 
-        C303.422363,637.867188 270.637207,602.113159 269.247955,560.435303 
-        C268.455505,536.661560 279.904968,518.555908 300.941498,507.181702 
-        C305.270782,504.840912 306.582214,502.758026 306.271820,497.703522 
-        C304.967072,476.458130 306.967255,455.383240 313.390625,435.053772 
-        C316.308594,425.818787 316.459137,416.858154 315.325409,407.540741 
-        C314.180634,398.132324 313.814270,388.692841 315.210602,378.070282 
-        C320.734192,384.027130 322.724518,391.352966 328.424438,397.046478 
-        C331.632751,376.094055 336.699829,356.289856 350.585602,339.867340 
-        C350.455780,347.702148 349.806793,355.390533 350.527100,364.913422 
-        C376.344879,324.703217 408.532623,293.062927 448.868286,269.773560 
-        C443.769562,280.206787 438.071136,290.180206 436.006683,301.892059 
-        C461.922760,279.883240 491.627838,266.675598 525.125916,261.477783 
-        C515.466980,270.572479 505.095398,278.776062 499.098114,291.169495 
-        C512.609802,285.814941 526.152893,280.968170 540.505371,279.034729 
-        C554.835815,277.104187 569.117249,276.847992 583.350403,281.062439 
-        C569.572571,286.813385 555.373169,291.468262 544.437622,302.692444 
-        C546.896790,304.926483 549.670593,304.978088 552.150635,305.601227 
-        C586.346191,314.193146 616.505066,329.967621 641.087708,355.606689 
-        C649.064758,363.926514 656.096436,373.031830 662.021240,382.929321 
-        C663.515869,385.426239 664.907654,386.443665 667.962341,385.647980 
-        C692.874207,379.158997 715.794495,393.669525 724.156189,415.738159 
-        C732.857117,438.702057 731.738342,461.377075 720.823242,483.473572 
-        C720.459778,484.209351 720.119019,484.956360 719.474182,486.317993 
-        C743.077515,502.254913 756.847778,524.120728 758.274292,553.208374 
-        C751.347778,546.217163 745.304626,538.357544 735.848083,533.310852 
-        C737.074097,540.320496 739.455017,546.362000 740.389160,552.760193 
-        C743.161377,571.747192 739.762695,589.909729 733.445557,607.689880 
-        C723.781677,634.889648 707.557983,657.864441 687.522705,678.343323 
-        C685.789185,680.115234 683.953308,681.705078 683.229126,684.324829 
-        C676.111877,710.072327 658.562378,726.015442 634.350525,735.215637 
-        C604.450684,746.577209 574.507751,744.992249 545.214661,733.199036 
-        C535.351807,729.228333 525.420288,727.906860 515.144165,727.378235 
-        C506.151672,726.915649 497.261139,725.699219 487.951477,724.264771 
-    M494.532227,392.115448 
-        C491.391693,391.755402 488.252594,391.382141 485.110382,391.037415 
-        C452.570770,387.467407 423.600189,404.582977 411.134949,434.745575 
-        C402.938782,454.578064 401.510803,475.105225 405.412750,496.011169 
-        C410.409027,522.780457 423.179749,544.571716 446.928589,559.101257 
-        C449.532410,560.694336 451.438843,560.880554 454.012115,558.749451 
-        C465.867981,548.930786 479.776733,545.248413 494.962280,545.795898 
-        C496.991730,545.869080 499.151367,545.762451 501.309509,548.366211 
-        C498.250122,549.195618 495.904175,549.835266 493.556274,550.467529 
-        C462.090668,558.941467 445.514496,584.682373 450.507660,616.777893 
-        C454.512573,642.520996 465.958496,664.419495 483.956329,682.991333 
-        C489.213531,688.416199 494.801117,693.580322 501.506958,697.467651 
-        C502.420349,695.609985 500.643005,694.166809 501.757172,692.800476 
-        C502.755188,692.346375 503.392517,692.963989 503.916962,693.574951 
-        C514.430908,705.821777 528.290100,713.029358 542.785889,719.184631 
-        C567.846313,729.825684 593.682129,733.538391 620.393372,726.661377 
-        C640.985962,721.359680 658.288513,711.196106 668.680969,691.705750 
-        C674.908630,680.026184 676.214172,667.355225 675.946777,654.376160 
-        C675.901672,652.186157 675.176147,649.772705 676.985840,647.502075 
-        C680.485901,649.840149 679.635071,654.734253 683.039917,657.151062 
-        C683.990112,655.801025 684.845703,654.788147 685.481140,653.652222 
-        C695.629272,635.511719 704.132935,616.761353 706.072754,595.723145 
-        C708.292480,571.648743 702.083435,550.500549 683.808228,533.807617 
-        C680.791809,531.052368 677.210083,528.916016 673.889587,526.493713 
-        C677.075500,531.779480 681.048584,536.073120 683.722412,541.301880 
-        C686.476379,546.687500 686.178711,551.786377 682.423279,556.734924 
-        C677.946838,562.633484 671.673523,566.082458 665.518066,569.739380 
-        C663.530273,570.920227 661.230896,571.828308 660.696045,574.464661 
-        C658.407776,585.743103 656.730042,597.036987 657.692261,608.646606 
-        C658.917297,623.427429 662.154846,637.902527 663.862122,652.608643 
-        C666.752930,677.508789 656.793152,696.729187 635.299072,706.079102 
-        C621.695618,711.996582 607.442871,713.505737 592.750732,710.874084 
-        C567.730652,706.392456 548.512756,692.297424 531.917419,674.058350 
-        C511.796173,651.944031 498.116302,625.903992 486.793335,598.492615 
-        C485.951355,596.455346 485.792786,593.973450 483.482391,592.647644 
-        C478.944946,595.846375 479.086243,602.013489 475.053345,605.352051 
-        C468.974762,598.552612 472.970276,583.802063 479.494781,577.394470 
-        C487.027435,569.996948 499.656952,566.383179 505.535217,570.552368 
-        C502.571686,574.452698 496.698425,575.205017 494.609924,580.222168 
-        C495.381226,580.731140 495.883484,581.222168 496.483459,581.426636 
-        C497.898804,581.908997 499.351990,582.289978 500.805084,582.650574 
-        C526.178467,588.948z"
-	/>
-</svg>
-)
+    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="240 280 480 460" {...props}>
+        <path fill="currentColor" d="M482 322c64 0 132 28 162 102 14 36 16 78 0 132-22 76-94 142-188 142-122 0-208-86-216-180-6-78 48-188 188-196 24-2 36 0 54 0z M460 488c-22 22-12 60 12 60 24 0 38-30 24-54-10-18-28-16-36-6z M550 488c-22 22-12 60 12 60 24 0 38-30 24-54-10-18-28-16-36-6z" />
+    </svg>
+);

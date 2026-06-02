@@ -149,7 +149,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
                 {/* Upgrade promo (only if free) */}
                 {!isPro && (
-                    <div className="relative rounded-3xl bg-gradient-to-br from-ink-900 via-brand-900 to-brand-700 text-white p-6 md:p-8 shadow-pop overflow-hidden">
+                    <div className="relative rounded-2xl bg-ink-900 text-white p-6 md:p-8 shadow-card overflow-hidden">
                         <div className="absolute -top-24 -right-24 w-72 h-72 bg-brand-500/30 rounded-full blur-3xl pointer-events-none" />
                         <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-400/20 rounded-full blur-3xl pointer-events-none" />
                         <div className="relative">

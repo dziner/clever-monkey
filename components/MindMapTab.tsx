@@ -35,13 +35,13 @@ const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
   return (
     <div className="inline-flex items-center select-none p-8" style={{ minWidth: 'fit-content' }}>
       {/* Root node */}
-      <div className="flex-shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl px-5 py-4 text-center shadow-xl max-w-[180px] z-10">
+      <div className="flex-shrink-0 bg-gradient-to-br from-ink-800 to-ink-900 text-white rounded-2xl px-5 py-4 text-center shadow-xl max-w-[180px] z-10">
         <AccountTreeIcon className="text-2xl text-brand-300 mb-1" />
         <p className="text-sm font-bold leading-tight">{data.center}</p>
       </div>
 
       {/* Trunk connector from root to the branch rail */}
-      <div className="w-8 h-0.5 bg-slate-300 flex-shrink-0" />
+      <div className="w-8 h-0.5 bg-ink-300 flex-shrink-0" />
 
       {/* Branches — stacked vertically, expanding to the right */}
       <div className="flex flex-col">
@@ -57,7 +57,7 @@ const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
               <div className="relative w-6 flex-shrink-0">
                 {total > 1 && (
                   <div
-                    className="absolute left-0 w-0.5 bg-slate-300"
+                    className="absolute left-0 w-0.5 bg-ink-300"
                     style={{ top: isFirst ? '50%' : 0, bottom: isLast ? '50%' : 0 }}
                   />
                 )}
@@ -82,7 +82,7 @@ const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
                     {isOpen && (
                       <ul className="mt-1.5 space-y-0.5">
                         {branch.children.map((child, ci) => (
-                          <li key={ci} className="flex items-start gap-1.5 text-xs text-slate-600">
+                          <li key={ci} className="flex items-start gap-1.5 text-xs text-ink-700">
                             <span className="mt-1 w-1 h-1 rounded-full flex-shrink-0" style={{ background: color.accent }} />
                             <span className="leading-tight">{child}</span>
                           </li>
@@ -166,7 +166,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
 
   if (!document.documentContent) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 p-6">
+      <div className="flex flex-col items-center justify-center h-full text-center text-ink-400 p-6">
         <AccountTreeIcon className="text-5xl mb-3 opacity-30" />
         <p className="text-sm font-medium">Document content not available</p>
       </div>
@@ -176,10 +176,10 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       {/* Actions bar */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-ink-100 bg-white">
         <div className="flex items-center gap-2">
           <AccountTreeIcon className="text-xl text-brand-500" />
-          <span className="font-semibold text-slate-700 text-sm">Mind Map</span>
+          <span className="font-semibold text-ink-700 text-sm">Mind Map</span>
         </div>
         <div className="flex items-center gap-2">
           {loading ? (
@@ -187,7 +187,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
               <button
                 type="button"
                 onClick={cancel}
-                className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-ink-200 hover:bg-ink-300 text-ink-700 rounded-lg text-xs font-semibold transition-colors"
               >
                 Cancel
               </button>
@@ -216,19 +216,19 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
       {/* Body */}
       <div ref={bodyRef} className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex flex-col items-center gap-3 text-slate-500 mt-8">
+          <div className="flex flex-col items-center gap-3 text-ink-500 mt-8">
             <Spinner />
             <span className="text-sm">Building mind map…</span>
           </div>
         ) : error ? (
-          <div className="text-center text-red-500 text-sm max-w-sm mt-8 mx-auto">
+          <div className="text-center text-danger-500 text-sm max-w-sm mt-8 mx-auto">
             <p className="font-semibold mb-1">Generation failed</p>
             <p>{error}</p>
           </div>
         ) : !displayData ? (
-          <div className="text-center text-slate-400 max-w-xs mt-8 mx-auto p-4">
+          <div className="text-center text-ink-400 max-w-xs mt-8 mx-auto p-4">
             <AccountTreeIcon className="text-6xl mb-4 opacity-20" />
-            <p className="font-semibold text-slate-600 mb-1">Visualize your document</p>
+            <p className="font-semibold text-ink-700 mb-1">Visualize your document</p>
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
@@ -251,13 +251,13 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
 
       {/* Zoom controls — anchored to the panel (not the scroll area), centered */}
       {displayData && !loading && !error && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-ink-200 rounded-xl shadow-lg overflow-hidden">
           <button
             type="button"
             onClick={zoomOut}
             disabled={userZoom <= ZOOM_MIN}
             title="Zoom out"
-            className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-2 text-ink-700 hover:bg-ink-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <ZoomOutIcon className="text-lg" />
           </button>
@@ -265,7 +265,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
             type="button"
             onClick={zoomFit}
             title="Fit to window"
-            className="px-2 py-2 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100 transition-colors min-w-[46px] text-center border-x border-slate-200"
+            className="px-2 py-2 text-xs font-mono font-semibold text-ink-700 hover:bg-ink-100 transition-colors min-w-[46px] text-center border-x border-ink-200"
           >
             {Math.round(effectiveScale * 100)}%
           </button>
@@ -274,16 +274,16 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
             onClick={zoomIn}
             disabled={userZoom >= ZOOM_MAX}
             title="Zoom in"
-            className="p-2 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="p-2 text-ink-700 hover:bg-ink-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <ZoomInIcon className="text-lg" />
           </button>
-          <div className="w-px h-5 bg-slate-200 mx-0.5" />
+          <div className="w-px h-5 bg-ink-200 mx-0.5" />
           <button
             type="button"
             onClick={zoomFit}
             title="Reset zoom"
-            className="p-2 text-slate-500 hover:bg-slate-100 transition-colors"
+            className="p-2 text-ink-500 hover:bg-ink-100 transition-colors"
           >
             <FitScreenIcon className="text-lg" />
           </button>

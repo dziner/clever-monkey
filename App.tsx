@@ -18,7 +18,7 @@ const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ defa
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
 
 const PageLoader: React.FC = () => (
-  <div className="flex-1 flex items-center justify-center bg-slate-50">
+  <div className="flex-1 flex items-center justify-center bg-ink-50">
     <div className="w-7 h-7 border-2 border-ink-200 border-t-brand-600 rounded-full animate-spin" />
   </div>
 );
@@ -138,11 +138,11 @@ const App: React.FC = () => {
     // Show loading screen while auth + documents are initializing
     if (isAuthLoading || isDocumentsLoading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-dvh bg-gradient-to-br from-ink-50 via-white to-brand-50 gap-4">
+            <div className="flex flex-col items-center justify-center min-h-dvh bg-ink-50 gap-4">
                 <div className="w-24 h-24 animate-pulse">
                     <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
-                <p className="text-slate-400 text-sm font-medium">Loading…</p>
+                <p className="text-ink-400 text-sm font-medium">Loading…</p>
             </div>
         );
     }
@@ -179,7 +179,7 @@ const App: React.FC = () => {
                         aria-label="Close file list"
                     />
                 )}
-                <aside className={`fixed top-0 left-0 h-full w-72 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out z-40 ${isPanelCollapsed ? '-translate-x-full' : 'translate-x-0'} shadow-2xl`}>
+                <aside className={`fixed top-0 left-0 h-full w-72 bg-white border-r border-ink-200 transform transition-transform duration-300 ease-in-out z-40 ${isPanelCollapsed ? '-translate-x-full' : 'translate-x-0'} shadow-sheet`}>
                     <FileListPanel
                         onFileSelected={handleFileSelected}
                         setIsPanelCollapsed={setIsPanelCollapsed}
@@ -192,13 +192,13 @@ const App: React.FC = () => {
             </div>
 
             {/* Sidebar — Desktop collapsible */}
-            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-slate-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-14' : 'md:w-60 lg:w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
+            <aside className={`hidden md:flex flex-shrink-0 h-full flex-col bg-white border-r border-ink-200 transition-all duration-300 ease-in-out ${isPanelCollapsed ? 'w-14' : 'md:w-60 lg:w-72'} shadow-[1px_0_20px_0_rgba(0,0,0,0.02)] z-10`}>
                 {isPanelCollapsed ? (
                     <div className="flex flex-col items-center py-4 gap-1 h-full">
                         <button
                             type="button"
                             onClick={() => setIsPanelCollapsed(false)}
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 text-ink-400 hover:text-ink-700 hover:bg-ink-100 rounded-lg transition-colors"
                             title="Expand sources panel"
                             aria-label="Expand sources panel"
                         >
