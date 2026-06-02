@@ -1,79 +1,95 @@
 /*
  * Component layer
  * ───────────────
- * Reusable, semantic class compositions built from Tailwind utilities.
- * Use these in markup when a pattern would otherwise be copy-pasted in
- * many places; for true components prefer the React primitives in
- * components/ui/ (Button, Card, Modal, …).
+ * Semantic class compositions derived from the Kopay design guideline
+ * (styles/KP-design-guideline.md). Hierarchy is expressed by WEIGHT,
+ * not size (§2.2).
  *
- * Convention: prefix with semantic intent (surface-, button-, field-, …)
- * so it's clear at a glance whether a class is a primitive or a composer.
+ * Type scale (allowed sizes only):
+ *   hero        28px / 800
+ *   section     18–20px / 700
+ *   subhead     16px / 600
+ *   body (def)  16px / 400
+ *   amount      16px / 800
+ *   caption     13px / 400
+ *   micro       11–12px / 400–600
  */
 
 @layer components {
-  /* ── Typography scale ──────────────────────────────────────────────────────
-   * Use these to enforce a consistent type system. Display sizes use the
-   * Outfit display font; body sizes use the system sans stack.
-   */
-  .text-display-2xl { @apply font-display text-5xl font-bold leading-none tracking-tight text-ink-900; }
-  .text-display-xl  { @apply font-display text-4xl font-bold leading-tight tracking-tight text-ink-900; }
-  .text-display-lg  { @apply font-display text-3xl font-bold leading-tight tracking-tight text-ink-900; }
-  .text-h1          { @apply font-display text-2xl font-bold leading-snug tracking-tight text-ink-900; }
-  .text-h2          { @apply font-display text-xl  font-bold leading-snug tracking-tight text-ink-900; }
-  .text-h3          { @apply text-lg font-bold leading-snug text-ink-800; }
-  .text-h4          { @apply text-base font-bold leading-snug text-ink-800; }
-  .text-body-lg     { @apply text-base font-medium leading-relaxed text-ink-700; }
-  .text-body        { @apply text-sm font-medium leading-relaxed text-ink-700; }
-  .text-body-sm     { @apply text-xs font-medium leading-relaxed text-ink-600; }
-  .text-caption     { @apply text-2xs font-semibold text-ink-500; }
-  .text-eyebrow     { @apply text-2xs font-bold uppercase tracking-[0.14em] text-ink-400; }
+  /* ── Typography scale ──────────────────────────────────────────────────── */
+  .text-hero        { @apply text-3xl font-extrabold leading-snug tracking-tight text-ink-900; }      /* 28px/800 */
+  .text-display-2xl { @apply text-3xl font-extrabold leading-snug tracking-tight text-ink-900; }
+  .text-display-xl  { @apply text-2xl font-extrabold leading-snug tracking-tight text-ink-900; }      /* 24px/800 */
+  .text-display-lg  { @apply text-xl  font-bold      leading-snug tracking-tight text-ink-900; }      /* 20px/700 */
+  .text-h1          { @apply text-xl  font-bold      leading-snug tracking-tight text-ink-900; }      /* 20px/700 */
+  .text-h2          { @apply text-lg  font-bold      leading-snug tracking-tight text-ink-900; }      /* 18px/700 */
+  .text-h3          { @apply text-base font-semibold leading-snug text-ink-800; }                     /* 16px/600 */
+  .text-h4          { @apply text-base font-semibold leading-snug text-ink-800; }                     /* 16px/600 */
+  .text-body-lg     { @apply text-base font-normal   leading-relaxed text-ink-700; }                  /* 16px/400 */
+  .text-body        { @apply text-base font-normal   leading-relaxed text-ink-700; }                  /* 16px/400 */
+  .text-body-sm     { @apply text-sm   font-normal   leading-relaxed text-ink-700; }                  /* 14px/400 */
+  .text-caption     { @apply text-13   font-normal   leading-snug    text-ink-500; }                  /* 13px/400 */
+  .text-amount      { @apply text-base font-extrabold leading-snug   text-ink-900 tabular-nums; }     /* 16px/800 */
+  .text-micro       { @apply text-2xs  font-semibold leading-snug    text-ink-500; }                  /* 11px/600 */
+  .text-eyebrow     { @apply text-2xs  font-bold uppercase tracking-[0.12em] text-ink-500; }
 
-  /* Handwritten — reserved for the landing hero headline only. Do not use
-     elsewhere; consistency depends on this being a rare, intentional accent. */
+  /* Handwritten — reserved for the landing hero only (single accent moment). */
   .text-handwritten { @apply font-handwritten font-bold; line-height: 0.95; }
 
-  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+  /* ── Surfaces (guideline §3.3 — tone + radius, not shadow) ────────────── */
   .surface-card {
-    @apply bg-white border border-ink-200 rounded-2xl shadow-soft;
+    @apply bg-white border border-ink-200 rounded-lg shadow-card;
   }
-  .surface-card-elevated {
-    @apply bg-white border border-ink-200/70 rounded-2xl shadow-card;
+  .surface-card-lg {
+    @apply bg-white border border-ink-200 rounded-2xl shadow-card;
   }
   .surface-muted {
-    @apply bg-ink-50 border border-ink-200/60 rounded-2xl;
+    @apply bg-ink-150 rounded-lg;
   }
   .surface-glass {
-    @apply bg-white/80 backdrop-blur-md border border-white/40 rounded-2xl;
+    @apply bg-white/85 backdrop-blur-md border border-white/40 rounded-2xl;
+  }
+
+  /* ── Chip / pill (guideline §3.3 / §7.2) ──────────────────────────────── */
+  .chip {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-full bg-ink-150 text-13 text-ink-700 font-medium;
+  }
+  .chip-brand {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold;
+    background: rgb(var(--brand-500) / 0.10);
+    color: rgb(var(--brand-700));
   }
 
   /* ── Inputs (raw — for places that don't use the Input primitive) ─────── */
   .field {
-    @apply w-full text-sm text-ink-900 placeholder:text-ink-400
+    @apply w-full text-base text-ink-900 placeholder:text-ink-400
            bg-white border border-ink-200 rounded-lg
-           transition-colors duration-150
-           focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
-           disabled:bg-ink-50 disabled:text-ink-400 disabled:cursor-not-allowed;
+           transition-colors duration-200
+           focus:outline-none focus:border-brand-500
+           disabled:bg-ink-150 disabled:text-ink-400 disabled:cursor-not-allowed;
   }
   .field-error {
-    @apply border-danger-500 focus:border-danger-500 focus:ring-danger-500/20;
+    @apply border-danger-500 focus:border-danger-500;
   }
 
-  /* ── Section headers ───────────────────────────────────────────────────── */
-  .eyebrow {
-    @apply text-eyebrow;
+  /* ── Section header (guideline §3.2 — "title left, more right") ───────── */
+  .section-header {
+    @apply flex items-center justify-between mb-4;
   }
-  .heading-display {
-    @apply font-display font-bold tracking-tight text-ink-900;
+  .section-header-title {
+    @apply text-h2;
+  }
+  .section-header-more {
+    @apply text-sm text-ink-500 hover:text-ink-700 transition-colors duration-200;
   }
 
-  /* ── Decorative containers ─────────────────────────────────────────────── */
-  .ring-focus {
-    @apply ring-2 ring-brand-500/20 ring-offset-2 ring-offset-white;
-  }
-  .divider {
-    @apply h-px bg-ink-200;
-  }
-  .divider-vertical {
-    @apply w-px bg-ink-200;
+  /* ── Misc ─────────────────────────────────────────────────────────────── */
+  .divider          { @apply h-px bg-ink-200; }
+  .divider-vertical { @apply w-px bg-ink-200; }
+  .ring-focus       { @apply ring-2 ring-brand-500/30 ring-offset-2 ring-offset-white; }
+
+  /* Press feedback — REQUIRED on every clickable per guideline §5.6 */
+  .press {
+    @apply transition-transform duration-200 active:scale-[0.98];
   }
 }

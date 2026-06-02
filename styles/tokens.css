@@ -1,45 +1,68 @@
 /*
- * Design tokens
- * ─────────────
- * Single source of truth, exposed as CSS custom properties so they're
- * reachable from both Tailwind (via tailwind.config.js) and runtime JS/CSS.
+ * Design tokens — Kopay-style guideline (styles/KP-design-guideline.md)
+ * ────────────────────────────────────────────────────────────────────
+ * MUST-FOLLOW:
+ *  - Brand: orange ramp anchored on #FF914D
+ *  - Neutrals: Toss gray ramp
+ *  - Font: Pretendard Variable (only one font family)
+ *  - Shadows: card · sheet · brand-glow only (no others)
+ *  - Page bg #F7F8FA, card #FFFFFF
  *
- * Colors are stored as raw RGB triplets (no leading `rgb(`) so Tailwind's
- * `<alpha-value>` interpolation works: `bg-brand-600/40` resolves to
- *   rgb(var(--brand-600) / 0.40)
+ * Colors are stored as raw RGB triplets so Tailwind's <alpha-value>
+ * interpolation works: `bg-brand-500/30` → rgb(var(--brand-500) / 0.30).
  *
- * To introduce a dark theme later, override the same variables under a
- * `[data-theme="dark"]` selector — no config rebuild required.
+ * Namespaces:
+ *  --brand-*  — primary orange (Kopay accent)
+ *  --ink-*    — neutral gray (Toss palette)
+ *  --info-*   — informational blue (links)
+ *
+ * Theming: override the variables under `[data-theme="…"]` to swap.
  */
 
 :root {
-  /* ── Brand: vivid violet ───────────────────────────────────────────────── */
-  --brand-50:  245 243 255;
-  --brand-100: 237 233 254;
-  --brand-200: 221 214 254;
-  --brand-300: 196 181 253;
-  --brand-400: 167 139 250;
-  --brand-500: 139  92 246;
-  --brand-600: 124  58 237;
-  --brand-700: 109  40 217;
-  --brand-800:  91  33 182;
-  --brand-900:  76  29 149;
-  --brand-950:  46  16 101;
+  /* ── Brand: Kopay orange ramp ─────────────────────────────────────────────
+   * Anchor stops per guideline §1.1:
+   *   500 = #FF914D (primary)   hover #FF7A2E   pressed #E85F30
+   *   strong #FF6B00  tint-50 #FFF9F6  tint-100 #FFF4EB
+   * Other stops interpolated to keep a continuous ramp.
+   */
+  --brand-50:  255 249 246;   /* #FFF9F6  tint-50 */
+  --brand-100: 255 244 235;   /* #FFF4EB  tint-100 */
+  --brand-200: 255 227 210;   /* #FFE3D2  */
+  --brand-300: 255 202 168;   /* #FFCAA8  */
+  --brand-400: 255 170 123;   /* #FFAA7B  */
+  --brand-500: 255 145  77;   /* #FF914D  primary */
+  --brand-600: 255 122  46;   /* #FF7A2E  hover   */
+  --brand-700: 255 107   0;   /* #FF6B00  strong  */
+  --brand-800: 232  95  48;   /* #E85F30  pressed */
+  --brand-900: 192  79  38;   /* darker  */
+  --brand-950: 122  47  18;   /* darkest */
 
-  /* ── Ink: neutral text / surfaces (renamed from slate) ─────────────────── */
-  --ink-50:  248 250 252;
-  --ink-100: 241 245 249;
-  --ink-200: 226 232 240;
-  --ink-300: 203 213 225;
-  --ink-400: 148 163 184;
-  --ink-500: 100 116 139;
-  --ink-600:  71  85 105;
-  --ink-700:  51  65  85;
-  --ink-800:  30  41  59;
-  --ink-900:  15  23  42;
-  --ink-950:   2   6  23;
+  /* ── Ink: Toss gray ramp (exact per guideline §1.2) ───────────────────── */
+  --ink-50:  247 248 250;   /* #F7F8FA  ← page background */
+  --ink-100: 249 250 251;   /* #F9FAFB */
+  --ink-150: 242 244 246;   /* #F2F4F6  chips / minor surfaces */
+  --ink-200: 229 232 235;   /* #E5E8EB  border / divider */
+  --ink-250: 209 214 219;   /* #D1D6DB  softer border */
+  --ink-300: 196 201 209;   /* #C4C9D1 */
+  --ink-400: 176 184 193;   /* #B0B8C1  disabled / placeholder */
+  --ink-500: 139 149 161;   /* #8B95A1  secondary text */
+  --ink-600:  78  89 104;   /* #4E5968 */
+  --ink-700:  78  89 104;   /* #4E5968  body text */
+  --ink-800:  51  61  75;   /* #333D4B  emphasized body */
+  --ink-900:  25  31  40;   /* #191F28  headings / strongest text */
+  --ink-950:  15  19  26;
 
-  /* ── Semantic ──────────────────────────────────────────────────────────── */
+  /* ── Semantic (kept minimal per guideline §1.3) ───────────────────────── */
+  --info-50:  232 240 253;
+  --info-100: 209 224 251;
+  --info-500:  27 100 218;   /* #1B64DA  links / info */
+  --info-600:  21  85 190;
+  --info-700:  18  72 160;
+
+  /* Keep success/warning/danger token spots — used for status
+     (quiz pass/fail, error toasts). These are NOT brand accents and must
+     stay reserved for true semantic meaning. */
   --success-50:  236 253 245;
   --success-100: 209 250 229;
   --success-500:  16 185 129;
@@ -58,45 +81,44 @@
   --danger-600: 220  38  38;
   --danger-700: 185  28  28;
 
-  --info-50:  239 246 255;
-  --info-100: 219 234 254;
-  --info-500:  59 130 246;
-  --info-600:  37  99 235;
-  --info-700:  29  78 216;
+  /* ── Typography (Pretendard Variable, single family) ──────────────────── */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+               system-ui, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  /* Display = same Pretendard; weight carries hierarchy (per guideline §2.2). */
+  --font-display: var(--font-sans);
+  /* Kept ONLY for the landing hero "My monkey is cleverer than yours." line.
+     Treat as a single-page accent, not a system font. */
+  --font-handwritten: 'Gaegu', var(--font-sans);
 
-  /* ── Typography ────────────────────────────────────────────────────────── */
-  --font-sans:        'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
-  --font-display:     'Outfit', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-  /* Crayon-style hand-drawn font — for hero headlines, kitsch accents.
-     Use sparingly: never on body copy, only for personality moments. */
-  --font-handwritten: 'Gaegu', 'Apple SD Gothic Neo', cursive;
+  /* ── Radii (guideline §4.1) ───────────────────────────────────────────── */
+  --radius-xs:  0.25rem;  /* 4px  */
+  --radius-sm:  0.5rem;   /* 8px  small element */
+  --radius-md:  0.75rem;  /* 12px */
+  --radius-lg:  0.875rem; /* 14px card / input */
+  --radius-xl:  1.125rem; /* 18px medium card */
+  --radius-2xl: 1.5rem;   /* 24px large card / bottom sheet */
+  --radius-3xl: 1.75rem;  /* legacy alias */
 
-  /* ── Radii ─────────────────────────────────────────────────────────────── */
-  --radius-xs:  0.25rem;
-  --radius-sm:  0.375rem;
-  --radius-md:  0.5rem;
-  --radius-lg:  0.75rem;
-  --radius-xl:  1rem;
-  --radius-2xl: 1.25rem;
-  --radius-3xl: 1.75rem;
+  /* ── Shadows — ONLY these three exist (guideline §4.2) ────────────────── */
+  --shadow-card:  0 1px 2px 0 rgba(0, 0, 0, 0.05);                    /* default for nearly every card */
+  --shadow-sheet: 0 20px 60px -15px rgba(0, 0, 0, 0.08);              /* modal / bottom sheet */
+  --shadow-brand: 0 8px 48px 0 rgba(255, 145, 77, 0.35);              /* core CTA only, sparingly */
 
-  /* ── Shadows ───────────────────────────────────────────────────────────── */
-  --shadow-soft:       0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
-  --shadow-card:       0 1px 3px 0 rgb(15 23 42 / 0.05), 0 4px 12px -2px rgb(15 23 42 / 0.05);
-  --shadow-lift:       0 4px 12px -2px rgb(15 23 42 / 0.08), 0 12px 32px -8px rgb(15 23 42 / 0.10);
-  --shadow-pop:        0 8px 24px -4px rgb(15 23 42 / 0.12), 0 24px 48px -12px rgb(15 23 42 / 0.20);
-  --shadow-brand:      0 8px 24px -6px rgb(var(--brand-600) / 0.30);
-  --shadow-inner-soft: inset 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  /* Aliases — keep old names working while migrating */
+  --shadow-soft: var(--shadow-card);
+  --shadow-lift: var(--shadow-card);
+  --shadow-pop:  var(--shadow-sheet);
+  --shadow-inner-soft: inset 0 1px 2px 0 rgb(0 0 0 / 0.04);
 
-  /* ── Motion ────────────────────────────────────────────────────────────── */
-  --ease-out:         cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-emphasized:  cubic-bezier(0.16, 1, 0.3, 1);
+  /* ── Motion (guideline §5.1) ──────────────────────────────────────────── */
+  --ease-out:        cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* ── Layered surfaces (composed tokens) ────────────────────────────────── */
-  --surface-default:  255 255 255;
-  --surface-muted:    var(--ink-50);
-  --surface-overlay:  255 255 255;
+  /* ── Layered surfaces ─────────────────────────────────────────────────── */
+  --surface-default: 255 255 255;
+  --surface-muted:   var(--ink-50);
+  --surface-overlay: 255 255 255;
 
-  /* ── Focus ring ────────────────────────────────────────────────────────── */
-  --focus-ring-color: var(--brand-600);
+  /* ── Focus ring ───────────────────────────────────────────────────────── */
+  --focus-ring-color: var(--brand-500);
 }

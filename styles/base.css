@@ -1,16 +1,11 @@
 /*
- * Base layer
- * ──────────
- * Global resets, body defaults, focus ring, scrollbar, selection.
- * Lives in @layer base so app code can always override.
+ * Base layer — global resets, body defaults, focus ring, scrollbar.
+ * Per Kopay guideline: Pretendard only, page bg #F7F8FA.
  */
 
 @layer base {
   html, body, #root {
-    /* 100vh on iOS Safari / Android Chrome equals the *largest* viewport
-       (URL bar hidden), so content gets cut off when the URL bar is showing.
-       100dvh tracks the current visible viewport — falls back to 100vh on
-       older browsers via the cascade. */
+    /* dvh tracks the visible viewport on iOS Safari / Android Chrome */
     height: 100vh;
     height: 100dvh;
   }
@@ -18,27 +13,25 @@
   body {
     font-family: var(--font-sans);
     color: rgb(var(--ink-900));
-    background: rgb(var(--ink-50));
-    overflow: hidden; /* SPA shell never scrolls; inner panes scroll */
+    background: rgb(var(--ink-50));        /* page bg = #F7F8FA */
+    overflow: hidden;                       /* SPA shell never scrolls; inner panes scroll */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-size: 16px;
+    line-height: 1.5;
   }
 
-  input, button, textarea, select {
-    font-family: inherit;
-  }
+  input, button, textarea, select { font-family: inherit; }
 
-  /* Brand text selection */
+  /* Brand selection */
   ::selection {
     background: rgb(var(--brand-100));
     color: rgb(var(--brand-800));
   }
 
-  /* Focus ring — single source of truth.
-     Opt-out per element with data-no-ring. */
+  /* Focus ring (single source of truth). Opt-out per element with data-no-ring. */
   :focus-visible { outline: none; }
-
   *:focus-visible:not([data-no-ring]) {
     box-shadow:
       0 0 0 2px rgb(var(--surface-default)),
@@ -46,11 +39,11 @@
     border-radius: var(--radius-md);
   }
 
-  /* Refined scrollbar — only on hover for desktop polish */
+  /* Refined scrollbar */
   *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-thumb {
     background: rgb(var(--ink-400) / 0.45);
-    border-radius: 999px;
+    border-radius: 9999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }

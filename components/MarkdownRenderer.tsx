@@ -31,7 +31,7 @@ export const renderInline = (text: string): React.ReactNode => {
 
     process(/\*\*(.*?)\*\*/g, (s, k) => <strong key={`b-${k}`}>{s}</strong>);
     process(/\*(.*?)\*/g, (s, k) => <em key={`i-${k}`} className="italic">{s}</em>);
-    process(/`(.*?)`/g, (s, k) => <code key={`c-${k}`} className="bg-slate-200 text-slate-800 rounded px-1 py-0.5 text-sm font-mono">{s}</code>);
+    process(/`(.*?)`/g, (s, k) => <code key={`c-${k}`} className="bg-ink-200 text-ink-800 rounded px-1 py-0.5 text-sm font-mono">{s}</code>);
     
     return <>{segments.map((s, i) => <React.Fragment key={i}>{s}</React.Fragment>)}</>;
 };
@@ -67,7 +67,7 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
             blocks.push(<h1 key={blocks.length} className="text-2xl font-bold mt-6 mb-3">{renderInline(trimmedLine.substring(2))}</h1>);
             i++;
         } else if (trimmedLine.startsWith('## ')) {
-            blocks.push(<h2 key={blocks.length} className="text-xl font-bold mt-5 mb-2 pb-1 border-b border-slate-200">{renderInline(trimmedLine.substring(3))}</h2>);
+            blocks.push(<h2 key={blocks.length} className="text-xl font-bold mt-5 mb-2 pb-1 border-b border-ink-200">{renderInline(trimmedLine.substring(3))}</h2>);
             i++;
         } else if (trimmedLine.startsWith('### ')) {
             blocks.push(<h3 key={blocks.length} className="text-lg font-semibold mt-4 mb-2">{renderInline(trimmedLine.substring(4))}</h3>);
@@ -79,7 +79,7 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
                 i++;
             }
             blocks.push(
-                <blockquote key={`quote-${blocks.length}`} className="border-l-4 border-slate-300 pl-4 my-4 text-slate-600 italic">
+                <blockquote key={`quote-${blocks.length}`} className="border-l-4 border-ink-300 pl-4 my-4 text-ink-700 italic">
                     {quoteLines.map((qline, qi) => <p key={qi} className="mb-1">{renderInline(qline)}</p>)}
                 </blockquote>
             );
@@ -92,7 +92,7 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
             }
             i++; // Move past the closing ```
             blocks.push(
-                <pre key={`code-${blocks.length}`} className="bg-slate-800 text-white rounded-lg p-4 my-4 overflow-x-auto text-sm">
+                <pre key={`code-${blocks.length}`} className="bg-ink-800 text-white rounded-lg p-4 my-4 overflow-x-auto text-sm">
                     <code>{codeLines.join('\n')}</code>
                 </pre>
             );

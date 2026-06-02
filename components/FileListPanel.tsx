@@ -503,7 +503,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
                         <div className={[
                             'w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
                             tierLimits.isPro
-                                ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-brand'
+                                ? 'bg-brand-500 text-white'
                                 : 'bg-brand-100 text-brand-700',
                         ].join(' ')}>
                             {profileInitial}

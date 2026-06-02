@@ -81,7 +81,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
   if (!document.documentContent) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 p-6">
+      <div className="flex flex-col items-center justify-center h-full text-center text-ink-400 p-6">
         <HeadphonesIcon className="text-5xl mb-3 opacity-30" />
         <p className="text-sm font-medium">Document content not available</p>
       </div>
@@ -91,10 +91,10 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Actions bar */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-ink-100 bg-white">
         <div className="flex items-center gap-2">
           <HeadphonesIcon className="text-xl text-brand-500" />
-          <span className="font-semibold text-slate-700 text-sm">Podcast</span>
+          <span className="font-semibold text-ink-700 text-sm">Podcast</span>
         </div>
         <div className="flex items-center gap-2">
           {loading ? (
@@ -102,7 +102,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               <button
                 type="button"
                 onClick={cancel}
-                className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 bg-ink-200 hover:bg-ink-300 text-ink-700 rounded-lg text-xs font-semibold transition-colors"
               >
                 Cancel
               </button>
@@ -132,9 +132,9 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
       {/* Body */}
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         {!loading && (
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <label htmlFor="podcast-direction" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-              생성 방향 <span className="font-normal lowercase tracking-normal text-slate-400">(선택)</span>
+          <div className="bg-white rounded-xl border border-ink-200 p-4">
+            <label htmlFor="podcast-direction" className="block text-xs font-bold text-ink-400 uppercase tracking-wider mb-2">
+              생성 방향 <span className="font-normal lowercase tracking-normal text-ink-400">(선택)</span>
             </label>
             <textarea
               id="podcast-direction"
@@ -142,34 +142,34 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               onChange={(e) => setInstructions(e.target.value)}
               placeholder={DIRECTION_PLACEHOLDER}
               rows={3}
-              className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
+              className="w-full resize-none rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-700 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
             />
-            <p className="mt-1.5 text-xs text-slate-400">
+            <p className="mt-1.5 text-xs text-ink-400">
               범위·형식·말투 등 원하는 방향을 적어주세요. 비워두면 기본 형식으로 생성됩니다.
             </p>
           </div>
         )}
         {loading ? (
-          <div className="flex flex-col items-center gap-3 text-slate-500 mt-8">
+          <div className="flex flex-col items-center gap-3 text-ink-500 mt-8">
             <Spinner />
             <span className="text-sm">Writing podcast script…</span>
           </div>
         ) : error ? (
-          <div className="text-center text-red-500 text-sm max-w-sm mt-8">
+          <div className="text-center text-danger-500 text-sm max-w-sm mt-8">
             <p className="font-semibold mb-1">Generation failed</p>
             <p>{error}</p>
           </div>
         ) : !displayScript ? (
-          <div className="text-center text-slate-400 max-w-xs mx-auto mt-8">
+          <div className="text-center text-ink-400 max-w-xs mx-auto mt-8">
             <HeadphonesIcon className="text-6xl mb-4 opacity-20" />
-            <p className="font-semibold text-slate-600 mb-1">Generate a podcast</p>
+            <p className="font-semibold text-ink-700 mb-1">Generate a podcast</p>
             <p className="text-sm">Generate a script, pick a voice, then synthesize real AI audio.</p>
           </div>
         ) : (
           <>
             {/* Audio card */}
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Voice</p>
+            <div className="bg-ink-50 rounded-xl border border-ink-200 p-4">
+              <p className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">Voice</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {VOICES.map(v => (
                   <button
@@ -180,7 +180,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50 ${
                       voice === v.id
                         ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-700'
+                        : 'bg-white border-ink-200 text-ink-700 hover:border-brand-300 hover:text-brand-700'
                     }`}
                   >
                     {v.label} <span className="font-normal opacity-70">{v.desc}</span>
@@ -190,7 +190,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
               {audioLoading ? (
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center justify-between text-xs text-ink-500">
                     <span>Synthesizing…</span>
                     <div className="flex items-center gap-2">
                       {audioProgress && (
@@ -201,13 +201,13 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                       <button
                         type="button"
                         onClick={() => audioAbortRef.current?.abort()}
-                        className="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs font-semibold"
+                        className="px-2 py-0.5 bg-ink-200 hover:bg-ink-300 text-ink-700 rounded text-xs font-semibold"
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
-                  <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-ink-200 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-brand-500 rounded-full transition-all duration-500"
                       style={{
@@ -230,7 +230,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               )}
 
               {audioError && (
-                <p className="mt-2 text-xs text-red-500 text-center">{audioError}</p>
+                <p className="mt-2 text-xs text-danger-500 text-center">{audioError}</p>
               )}
 
               {audioUrl && !audioLoading && (
@@ -254,9 +254,9 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
             </div>
 
             {/* Transcript */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Transcript</p>
-              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{displayScript}</p>
+            <div className="bg-white rounded-xl border border-ink-200 p-4">
+              <p className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-2">Transcript</p>
+              <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-wrap">{displayScript}</p>
             </div>
           </>
         )}

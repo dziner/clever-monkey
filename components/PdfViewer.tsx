@@ -399,31 +399,31 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
     if (error) return <div className="flex items-center justify-center h-full p-4 text-red-600 bg-red-50">{error}</div>;
 
     return (
-        <div className="flex-1 min-h-0 w-full flex flex-col bg-slate-100 relative">
+        <div className="flex-1 min-h-0 w-full flex flex-col bg-ink-100 relative">
             {/* Toolbar */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-ink-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
                 <div className="flex items-center">
-                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-                        <button type="button" onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom Out">
+                    <div className="flex items-center bg-ink-100 rounded-lg p-0.5 border border-ink-200">
+                        <button type="button" onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-ink-500 hover:text-ink-700 transition-all active:scale-95" title="Zoom Out">
                             <ZoomOutIcon className="text-lg" />
                         </button>
-                        <span className="w-12 text-center text-xs font-mono font-bold text-slate-600 select-none">
+                        <span className="w-12 text-center text-xs font-mono font-bold text-ink-700 select-none">
                             {(effectiveScale * 100).toFixed(0)}%
                         </span>
-                        <button type="button" onClick={zoomIn} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-500 hover:text-slate-700 transition-all active:scale-95" title="Zoom In">
+                        <button type="button" onClick={zoomIn} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-ink-500 hover:text-ink-700 transition-all active:scale-95" title="Zoom In">
                             <ZoomInIcon className="text-lg" />
                         </button>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-50 px-2.5 sm:px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex-shrink-0">
-                    <span className="hidden sm:inline text-[10px] font-bold text-slate-400 uppercase tracking-wider">Page</span>
-                    <span className="text-xs sm:text-sm font-bold text-slate-700 font-mono">{currentPage}</span>
-                    <span className="text-xs text-slate-300">/</span>
-                    <span className="text-xs sm:text-sm font-medium text-slate-500 font-mono">{numPages || '--'}</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-ink-50 px-2.5 sm:px-3 py-1.5 rounded-full border border-ink-200 shadow-sm flex-shrink-0">
+                    <span className="hidden sm:inline text-[10px] font-bold text-ink-400 uppercase tracking-wider">Page</span>
+                    <span className="text-xs sm:text-sm font-bold text-ink-700 font-mono">{currentPage}</span>
+                    <span className="text-xs text-ink-300">/</span>
+                    <span className="text-xs sm:text-sm font-medium text-ink-500 font-mono">{numPages || '--'}</span>
                 </div>
 
-                <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-slate-500 hover:bg-brand-50 hover:text-brand-600 transition-colors active:scale-95" title="Fit to width">
+                <button type="button" onClick={fitToPage} className="p-2 rounded-lg text-ink-500 hover:bg-brand-50 hover:text-brand-600 transition-colors active:scale-95" title="Fit to width">
                     <FitScreenIcon className="text-xl" />
                 </button>
             </div>
@@ -431,7 +431,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
             {/* Scroll area */}
             <section
                 ref={containerRef}
-                className="flex-1 min-h-0 w-full overflow-auto bg-slate-200 relative"
+                className="flex-1 min-h-0 w-full overflow-auto bg-ink-200 relative"
                 style={{ touchAction: 'pan-x pan-y' }}
                 aria-label="PDF viewer"
                 onScroll={handleScroll}
@@ -476,7 +476,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
                     </div>
                 ) : textContent !== null ? (
                     <div className="p-6 bg-white max-w-4xl mx-auto my-4 rounded-lg shadow-lg">
-                        <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">{textContent}</pre>
+                        <pre className="whitespace-pre-wrap text-sm text-ink-800 font-sans">{textContent}</pre>
                     </div>
                 ) : null}
             </section>

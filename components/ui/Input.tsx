@@ -9,11 +9,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 const FIELD_BASE = [
-  'w-full text-sm text-ink-900 placeholder:text-ink-400',
-  'bg-white border border-ink-200 rounded-xl',
-  'transition-colors duration-150',
-  'focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20',
-  'disabled:bg-ink-50 disabled:text-ink-400 disabled:cursor-not-allowed',
+  'w-full text-base text-ink-900 placeholder:text-ink-400',
+  'bg-white border border-ink-200 rounded-lg',
+  'transition-colors duration-200',
+  'focus:outline-none focus:border-brand-500',
+  'disabled:bg-ink-150 disabled:text-ink-400 disabled:cursor-not-allowed',
 ].join(' ');
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold text-ink-600 mb-1.5 ml-0.5">
+          <label htmlFor={inputId} className="block text-sm font-semibold text-ink-800 mb-2">
             {label}
           </label>
         )}
@@ -37,10 +37,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={[
               FIELD_BASE,
-              leftIcon ? 'pl-10' : 'pl-4',
+              leftIcon ? 'pl-11' : 'pl-4',
               rightSlot ? 'pr-12' : 'pr-4',
-              'py-2.5',
-              error ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/20' : '',
+              'h-12',
+              error ? 'border-danger-500 focus:border-danger-500' : '',
               className,
             ].join(' ')}
             {...rest}
@@ -50,9 +50,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error ? (
-          <p className="mt-1.5 text-xs text-danger-600 font-medium">{error}</p>
+          <p className="mt-2 text-13 text-danger-600">{error}</p>
         ) : hint ? (
-          <p className="mt-1.5 text-xs text-ink-500">{hint}</p>
+          <p className="mt-2 text-13 text-ink-500">{hint}</p>
         ) : null}
       </div>
     );
@@ -72,7 +72,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold text-ink-600 mb-1.5 ml-0.5">
+          <label htmlFor={inputId} className="block text-sm font-semibold text-ink-800 mb-2">
             {label}
           </label>
         )}
@@ -82,15 +82,15 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           className={[
             FIELD_BASE,
             'px-4 py-3 resize-none',
-            error ? 'border-danger-500 focus:border-danger-500 focus:ring-danger-500/20' : '',
+            error ? 'border-danger-500 focus:border-danger-500' : '',
             className,
           ].join(' ')}
           {...rest}
         />
         {error ? (
-          <p className="mt-1.5 text-xs text-danger-600 font-medium">{error}</p>
+          <p className="mt-2 text-13 text-danger-600">{error}</p>
         ) : hint ? (
-          <p className="mt-1.5 text-xs text-ink-500">{hint}</p>
+          <p className="mt-2 text-13 text-ink-500">{hint}</p>
         ) : null}
       </div>
     );

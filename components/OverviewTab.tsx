@@ -64,12 +64,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
         <div className="flex-1 overflow-y-auto bg-ink-50">
             <div className="max-w-2xl w-full mx-auto p-4 sm:p-6 space-y-5">
                 {/* Summary card */}
-                <section className="relative bg-white border border-ink-200 rounded-2xl p-5 shadow-soft overflow-hidden">
-                    <div className="absolute -top-12 -right-12 w-48 h-48 bg-brand-50 rounded-full blur-3xl pointer-events-none" />
-                    <div className="relative">
+                <section className="bg-white border border-ink-200 rounded-lg p-4 shadow-card">
+                    <div>
                         <div className="flex items-center gap-2 mb-3">
                             <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center">
-                                <AutoAwesomeIcon className="text-base text-brand-600" />
+                                <AutoAwesomeIcon className="text-base text-brand-700" />
                             </div>
                             <h2 className="text-h3">요약</h2>
                         </div>
@@ -177,8 +176,8 @@ const StatTile: React.FC<StatTileProps> = ({ tone, label, value, sub, icon: Icon
             type="button"
             onClick={onClick}
             className={[
-                'group flex flex-col items-start gap-1 p-4 bg-white border border-ink-200 rounded-2xl shadow-soft',
-                'hover:shadow-card hover:-translate-y-0.5 transition-all text-left',
+                'group flex flex-col items-start gap-1 p-4 bg-white border border-ink-200 rounded-lg shadow-card',
+                'transition-transform duration-200 ease-out active:scale-[0.98] text-left',
                 t.hover,
             ].join(' ')}
         >
@@ -186,8 +185,8 @@ const StatTile: React.FC<StatTileProps> = ({ tone, label, value, sub, icon: Icon
                 <Icon className={`text-base ${t.iconText}`} />
             </div>
             <span className="text-eyebrow">{label}</span>
-            <span className="text-xl font-display font-bold text-ink-900 leading-none tracking-tight">{value}</span>
-            <span className="text-caption text-ink-500">{sub}</span>
+            <span className="text-22 font-extrabold text-ink-900 leading-none tracking-tight tabular-nums">{value}</span>
+            <span className="text-13 text-ink-500">{sub}</span>
         </button>
     );
 };

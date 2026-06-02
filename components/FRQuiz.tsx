@@ -136,29 +136,29 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
         return (
             <div className="space-y-4">
                 {/* Results Card */}
-                <div className="bg-green-50 border border-green-200 rounded-xl shadow-md p-4 text-slate-800 space-y-4">
+                <div className="bg-success-50 border border-success-200 rounded-xl shadow-md p-4 text-ink-800 space-y-4">
                     <h2 className="text-lg font-bold text-center">{data.title} - Results</h2>
                      {isGrading ? (
                         <div className="flex flex-col items-center justify-center p-8">
                             <Spinner />
-                            <p className="mt-4 font-semibold text-slate-700">AI is grading your answers...</p>
+                            <p className="mt-4 font-semibold text-ink-700">AI is grading your answers...</p>
                         </div>
                     ) : (
                         <div className="space-y-4">
                              <div className="my-4 text-center">
-                                <p className="text-sm text-slate-600">Average Score</p>
-                                <p className={`text-4xl font-bold my-1 ${averageScore >= 70 ? 'text-green-600' : 'text-orange-600'}`}>{averageScore}%</p>
+                                <p className="text-sm text-ink-700">Average Score</p>
+                                <p className={`text-4xl font-bold my-1 ${averageScore >= 70 ? 'text-success-600' : 'text-warning-600'}`}>{averageScore}%</p>
                             </div>
                             {data.questions.map((q, index) => {
                                 const userAnswer = userAnswers.find(a => a.questionIndex === index);
                                 if (!userAnswer) return null;
                                 return (
-                                    <div key={index} className="bg-white p-3 rounded-lg border border-slate-200 text-sm">
+                                    <div key={index} className="bg-white p-3 rounded-lg border border-ink-200 text-sm">
                                         <p className="font-semibold mb-2">{q.questionText}</p>
                                         <p className="p-2 bg-brand-50/50 border border-brand-200 rounded-md"><strong>Your answer:</strong> {userAnswer.userAnswerText}</p>
-                                        <div className="mt-2 p-2 bg-yellow-50/50 border border-yellow-200 rounded-md">
+                                        <div className="mt-2 p-2 bg-warning-50/50 border border-yellow-200 rounded-md">
                                             <div className="flex justify-between items-baseline">
-                                                <p><span className="font-bold">Score:</span> <span className={`font-bold ${userAnswer.score >= 70 ? 'text-green-700' : 'text-orange-700'}`}>{userAnswer.score}/100</span></p>
+                                                <p><span className="font-bold">Score:</span> <span className={`font-bold ${userAnswer.score >= 70 ? 'text-success-700' : 'text-warning-700'}`}>{userAnswer.score}/100</span></p>
                                             </div>
                                             <p><strong>Feedback:</strong> {userAnswer.feedback}</p>
                                         </div>
@@ -171,7 +171,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                                     {hasLowScoring && onRestartWithNewData ? (
                                         <button
                                             onClick={handleRetryLowScoring}
-                                            className="w-full px-4 py-2 bg-white border border-orange-500 text-orange-600 rounded-lg font-semibold hover:bg-orange-50 transition-colors text-sm"
+                                            className="w-full px-4 py-2 bg-white border border-orange-500 text-warning-600 rounded-lg font-semibold hover:bg-warning-50 transition-colors text-sm"
                                         >
                                             Retry Low-Scoring
                                         </button>
@@ -185,7 +185,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                                 </div>
                                 <button
                                     onClick={onCreateAnotherQuiz}
-                                    className="w-full text-center text-sm px-4 py-2 text-slate-600 rounded-lg font-semibold hover:bg-slate-200 transition-colors"
+                                    className="w-full text-center text-sm px-4 py-2 text-ink-700 rounded-lg font-semibold hover:bg-ink-200 transition-colors"
                                 >
                                     Create a New Quiz
                                 </button>
@@ -197,12 +197,12 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                 {/* Study Tips Card */}
                 {!isGrading && documentContent && (
                     isGeneratingTips ? (
-                        <div className="bg-white border border-slate-200 rounded-xl shadow-md p-4 flex flex-col items-center justify-center min-h-[10rem]">
+                        <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 flex flex-col items-center justify-center min-h-[10rem]">
                             <Spinner />
-                            <p className="mt-2 text-sm font-semibold text-slate-600">Generating study tips...</p>
+                            <p className="mt-2 text-sm font-semibold text-ink-700">Generating study tips...</p>
                         </div>
                     ) : studyTips && (
-                        <div className="bg-white border border-slate-200 rounded-xl shadow-md p-4 animate-fade-in-up text-slate-800">
+                        <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 animate-fade-in-up text-ink-800">
                             <MarkdownRenderer content={studyTips} />
                         </div>
                     )
@@ -215,15 +215,15 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
 
     return (
-        <div className="bg-green-50 border border-green-200 rounded-xl shadow-md p-4">
-            <div className="text-slate-800 space-y-4">
+        <div className="bg-success-50 border border-success-200 rounded-xl shadow-md p-4">
+            <div className="text-ink-800 space-y-4">
                 <h2 className="text-xl font-bold">{data.title}</h2>
                 
                 <div>
-                    <p className="text-sm font-semibold text-slate-600 mb-1 text-right">
+                    <p className="text-sm font-semibold text-ink-700 mb-1 text-right">
                         Question {currentQuestionIndex + 1} of {totalQuestions}
                     </p>
-                    <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div className="w-full bg-ink-200 rounded-full h-2">
                         <div 
                             className="bg-green-500 h-2 rounded-full transition-all duration-300" 
                             style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
@@ -231,7 +231,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                     </div>
                 </div>
 
-                <p className="font-semibold text-slate-800 text-base pt-2">
+                <p className="font-semibold text-ink-800 text-base pt-2">
                     {currentQuestion.questionText}
                 </p>
 
@@ -239,7 +239,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                     value={localAnswerText}
                     onChange={(e) => setLocalAnswerText(e.target.value)}
                     placeholder="Type your answer here..."
-                    className="w-full bg-white border border-slate-200 rounded-lg p-4 text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-green-400"
+                    className="w-full bg-white border border-ink-200 rounded-lg p-4 text-ink-700 placeholder-ink-400 focus:ring-2 focus:ring-green-400"
                     rows={8}
                     aria-label="Your answer"
                 />
@@ -248,7 +248,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                     <button
                         onClick={handleBack}
                         disabled={currentQuestionIndex === 0}
-                        className="flex items-center gap-1 px-4 py-2 text-slate-500 rounded-lg font-semibold hover:text-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1 px-4 py-2 text-ink-500 rounded-lg font-semibold hover:text-ink-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <ChevronLeftIcon /> Back
                     </button>
@@ -257,7 +257,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                         <button
                             onClick={handleFinishAndGrade}
                             disabled={isGrading}
-                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-400 text-white rounded-lg font-semibold hover:bg-slate-500 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-ink-400 text-white rounded-lg font-semibold hover:bg-ink-500 transition-colors disabled:bg-ink-300 disabled:cursor-not-allowed"
                         >
                             Finish & Grade <CheckIcon />
                         </button>
@@ -274,7 +274,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                 <div className="pt-2 text-center">
                      <button
                         onClick={onCreateAnotherQuiz}
-                        className="text-center text-sm text-slate-600 font-semibold hover:underline"
+                        className="text-center text-sm text-ink-700 font-semibold hover:underline"
                     >
                         Start a New Quiz
                     </button>

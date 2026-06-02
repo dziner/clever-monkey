@@ -54,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         className={[
-          'relative w-full bg-white rounded-3xl shadow-pop ring-1 ring-ink-900/5',
+          'relative w-full bg-white rounded-2xl shadow-sheet',
           'overflow-hidden animate-scale-in',
           SIZE_CLS[size],
         ].join(' ')}

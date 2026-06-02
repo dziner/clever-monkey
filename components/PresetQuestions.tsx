@@ -18,11 +18,11 @@ export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQ
             <div className="sticky bottom-1 z-10 flex justify-center">
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="flex items-center gap-2 bg-white rounded-full shadow-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-transform hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 bg-white rounded-full shadow-lg px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-100 border border-ink-200 transition-transform hover:scale-105 active:scale-95"
                     aria-expanded="false"
                     aria-label="Show suggested questions"
                 >
-                    <LightbulbIcon className="text-xl text-yellow-500" />
+                    <LightbulbIcon className="text-xl text-warning-500" />
                     <span>Try one of these questions</span>
                 </button>
             </div>
@@ -31,14 +31,14 @@ export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQ
     
     // Expanded "Card" state
     return (
-        <div className="my-4 bg-slate-50 rounded-lg border border-slate-200 shadow-sm">
+        <div className="my-4 bg-ink-50 rounded-lg border border-ink-200 shadow-sm">
             <button 
                 onClick={() => setIsOpen(false)} 
-                className="w-full flex justify-between items-center text-sm font-medium text-slate-600 p-3 hover:bg-slate-100 rounded-t-lg"
+                className="w-full flex justify-between items-center text-sm font-medium text-ink-700 p-3 hover:bg-ink-100 rounded-t-lg"
                 aria-expanded="true"
             >
                 <span className="flex items-center font-semibold">
-                    <LightbulbIcon className="text-xl mr-2 text-yellow-500" />
+                    <LightbulbIcon className="text-xl mr-2 text-warning-500" />
                     Try one of these questions
                 </span>
                 <ChevronDownIcon className="text-xl" />

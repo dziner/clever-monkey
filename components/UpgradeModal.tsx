@@ -37,9 +37,9 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-            <div className="relative bg-white rounded-3xl shadow-pop w-full max-w-md overflow-hidden animate-scale-in ring-1 ring-ink-900/5">
+            <div className="relative bg-white rounded-2xl shadow-sheet w-full max-w-md overflow-hidden animate-scale-in">
                 {/* Header */}
-                <div className="relative bg-gradient-to-br from-ink-900 via-brand-900 to-brand-700 px-7 pt-8 pb-7 text-white overflow-hidden">
+                <div className="relative bg-ink-900 px-7 pt-8 pb-7 text-white overflow-hidden">
                     <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-500/30 rounded-full blur-3xl pointer-events-none" />
                     <button
                         type="button"
@@ -51,7 +51,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
                     </button>
                     <div className="relative">
                         <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 ring-1 ring-white/20">
-                            <WorkspacePremiumIcon className="text-2xl text-yellow-300" />
+                            <WorkspacePremiumIcon className="text-2xl text-warning-100" />
                         </div>
                         <h2 className="text-xl font-display font-bold tracking-tight">{copy.title}</h2>
                         <p className="text-brand-100/90 text-sm mt-1.5 leading-relaxed">{copy.desc}</p>
@@ -78,7 +78,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
                             onClick={() => {
                                 window.open('mailto:support@clevermonkey.app?subject=Pro Plan Upgrade', '_blank');
                             }}
-                            className="w-full inline-flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-700 hover:to-brand-800 text-white rounded-xl font-bold text-sm transition-all shadow-brand"
+                            className="w-full inline-flex items-center justify-center gap-2 h-14 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-2xl font-bold text-base transition-[transform,background-color] duration-200 active:scale-[0.98] shadow-brand"
                         >
                             <BoltIcon className="text-base" />
                             Pro로 업그레이드

@@ -76,7 +76,7 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
                     <div className="relative inline-block mb-6">
                         <DoodleSparkle className="absolute -top-3 -right-6 w-7 h-7 text-warning-500" />
                         <DoodleStar    className="absolute -top-1 -left-8 w-6 h-6 text-brand-400 rotate-12" />
-                        <CleverMonkeyIcon className="w-28 h-28 md:w-32 md:h-32 text-brand-500 drop-shadow-[0_8px_16px_rgba(124,58,237,0.25)] animate-fade-in" />
+                        <CleverMonkeyIcon className="w-28 h-28 md:w-32 md:h-32 text-brand-500 animate-fade-in" />
                         <DoodleStar    className="absolute -bottom-2 -right-8 w-5 h-5 text-brand-300 -rotate-6" />
                     </div>
 
@@ -100,39 +100,39 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
                     </p>
                 </div>
 
-                {/* Upload card — back to the clean version */}
+                {/* Upload card */}
                 <div className="mt-10 max-w-2xl mx-auto">
                     <div
                         onClick={handleClick}
                         role="button"
                         tabIndex={0}
                         className={[
-                            'relative group cursor-pointer rounded-2xl bg-white border-2 border-dashed',
-                            'transition-all duration-200',
+                            'relative group cursor-pointer rounded-2xl bg-white border border-dashed',
+                            'transition-[transform,border-color,background-color] duration-200 ease-out active:scale-[0.99]',
                             isDragging
-                                ? 'border-brand-500 bg-brand-50/60 shadow-brand'
-                                : 'border-ink-200 hover:border-brand-400 hover:shadow-lift',
+                                ? 'border-brand-500 bg-brand-50'
+                                : 'border-ink-250 hover:border-brand-400',
                         ].join(' ')}
                     >
                         <div className="p-10 md:p-12 flex flex-col items-center text-center">
                             <div className={[
-                                'w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-200',
+                                'w-16 h-16 rounded-2xl flex items-center justify-center transition-colors duration-200',
                                 isDragging
-                                    ? 'bg-brand-500 shadow-brand scale-110'
-                                    : 'bg-brand-50 group-hover:bg-brand-500',
+                                    ? 'bg-brand-500'
+                                    : 'bg-brand-100 group-hover:bg-brand-500',
                             ].join(' ')}>
                                 <UploadIcon className={[
                                     'text-3xl transition-colors duration-200',
-                                    isDragging ? 'text-white' : 'text-brand-600 group-hover:text-white',
+                                    isDragging ? 'text-white' : 'text-brand-700 group-hover:text-white',
                                 ].join(' ')} />
                             </div>
-                            <p className="mt-5 text-lg md:text-xl font-semibold text-ink-800">
+                            <p className="mt-5 text-h2">
                                 파일을 끌어놓거나 클릭해서 업로드
                             </p>
-                            <p className="mt-1.5 text-sm text-ink-500">
+                            <p className="mt-2 text-body text-ink-500">
                                 PDF · 이미지(JPG/PNG/WebP/HEIC) · TXT · MD 지원
                             </p>
-                            <div className="mt-5 flex items-center gap-2 text-xs text-ink-400">
+                            <div className="mt-5 flex items-center gap-2 text-caption text-ink-500">
                                 <LockIcon className="text-sm" />
                                 <span>업로드한 파일은 본인만 볼 수 있습니다.</span>
                             </div>
@@ -147,10 +147,10 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
                     </div>
 
                     {!userEmail && onSignInClick && (
-                        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-500">
+                        <div className="mt-4 flex items-center justify-center gap-2 text-caption text-ink-500">
                             <BoltIcon className="text-sm text-brand-500" />
                             <span>로그인하면 문서와 학습 진척이 기기 간 동기화됩니다.</span>
-                            <button type="button" onClick={onSignInClick} className="font-semibold text-brand-600 hover:text-brand-700">
+                            <button type="button" onClick={onSignInClick} className="font-semibold text-brand-700 hover:text-brand-800 transition-colors duration-200">
                                 지금 로그인 →
                             </button>
                         </div>
@@ -160,13 +160,13 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
                 {/* How it works */}
                 <section className="mt-20">
                     <div className="text-center mb-8">
-                        <p className="text-eyebrow text-brand-600">How it works</p>
-                        <h2 className="mt-2 text-display-lg">3단계로 시작합니다</h2>
+                        <p className="text-eyebrow text-brand-700">How it works</p>
+                        <h2 className="mt-2 text-display-xl">3단계로 시작합니다</h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {STEPS.map(s => (
-                            <div key={s.num} className="bg-white rounded-2xl border border-ink-200 p-6 shadow-soft hover:shadow-card transition-shadow">
-                                <p className="font-display text-3xl font-bold text-brand-600 leading-none">{s.num}</p>
+                            <div key={s.num} className="bg-white rounded-lg border border-ink-200 p-5 shadow-card">
+                                <p className="text-2xl font-extrabold text-brand-500 leading-none tabular-nums">{s.num}</p>
                                 <p className="mt-3 text-h3">{s.title}</p>
                                 <p className="mt-1 text-body text-ink-500">{s.desc}</p>
                             </div>
@@ -177,17 +177,17 @@ export const IdleStateView: React.FC<IdleStateViewProps> = ({ onFileSelected, us
                 {/* Features grid */}
                 <section className="mt-16">
                     <div className="text-center mb-8">
-                        <p className="text-eyebrow text-brand-600">Tools</p>
-                        <h2 className="mt-2 text-display-lg">업로드 후 열리는 학습 도구</h2>
+                        <p className="text-eyebrow text-brand-700">Tools</p>
+                        <h2 className="mt-2 text-display-xl">업로드 후 열리는 학습 도구</h2>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         {FEATURES.map(({ icon: Icon, label, blurb }) => (
-                            <div key={label} className="bg-white rounded-2xl border border-ink-200 p-5 shadow-soft hover:shadow-card hover:border-brand-200 transition-all">
-                                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
-                                    <Icon className="text-xl text-brand-600" />
+                            <div key={label} className="bg-white rounded-lg border border-ink-200 p-4 shadow-card">
+                                <div className="w-10 h-10 rounded-lg bg-brand-100 flex items-center justify-center">
+                                    <Icon className="text-xl text-brand-700" />
                                 </div>
                                 <p className="mt-3 text-h4">{label}</p>
-                                <p className="mt-0.5 text-body-sm text-ink-500">{blurb}</p>
+                                <p className="mt-1 text-body-sm text-ink-500">{blurb}</p>
                             </div>
                         ))}
                     </div>

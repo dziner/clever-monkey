@@ -39,14 +39,14 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, sub, color, bg, warn }) => (
-    <div className={`bg-white rounded-xl border p-5 flex items-start gap-4 ${warn ? 'border-orange-200' : 'border-slate-200'}`}>
+    <div className={`bg-white rounded-xl border p-5 flex items-start gap-4 ${warn ? 'border-warning-200' : 'border-ink-200'}`}>
         <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
             <Icon className={`text-2xl ${color}`} />
         </div>
         <div className="min-w-0">
-            <p className="text-2xl font-bold text-slate-800 leading-none">{value}</p>
-            <p className="text-sm font-semibold text-slate-500 mt-1">{label}</p>
-            {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+            <p className="text-2xl font-bold text-ink-800 leading-none">{value}</p>
+            <p className="text-sm font-semibold text-ink-500 mt-1">{label}</p>
+            {sub && <p className="text-xs text-ink-400 mt-0.5">{sub}</p>}
         </div>
     </div>
 );
@@ -59,14 +59,14 @@ const TierBadge: React.FC<{ tier: UserTier }> = ({ tier }) =>
             <StarIcon className="text-xs" /> Pro
         </span>
     ) : (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-xs font-semibold">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-ink-100 text-ink-700 border border-ink-200 rounded-full text-xs font-semibold">
             Free
         </span>
     );
 
 const RoleBadge: React.FC<{ role: UserRole }> = ({ role }) =>
     role === 'admin' ? (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 border border-orange-200 rounded-full text-xs font-bold">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-warning-100 text-warning-700 border border-warning-200 rounded-full text-xs font-bold">
             <KeyIcon className="text-xs" /> Admin
         </span>
     ) : null;
@@ -87,18 +87,18 @@ const UserRow: React.FC<UserRowProps> = ({ user, currentUserId, onTierChange, on
     const isNearLimit = user.tier === 'free' && user.aiActionsToday >= 15;
 
     return (
-        <tr className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+        <tr className="border-b border-ink-100 hover:bg-ink-50/50 transition-colors">
             <td className="px-4 py-3 min-w-0">
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm flex-shrink-0">
                         {(user.email[0] ?? '?').toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-800 truncate max-w-[200px]" title={user.email}>
+                        <p className="text-sm font-medium text-ink-800 truncate max-w-[200px]" title={user.email}>
                             {user.email}
                             {isMe && <span className="ml-1.5 text-xs text-brand-600 font-semibold">(나)</span>}
                         </p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-ink-400">
                             {new Date(user.createdAt).toLocaleDateString('ko-KR')}에 가입
                         </p>
                     </div>
@@ -110,16 +110,16 @@ const UserRow: React.FC<UserRowProps> = ({ user, currentUserId, onTierChange, on
                     {user.role === 'admin' && <RoleBadge role={user.role} />}
                 </div>
             </td>
-            <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{user.documentCount}</td>
+            <td className="px-4 py-3 text-sm text-ink-700 tabular-nums">{user.documentCount}</td>
             <td className="px-4 py-3">
                 <div className="flex items-center gap-2 min-w-[80px]">
-                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-ink-100 rounded-full overflow-hidden">
                         <div
                             className={`h-1.5 rounded-full transition-all ${isNearLimit ? 'bg-orange-500' : 'bg-brand-400'}`}
                             style={{ width: `${user.tier === 'pro' ? 0 : aiPct}%` }}
                         />
                     </div>
-                    <span className={`text-xs font-mono tabular-nums flex-shrink-0 ${isNearLimit ? 'text-orange-600 font-bold' : 'text-slate-500'}`}>
+                    <span className={`text-xs font-mono tabular-nums flex-shrink-0 ${isNearLimit ? 'text-warning-600 font-bold' : 'text-ink-500'}`}>
                         {user.tier === 'pro' ? '∞' : `${user.aiActionsToday}`}
                     </span>
                 </div>
@@ -135,19 +135,19 @@ const UserRow: React.FC<UserRowProps> = ({ user, currentUserId, onTierChange, on
                                 </button>
                             ) : (
                                 <button type="button" onClick={() => onTierChange(user.id, 'free')}
-                                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 transition-colors">
+                                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-ink-700 bg-ink-100 border border-ink-200 rounded-lg hover:bg-ink-200 transition-colors">
                                     Free
                                 </button>
                             )}
                             {!isMe && (
                                 user.role === 'admin' ? (
                                     <button type="button" onClick={() => onRoleChange(user.id, 'user')}
-                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-danger-600 bg-danger-50 border border-danger-200 rounded-lg hover:bg-danger-100 transition-colors">
                                         Admin 해제
                                     </button>
                                 ) : (
                                     <button type="button" onClick={() => onRoleChange(user.id, 'admin')}
-                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors">
+                                        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-warning-700 bg-warning-50 border border-warning-200 rounded-lg hover:bg-warning-100 transition-colors">
                                         <KeyIcon className="text-xs" /> Admin
                                     </button>
                                 )
@@ -179,13 +179,13 @@ const MiniBarChart: React.FC<MiniBarChartProps> = ({ data }) => {
                         />
                         {/* Tooltip */}
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
-                            <div className="bg-slate-800 text-white text-[10px] rounded px-1.5 py-1 whitespace-nowrap">
+                            <div className="bg-ink-800 text-white text-[10px] rounded px-1.5 py-1 whitespace-nowrap">
                                 {d.totalActions}회 · {d.activeUsers}명
                             </div>
-                            <div className="w-1.5 h-1.5 bg-slate-800 rotate-45 -mt-0.5" />
+                            <div className="w-1.5 h-1.5 bg-ink-800 rotate-45 -mt-0.5" />
                         </div>
                     </div>
-                    <span className="text-[9px] text-slate-400 leading-none">{d.date}</span>
+                    <span className="text-[9px] text-ink-400 leading-none">{d.date}</span>
                 </div>
             ))}
         </div>
@@ -200,13 +200,13 @@ const StorageGauge: React.FC<{ used: number; limit?: number; label: string }> = 
     return (
         <div>
             <div className="flex justify-between text-xs mb-1">
-                <span className="font-semibold text-slate-600">{label}</span>
-                <span className="text-slate-500 font-mono">{formatBytes(used)}</span>
+                <span className="font-semibold text-ink-700">{label}</span>
+                <span className="text-ink-500 font-mono">{formatBytes(used)}</span>
             </div>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-ink-100 rounded-full overflow-hidden">
                 <div className={`h-2 rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
             </div>
-            <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+            <div className="flex justify-between text-[10px] text-ink-400 mt-0.5">
                 <span>{pct.toFixed(1)}% 사용됨</span>
                 <span>한도 {formatBytes(limit)}</span>
             </div>
@@ -275,13 +275,13 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     // ── Access guard ──────────────────────────────────────────────────────────
     if (!isAdmin && userProfile !== null) {
         return (
-            <div className="flex flex-col h-full items-center justify-center bg-slate-50 gap-4 p-8">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+            <div className="flex flex-col h-full items-center justify-center bg-ink-50 gap-4 p-8">
+                <div className="w-16 h-16 bg-danger-50 rounded-full flex items-center justify-center">
                     <ErrorOutlineIcon className="text-3xl text-red-400" />
                 </div>
                 <div className="text-center">
-                    <p className="font-bold text-slate-700">접근 권한이 없습니다</p>
-                    <p className="text-sm text-slate-500 mt-1">관리자 권한이 필요한 페이지입니다.</p>
+                    <p className="font-bold text-ink-700">접근 권한이 없습니다</p>
+                    <p className="text-sm text-ink-500 mt-1">관리자 권한이 필요한 페이지입니다.</p>
                 </div>
                 <button type="button" onClick={() => navigate(ROUTES.STUDY)}
                     className="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold text-sm hover:bg-brand-700 transition-colors">
@@ -310,33 +310,33 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     ];
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
+        <div className="flex flex-col h-full bg-ink-50 overflow-hidden">
             {/* ── Header ─────────────────────────────────────────────────── */}
-            <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm">
+            <div className="flex-shrink-0 bg-white border-b border-ink-200 shadow-sm">
                 <div className="h-14 flex items-center gap-3 px-4">
                     <button type="button" onClick={() => navigate(ROUTES.STUDY)}
-                        className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                        className="p-2 text-ink-500 hover:text-ink-700 hover:bg-ink-100 rounded-lg transition-colors">
                         <ChevronLeftIcon className="text-xl" />
                     </button>
-                    <AdminPanelIcon className="text-2xl text-orange-500" />
+                    <AdminPanelIcon className="text-2xl text-warning-500" />
                     <div>
-                        <h1 className="text-lg font-bold text-slate-800 leading-tight">Admin Panel</h1>
-                        <p className="text-xs text-slate-400">Clever Monkey 관리자 대시보드</p>
+                        <h1 className="text-lg font-bold text-ink-800 leading-tight">Admin Panel</h1>
+                        <p className="text-xs text-ink-400">Clever Monkey 관리자 대시보드</p>
                     </div>
                     <button type="button" onClick={loadAll}
-                        className="ml-auto p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="새로고침">
+                        className="ml-auto p-2 text-ink-400 hover:text-ink-700 hover:bg-ink-100 rounded-lg transition-colors" title="새로고침">
                         <RefreshIcon className="text-xl" />
                     </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-t border-slate-100">
+                <div className="flex border-t border-ink-100">
                     {tabs.map(tab => (
                         <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
                                 activeTab === tab.id
                                     ? 'border-brand-500 text-brand-700'
-                                    : 'border-transparent text-slate-500 hover:text-slate-700'
+                                    : 'border-transparent text-ink-500 hover:text-ink-700'
                             }`}>
                             {tab.label}
                         </button>
@@ -353,33 +353,33 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                     {activeTab === 'overview' && (
                         <div className="p-4 max-w-4xl mx-auto w-full space-y-6">
                             <section>
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">사용자 현황</h2>
+                                <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">사용자 현황</h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                     <StatCard icon={PeopleIcon}           label="전체 사용자"  value={totalUsers}  color="text-brand-600"   bg="bg-brand-50" />
                                     <StatCard icon={WorkspacePremiumIcon} label="Pro 사용자"   value={proUsers}    sub={`Free ${freeUsers}명`} color="text-violet-600" bg="bg-violet-50" />
-                                    <StatCard icon={DocumentIcon}         label="전체 문서"    value={dbStats?.documentCount ?? '—'} color="text-green-600" bg="bg-green-50" />
-                                    <StatCard icon={BoltIcon}             label="오늘 AI 호출" value={apiStats?.totalActionsToday ?? '—'} color="text-orange-600" bg="bg-orange-50" />
+                                    <StatCard icon={DocumentIcon}         label="전체 문서"    value={dbStats?.documentCount ?? '—'} color="text-success-600" bg="bg-success-50" />
+                                    <StatCard icon={BoltIcon}             label="오늘 AI 호출" value={apiStats?.totalActionsToday ?? '—'} color="text-warning-600" bg="bg-warning-50" />
                                 </div>
                             </section>
 
                             <section>
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">플랜 분포</h2>
-                                <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+                                <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">플랜 분포</h2>
+                                <div className="bg-white rounded-xl border border-ink-200 p-5 space-y-3">
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="font-semibold text-slate-700">Free</span>
-                                            <span className="text-slate-500">{freeUsers}명 ({totalUsers > 0 ? Math.round(freeUsers / totalUsers * 100) : 0}%)</span>
+                                            <span className="font-semibold text-ink-700">Free</span>
+                                            <span className="text-ink-500">{freeUsers}명 ({totalUsers > 0 ? Math.round(freeUsers / totalUsers * 100) : 0}%)</span>
                                         </div>
-                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                            <div className="h-2 bg-slate-400 rounded-full" style={{ width: `${totalUsers > 0 ? (freeUsers / totalUsers) * 100 : 0}%` }} />
+                                        <div className="w-full h-2 bg-ink-100 rounded-full overflow-hidden">
+                                            <div className="h-2 bg-ink-400 rounded-full" style={{ width: `${totalUsers > 0 ? (freeUsers / totalUsers) * 100 : 0}%` }} />
                                         </div>
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
                                             <span className="font-semibold text-violet-700">Pro</span>
-                                            <span className="text-slate-500">{proUsers}명 ({totalUsers > 0 ? Math.round(proUsers / totalUsers * 100) : 0}%)</span>
+                                            <span className="text-ink-500">{proUsers}명 ({totalUsers > 0 ? Math.round(proUsers / totalUsers * 100) : 0}%)</span>
                                         </div>
-                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                        <div className="w-full h-2 bg-ink-100 rounded-full overflow-hidden">
                                             <div className="h-2 bg-violet-500 rounded-full" style={{ width: `${totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0}%` }} />
                                         </div>
                                     </div>
@@ -387,22 +387,22 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                             </section>
 
                             <section>
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">플랜 정책</h2>
+                                <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">플랜 정책</h2>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div className="bg-white rounded-xl border border-slate-200 p-4">
-                                        <div className="flex items-center gap-2 mb-3"><span className="text-sm font-bold text-slate-700">Free</span><TierBadge tier="free" /></div>
-                                        <ul className="space-y-1.5 text-sm text-slate-600">
-                                            <li className="flex items-center gap-2"><CheckIcon className="text-green-500 text-sm" />최대 5개 문서</li>
-                                            <li className="flex items-center gap-2"><CheckIcon className="text-green-500 text-sm" />하루 20회 AI 기능</li>
-                                            <li className="flex items-center gap-2"><CheckIcon className="text-green-500 text-sm" />모든 기능 접근 가능</li>
+                                    <div className="bg-white rounded-xl border border-ink-200 p-4">
+                                        <div className="flex items-center gap-2 mb-3"><span className="text-sm font-bold text-ink-700">Free</span><TierBadge tier="free" /></div>
+                                        <ul className="space-y-1.5 text-sm text-ink-700">
+                                            <li className="flex items-center gap-2"><CheckIcon className="text-success-500 text-sm" />최대 5개 문서</li>
+                                            <li className="flex items-center gap-2"><CheckIcon className="text-success-500 text-sm" />하루 20회 AI 기능</li>
+                                            <li className="flex items-center gap-2"><CheckIcon className="text-success-500 text-sm" />모든 기능 접근 가능</li>
                                         </ul>
                                     </div>
                                     <div className="bg-white rounded-xl border border-violet-200 p-4">
-                                        <div className="flex items-center gap-2 mb-3"><span className="text-sm font-bold text-slate-700">Pro</span><TierBadge tier="pro" /></div>
-                                        <ul className="space-y-1.5 text-sm text-slate-600">
-                                            <li className="flex items-center gap-2"><CheckIcon className="text-green-500 text-sm" />무제한 문서</li>
-                                            <li className="flex items-center gap-2"><CheckIcon className="text-green-500 text-sm" />무제한 AI 기능</li>
-                                            <li className="flex items-center gap-2"><CheckIcon className="text-green-500 text-sm" />모든 기능 + 우선 처리</li>
+                                        <div className="flex items-center gap-2 mb-3"><span className="text-sm font-bold text-ink-700">Pro</span><TierBadge tier="pro" /></div>
+                                        <ul className="space-y-1.5 text-sm text-ink-700">
+                                            <li className="flex items-center gap-2"><CheckIcon className="text-success-500 text-sm" />무제한 문서</li>
+                                            <li className="flex items-center gap-2"><CheckIcon className="text-success-500 text-sm" />무제한 AI 기능</li>
+                                            <li className="flex items-center gap-2"><CheckIcon className="text-success-500 text-sm" />모든 기능 + 우선 처리</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -410,14 +410,14 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
                             {adminUsers > 0 && (
                                 <section>
-                                    <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">관리자 ({adminUsers}명)</h2>
-                                    <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+                                    <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">관리자 ({adminUsers}명)</h2>
+                                    <div className="bg-white rounded-xl border border-ink-200 divide-y divide-ink-100">
                                         {users.filter(u => u.role === 'admin').map(u => (
                                             <div key={u.id} className="flex items-center gap-3 px-4 py-3">
-                                                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-sm">
+                                                <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center text-warning-700 font-bold text-sm">
                                                     {(u.email[0] ?? '?').toUpperCase()}
                                                 </div>
-                                                <p className="flex-1 text-sm font-medium text-slate-700 truncate">{u.email}</p>
+                                                <p className="flex-1 text-sm font-medium text-ink-700 truncate">{u.email}</p>
                                                 <TierBadge tier={u.tier} />
                                             </div>
                                         ))}
@@ -433,33 +433,33 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
                             {/* ── Gemini API 현황 ── */}
                             <section>
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                                    <BoltIcon className="text-sm text-orange-500" />
+                                <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                    <BoltIcon className="text-sm text-warning-500" />
                                     Gemini API 사용현황
                                 </h2>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                                    <StatCard icon={BoltIcon}      label="오늘 총 AI 호출"  value={apiStats?.totalActionsToday ?? 0} color="text-orange-600" bg="bg-orange-50" />
+                                    <StatCard icon={BoltIcon}      label="오늘 총 AI 호출"  value={apiStats?.totalActionsToday ?? 0} color="text-warning-600" bg="bg-warning-50" />
                                     <StatCard icon={PeopleIcon}    label="오늘 활성 사용자" value={apiStats?.activeUsersToday ?? 0}  color="text-brand-600"   bg="bg-brand-50" />
                                     <StatCard icon={WarningIcon}   label="한도 근접 사용자"
                                         value={apiStats?.usersNearLimit ?? 0}
                                         sub="Free · 15회 이상"
-                                        color="text-orange-600" bg="bg-orange-50"
+                                        color="text-warning-600" bg="bg-warning-50"
                                         warn={(apiStats?.usersNearLimit ?? 0) > 0}
                                     />
                                 </div>
 
                                 {/* 7-day bar chart */}
-                                <div className="bg-white rounded-xl border border-slate-200 p-5">
+                                <div className="bg-white rounded-xl border border-ink-200 p-5">
                                     <div className="flex items-center justify-between mb-4">
-                                        <p className="text-sm font-semibold text-slate-700">최근 7일 AI 호출 추이</p>
-                                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                                        <p className="text-sm font-semibold text-ink-700">최근 7일 AI 호출 추이</p>
+                                        <div className="flex items-center gap-3 text-xs text-ink-400">
                                             <span className="flex items-center gap-1"><span className="w-2 h-2 bg-brand-500 rounded-sm" />총 호출</span>
                                         </div>
                                     </div>
                                     {apiStats && apiStats.last7Days.length > 0 ? (
                                         <MiniBarChart data={apiStats.last7Days} />
                                     ) : (
-                                        <div className="h-24 flex items-center justify-center text-sm text-slate-400">
+                                        <div className="h-24 flex items-center justify-center text-sm text-ink-400">
                                             데이터가 없습니다 (AI 기능 사용 후 로그가 쌓입니다)
                                         </div>
                                     )}
@@ -467,17 +467,17 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
                                 {/* Top users today */}
                                 {users.filter(u => u.aiActionsToday > 0).length > 0 && (
-                                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-4">
-                                        <div className="px-4 py-3 border-b border-slate-100">
-                                            <p className="text-sm font-semibold text-slate-700">오늘 상위 AI 사용자</p>
+                                    <div className="bg-white rounded-xl border border-ink-200 overflow-hidden mt-4">
+                                        <div className="px-4 py-3 border-b border-ink-100">
+                                            <p className="text-sm font-semibold text-ink-700">오늘 상위 AI 사용자</p>
                                         </div>
                                         <table className="w-full">
                                             <thead>
-                                                <tr className="bg-slate-50 border-b border-slate-100">
-                                                    <th className="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">사용자</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">플랜</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase">호출</th>
-                                                    <th className="px-4 py-2 text-left text-xs font-bold text-slate-500 uppercase min-w-[120px]">사용률</th>
+                                                <tr className="bg-ink-50 border-b border-ink-100">
+                                                    <th className="px-4 py-2 text-left text-xs font-bold text-ink-500 uppercase">사용자</th>
+                                                    <th className="px-4 py-2 text-left text-xs font-bold text-ink-500 uppercase">플랜</th>
+                                                    <th className="px-4 py-2 text-left text-xs font-bold text-ink-500 uppercase">호출</th>
+                                                    <th className="px-4 py-2 text-left text-xs font-bold text-ink-500 uppercase min-w-[120px]">사용률</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -489,13 +489,13 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                                         const pct = u.tier === 'pro' ? 0 : Math.min((u.aiActionsToday / 20) * 100, 100);
                                                         const isNear = u.tier === 'free' && u.aiActionsToday >= 15;
                                                         return (
-                                                            <tr key={u.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                                            <tr key={u.id} className="border-b border-ink-50 hover:bg-ink-50/50">
                                                                 <td className="px-4 py-2.5">
-                                                                    <p className="text-sm text-slate-700 truncate max-w-[200px]">{u.email}</p>
+                                                                    <p className="text-sm text-ink-700 truncate max-w-[200px]">{u.email}</p>
                                                                 </td>
                                                                 <td className="px-4 py-2.5"><TierBadge tier={u.tier} /></td>
                                                                 <td className="px-4 py-2.5">
-                                                                    <span className={`text-sm font-mono font-bold ${isNear ? 'text-orange-600' : 'text-slate-700'}`}>
+                                                                    <span className={`text-sm font-mono font-bold ${isNear ? 'text-warning-600' : 'text-ink-700'}`}>
                                                                         {u.tier === 'pro' ? `${u.aiActionsToday} ∞` : `${u.aiActionsToday} / 20`}
                                                                     </span>
                                                                 </td>
@@ -504,10 +504,10 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                                                         <span className="text-xs text-violet-600 font-semibold">무제한</span>
                                                                     ) : (
                                                                         <div className="flex items-center gap-2">
-                                                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[80px]">
+                                                                            <div className="flex-1 h-1.5 bg-ink-100 rounded-full overflow-hidden max-w-[80px]">
                                                                                 <div className={`h-1.5 rounded-full ${isNear ? 'bg-orange-500' : 'bg-brand-400'}`} style={{ width: `${pct}%` }} />
                                                                             </div>
-                                                                            <span className="text-xs text-slate-400 flex-shrink-0">{Math.round(pct)}%</span>
+                                                                            <span className="text-xs text-ink-400 flex-shrink-0">{Math.round(pct)}%</span>
                                                                         </div>
                                                                     )}
                                                                 </td>
@@ -522,60 +522,60 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
                             {/* ── Supabase DB 현황 ── */}
                             <section>
-                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                                    <StorageIcon className="text-sm text-green-500" />
+                                <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                    <StorageIcon className="text-sm text-success-500" />
                                     Supabase DB · 스토리지 현황
                                 </h2>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                                     <StatCard icon={DocumentIcon}   label="총 문서"        value={dbStats?.documentCount ?? '—'}  sub={`오늘 +${dbStats?.docsCreatedToday ?? 0}`} color="text-brand-600"   bg="bg-brand-50" />
-                                    <StatCard icon={QuizIcon}       label="퀴즈 세션"       value={dbStats?.quizSessions ?? '—'}   color="text-green-600"  bg="bg-green-50" />
-                                    <StatCard icon={ErrorOutlineIcon} label="오답 기록"     value={dbStats?.wrongAnswers ?? '—'}   color="text-red-500"    bg="bg-red-50" />
-                                    <StatCard icon={FolderOpenIcon} label="폴더"            value={dbStats?.folders ?? '—'}        color="text-yellow-600" bg="bg-yellow-50" />
+                                    <StatCard icon={QuizIcon}       label="퀴즈 세션"       value={dbStats?.quizSessions ?? '—'}   color="text-success-600"  bg="bg-success-50" />
+                                    <StatCard icon={ErrorOutlineIcon} label="오답 기록"     value={dbStats?.wrongAnswers ?? '—'}   color="text-danger-500"    bg="bg-danger-50" />
+                                    <StatCard icon={FolderOpenIcon} label="폴더"            value={dbStats?.folders ?? '—'}        color="text-warning-600" bg="bg-warning-50" />
                                 </div>
 
                                 {/* Storage gauges */}
-                                <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+                                <div className="bg-white rounded-xl border border-ink-200 p-5 space-y-4">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <CloudIcon className="text-slate-500 text-base" />
-                                        <p className="text-sm font-semibold text-slate-700">스토리지 사용량</p>
+                                        <CloudIcon className="text-ink-500 text-base" />
+                                        <p className="text-sm font-semibold text-ink-700">스토리지 사용량</p>
                                     </div>
                                     <StorageGauge
                                         used={dbStats?.storageBytes ?? 0}
                                         label="Supabase Storage (docs 버킷)"
                                         limit={5 * 1024 * 1024 * 1024}
                                     />
-                                    <div className="border-t border-slate-100 pt-4">
+                                    <div className="border-t border-ink-100 pt-4">
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                                             <div>
-                                                <p className="text-lg font-bold text-slate-800">{formatBytes(dbStats?.storageBytes ?? 0)}</p>
-                                                <p className="text-xs text-slate-400">스토리지</p>
+                                                <p className="text-lg font-bold text-ink-800">{formatBytes(dbStats?.storageBytes ?? 0)}</p>
+                                                <p className="text-xs text-ink-400">스토리지</p>
                                             </div>
                                             <div>
-                                                <p className="text-lg font-bold text-slate-800">{formatBytes(dbStats?.totalFileSizeBytes ?? 0)}</p>
-                                                <p className="text-xs text-slate-400">파일 크기 합계</p>
+                                                <p className="text-lg font-bold text-ink-800">{formatBytes(dbStats?.totalFileSizeBytes ?? 0)}</p>
+                                                <p className="text-xs text-ink-400">파일 크기 합계</p>
                                             </div>
                                             <div>
-                                                <p className="text-lg font-bold text-slate-800">
+                                                <p className="text-lg font-bold text-ink-800">
                                                     {dbStats && dbStats.documentCount > 0
                                                         ? formatBytes(Math.round(dbStats.totalFileSizeBytes / dbStats.documentCount))
                                                         : '—'}
                                                 </p>
-                                                <p className="text-xs text-slate-400">문서당 평균</p>
+                                                <p className="text-xs text-ink-400">문서당 평균</p>
                                             </div>
                                             <div>
-                                                <p className="text-lg font-bold text-slate-800">+{dbStats?.docsCreatedWeek ?? 0}</p>
-                                                <p className="text-xs text-slate-400">이번 주 신규</p>
+                                                <p className="text-lg font-bold text-ink-800">+{dbStats?.docsCreatedWeek ?? 0}</p>
+                                                <p className="text-xs text-ink-400">이번 주 신규</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Table count summary */}
-                                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mt-4">
-                                    <div className="px-4 py-3 border-b border-slate-100">
-                                        <p className="text-sm font-semibold text-slate-700">테이블별 레코드 수</p>
+                                <div className="bg-white rounded-xl border border-ink-200 overflow-hidden mt-4">
+                                    <div className="px-4 py-3 border-b border-ink-100">
+                                        <p className="text-sm font-semibold text-ink-700">테이블별 레코드 수</p>
                                     </div>
-                                    <div className="divide-y divide-slate-50">
+                                    <div className="divide-y divide-ink-50">
                                         {[
                                             { label: 'profiles',      value: totalUsers,                  icon: '👤' },
                                             { label: 'documents',     value: dbStats?.documentCount ?? 0, icon: '📄' },
@@ -585,10 +585,10 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                             { label: 'annotations',   value: dbStats?.annotations ?? 0,   icon: '🖊️' },
                                         ].map(row => (
                                             <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
-                                                <span className="text-sm text-slate-600 font-mono flex items-center gap-2">
+                                                <span className="text-sm text-ink-700 font-mono flex items-center gap-2">
                                                     <span>{row.icon}</span>{row.label}
                                                 </span>
-                                                <span className="text-sm font-bold text-slate-800 tabular-nums">
+                                                <span className="text-sm font-bold text-ink-800 tabular-nums">
                                                     {row.value.toLocaleString()}
                                                 </span>
                                             </div>
@@ -598,8 +598,8 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                             </section>
 
                             {/* ── BarChart legend ── */}
-                            <p className="text-xs text-slate-400 text-center pb-4">
-                                * API 호출 로그는 <code className="bg-slate-100 px-1 rounded">ai_usage_daily_log</code> 테이블에 누적됩니다.
+                            <p className="text-xs text-ink-400 text-center pb-4">
+                                * API 호출 로그는 <code className="bg-ink-100 px-1 rounded">ai_usage_daily_log</code> 테이블에 누적됩니다.
                                 Supabase 스토리지 한도는 프리 플랜 기준 500MB입니다.
                             </p>
                         </div>
@@ -611,19 +611,19 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                             {/* Filters */}
                             <div className="flex items-center gap-2 mb-4 flex-wrap">
                                 <div className="flex-1 min-w-0 relative">
-                                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none" />
+                                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-base pointer-events-none" />
                                     <input
                                         type="text"
                                         placeholder="이메일로 검색..."
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 bg-white"
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-ink-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 bg-white"
                                     />
                                 </div>
                                 <select
                                     value={filterTier}
                                     onChange={e => setFilterTier(e.target.value as 'all' | UserTier)}
-                                    className="text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
+                                    className="text-sm border border-ink-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
                                 >
                                     <option value="all">모든 플랜</option>
                                     <option value="free">Free</option>
@@ -631,22 +631,22 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                 </select>
                             </div>
 
-                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div className="bg-white rounded-xl border border-ink-200 overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
                                         <thead>
-                                            <tr className="bg-slate-50 border-b border-slate-200">
-                                                <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">사용자</th>
-                                                <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">플랜</th>
-                                                <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">문서</th>
-                                                <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[120px]">오늘 AI</th>
-                                                <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">관리</th>
+                                            <tr className="bg-ink-50 border-b border-ink-200">
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">사용자</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">플랜</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">문서</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider min-w-[120px]">오늘 AI</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">관리</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {filteredUsers.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-slate-400">
+                                                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-ink-400">
                                                         검색 결과가 없습니다
                                                     </td>
                                                 </tr>
@@ -664,7 +664,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     </table>
                                 </div>
                                 {filteredUsers.length > 0 && (
-                                    <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 text-xs text-slate-400">
+                                    <div className="px-4 py-3 bg-ink-50 border-t border-ink-100 text-xs text-ink-400">
                                         {filteredUsers.length}명 표시 / 전체 {totalUsers}명
                                     </div>
                                 )}
