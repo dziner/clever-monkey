@@ -72,7 +72,13 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
       setAudioUrl(URL.createObjectURL(blob));
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') return;
-      setAudioError(e instanceof Error ? e.message : 'Audio generation failed.');
+      const raw = e instanceof Error ? e.message : '';
+      // Friendlier copy for the upstream Gemini TTS transient errors we retry on.
+      const friendly =
+        /INTERNAL|UNAVAILABLE|5\d\d|internal error/i.test(raw)
+          ? '음성 합성 서버가 잠시 응답하지 않고 있어요. 잠깐 후 다시 시도해 주세요.'
+          : raw || '음성 합성에 실패했습니다.';
+      setAudioError(friendly);
     } finally {
       setAudioLoading(false);
       setAudioProgress(null);
