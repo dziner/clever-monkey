@@ -76,6 +76,59 @@ function json(statusCode: number, body: any) {
 
 const ALLOWED_MODELS = new Set(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest']);
 
+/**
+ * Run an async Gemini call with exponential backoff on transient
+ * upstream errors. Google explicitly recommends retrying 5xx / UNAVAILABLE
+ * responses, which the TTS preview model returns intermittently:
+ *
+ *   {"error":{"code":500,"message":"An internal error has occurred.
+ *     Please retry or report …","status":"INTERNAL"}}
+ *
+ * Retries happen for codes 500 / 502 / 503 / 504, status INTERNAL /
+ * UNAVAILABLE / DEADLINE_EXCEEDED. Other errors (4xx, parse, etc.)
+ * surface immediately.
+ */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastErr = err;
+            if (!isTransient(err) || i === attempts - 1) throw err;
+            await new Promise(r => setTimeout(r, 800 * Math.pow(2, i))); // 800ms, 1.6s, 3.2s
+        }
+    }
+    throw lastErr;
+}
+
+function isTransient(err: unknown): boolean {
+    const m = extractMessage(err);
+    if (/\b(5\d\d)\b/.test(m)) return true;
+    if (/INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED|temporar|retry/i.test(m)) return true;
+    return false;
+}
+
+/**
+ * Pull a human-readable message out of an error. The @google/genai SDK
+ * often stuffs the raw JSON response into err.message:
+ *   `{"error":{"code":500,"message":"...","status":"INTERNAL"}}`
+ * Surface only the inner `message` to clients so error toasts read
+ * like sentences, not API dumps.
+ */
+function extractMessage(err: unknown): string {
+    const raw = (err as { message?: string } | null)?.message ?? String(err ?? '');
+    const jsonStart = raw.indexOf('{');
+    if (jsonStart >= 0) {
+        try {
+            const parsed = JSON.parse(raw.slice(jsonStart));
+            const inner = parsed?.error?.message ?? parsed?.message;
+            if (typeof inner === 'string' && inner) return inner;
+        } catch { /* not JSON; fall through */ }
+    }
+    return raw || 'Internal error';
+}
+
 type GeminiRequest =
   | {
       action: 'countTokens';
@@ -185,7 +238,7 @@ export const handler: Handler = async (event) => {
       if (typeof parsed.contents === 'string' && parsed.contents.length > MAX_TEXT_CHARS) {
         return json(400, { error: 'Prompt too large' });
       }
-      const res = await ai.models.generateContent({ model, contents: parsed.contents as any, config: parsed.config as any });
+      const res = await withRetry(() => ai.models.generateContent({ model, contents: parsed.contents as any, config: parsed.config as any }));
       return json(200, { text: res.text });
     }
 
@@ -200,7 +253,7 @@ export const handler: Handler = async (event) => {
         history: parsed.history,
       });
 
-      const res = await chat.sendMessage({ message: parsed.message });
+      const res = await withRetry(() => chat.sendMessage({ message: parsed.message }));
       return json(200, { text: res.text });
     }
 
@@ -214,7 +267,7 @@ export const handler: Handler = async (event) => {
         parsed.prompt ||
         'Extract all text from this document. Respond with only the text content. If there is no text, return an empty string.';
 
-      const res = await ai.models.generateContent({
+      const res = await withRetry(() => ai.models.generateContent({
         model,
         contents: {
           parts: [
@@ -222,7 +275,7 @@ export const handler: Handler = async (event) => {
             { text: prompt },
           ],
         },
-      });
+      }));
 
       const text = res.text ?? '';
       if (text.length > MAX_TEXT_CHARS) {
@@ -242,7 +295,7 @@ export const handler: Handler = async (event) => {
         ? parsed.voice
         : 'Puck';
 
-      const res = await ai.models.generateContent({
+      const res = await withRetry(() => ai.models.generateContent({
         model: 'gemini-2.5-flash-preview-tts',
         contents: [{ parts: [{ text: parsed.text }] }],
         config: {
@@ -253,7 +306,7 @@ export const handler: Handler = async (event) => {
             },
           },
         } as any,
-      });
+      }));
 
       const part = (res as any).candidates?.[0]?.content?.parts?.[0];
       if (!part?.inlineData?.data) {
@@ -267,8 +320,13 @@ export const handler: Handler = async (event) => {
     }
 
     return json(400, { error: 'Unknown action' });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('gemini function error', err);
-    return json(500, { error: err?.message || 'Internal error' });
+    const message = extractMessage(err);
+    // If the upstream model returned 5xx after our retries, surface a
+    // 503 so the client can show a friendlier "retry shortly" message
+    // instead of treating it like a server bug on our side.
+    const status = isTransient(err) ? 503 : 500;
+    return json(status, { error: message });
   }
 };
