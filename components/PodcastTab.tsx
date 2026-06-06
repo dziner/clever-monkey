@@ -169,24 +169,22 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
           <>
             {/* Audio card */}
             <div className="bg-ink-50 rounded-xl border border-ink-200 p-4">
-              <p className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">Voice</p>
-              <div className="flex flex-wrap gap-1.5 mb-3">
+              <label htmlFor="podcast-voice" className="block text-[11px] font-bold text-ink-500 uppercase tracking-[0.14em] mb-2">
+                Voice
+              </label>
+              <select
+                id="podcast-voice"
+                value={voice}
+                onChange={e => setVoice(e.target.value)}
+                disabled={audioLoading}
+                className="w-full h-10 text-sm border border-ink-200 rounded-lg px-3 bg-white text-ink-800 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 mb-3"
+              >
                 {VOICES.map(v => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => setVoice(v.id)}
-                    disabled={audioLoading}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all disabled:opacity-50 ${
-                      voice === v.id
-                        ? 'bg-brand-600 border-brand-600 text-white shadow-sm'
-                        : 'bg-white border-ink-200 text-ink-700 hover:border-brand-300 hover:text-brand-700'
-                    }`}
-                  >
-                    {v.label} <span className="font-normal opacity-70">{v.desc}</span>
-                  </button>
+                  <option key={v.id} value={v.id}>
+                    {v.label} — {v.desc}
+                  </option>
                 ))}
-              </div>
+              </select>
 
               {audioLoading ? (
                 <div className="flex flex-col gap-1.5">
