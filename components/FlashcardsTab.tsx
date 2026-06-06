@@ -234,41 +234,91 @@ const GenerateModal: React.FC<{
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sheet w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-5 border-b border-ink-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink-800">새 플래시카드 덱 만들기</h2>
-          <button type="button" onClick={onClose} className="p-2 text-ink-400 hover:text-ink-700 rounded-lg hover:bg-ink-100">
+          <h2 className="text-h2 text-ink-900">새 플래시카드 덱 만들기</h2>
+          <button type="button" onClick={onClose} className="p-2 text-ink-400 hover:text-ink-700 rounded-lg hover:bg-ink-100 transition-colors duration-200">
             <XIcon className="text-xl" />
           </button>
         </div>
-        <div className="p-5 space-y-5">
-          <div className="p-3 bg-ink-50 rounded-xl text-sm text-ink-700">
+        <div className="p-5 space-y-6">
+          {/* Document context */}
+          <div className="p-3 bg-ink-50 rounded-lg text-sm text-ink-700">
             <span className="font-semibold text-ink-800">교재: </span>{document.fileName}
           </div>
+
+          {/* Card count — stepper + presets, matching QuizGenerator */}
           <div>
-            <label className="text-sm font-semibold text-ink-800 block mb-2">카드 수: {cardCount}장</label>
-            <input
-              type="range" min={5} max={40} step={5}
-              value={cardCount}
-              onChange={e => setCardCount(Number(e.target.value))}
-              className="w-full accent-blue-600"
-            />
-            <div className="flex justify-between text-xs text-ink-400 mt-1"><span>5</span><span>40</span></div>
+            <label className="block text-[11px] font-bold text-ink-500 uppercase tracking-[0.14em] mb-2">카드 수</label>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCardCount(c => Math.max(5, c - 5))}
+                className="w-9 h-9 rounded-lg border border-ink-200 bg-white font-bold text-ink-600 hover:bg-ink-50 text-base flex items-center justify-center shrink-0 transition-colors duration-200"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                value={cardCount}
+                onChange={e => {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val)) setCardCount(Math.max(5, Math.min(40, val)));
+                }}
+                className="w-14 h-9 text-center font-bold text-ink-900 bg-white border border-ink-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
+                min={5}
+                max={40}
+                step={5}
+              />
+              <button
+                type="button"
+                onClick={() => setCardCount(c => Math.min(40, c + 5))}
+                className="w-9 h-9 rounded-lg border border-ink-200 bg-white font-bold text-ink-600 hover:bg-ink-50 text-base flex items-center justify-center shrink-0 transition-colors duration-200"
+              >
+                +
+              </button>
+              <div className="w-px h-6 bg-ink-200 mx-1" />
+              <div className="flex items-center gap-1.5">
+                {[10, 20, 30].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => setCardCount(num)}
+                    className={[
+                      'w-9 h-9 rounded-lg border text-sm font-semibold flex items-center justify-center shrink-0 transition-colors duration-200',
+                      cardCount === num
+                        ? 'bg-brand-500 text-white border-brand-500'
+                        : 'bg-white hover:bg-ink-50 border-ink-200 text-ink-600',
+                    ].join(' ')}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* Deck title */}
           <div>
-            <label className="text-sm font-semibold text-ink-800 block mb-2">덱 이름 (선택)</label>
+            <label className="block text-[11px] font-bold text-ink-500 uppercase tracking-[0.14em] mb-2">덱 이름 (선택)</label>
             <input
               type="text"
               placeholder="자동 설정됩니다"
               value={deckTitle}
               onChange={e => setDeckTitle(e.target.value)}
-              className="w-full text-sm border border-ink-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
+              className="w-full text-sm border border-ink-200 rounded-lg px-3 h-10 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-colors duration-200"
             />
           </div>
-          {error && <p className="text-sm text-danger-600 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2">{error}</p>}
+
+          {error && (
+            <p className="text-sm text-danger-600 bg-danger-50 border border-danger-100 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
           <button
             type="button"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="w-full py-3 bg-brand-500 text-white rounded-lg font-bold hover:bg-brand-600 active:bg-brand-800 active:scale-[0.98] transition-[transform,background-color] duration-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 h-11 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-lg font-semibold text-sm transition-[transform,background-color] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 shadow-soft"
           >
             {isGenerating ? <><Spinner /> 생성 중...</> : <><AddIcon className="text-lg" /> 덱 만들기</>}
           </button>
