@@ -125,9 +125,20 @@ export interface DocumentData {
   podcastData?: { script: string } | null;
 }
 
+/**
+ * Mind map is a recursive tree. Each node has a label and optional
+ * child nodes, allowing arbitrary depth (matching real mind-mapping
+ * tools). Legacy data ({ children: string[] }) is normalized to this
+ * shape at render time for backwards compatibility.
+ */
+export type MindMapNode = {
+  label: string;
+  children?: MindMapNode[];
+};
+
 export type MindMapData = {
   center: string;
-  branches: Array<{ label: string; children: string[] }>;
+  branches: MindMapNode[];
 };
 
 export type SlideData = {

@@ -365,14 +365,33 @@ export async function generateMindMap(
   model: Model,
   signal?: AbortSignal
 ): Promise<MindMapData> {
-  const prompt = `Based on the DOCUMENT CONTENT, create a mind map.
-Return ONLY valid JSON: {"center": "Main Topic", "branches": [{"label": "Branch", "children": ["detail 1", "detail 2"]}]}
+  const prompt = `Based on the DOCUMENT CONTENT, create a hierarchical mind map as a nested tree.
+
+Return ONLY valid JSON in this exact recursive shape:
+{
+  "center": "Main Topic",
+  "branches": [
+    {
+      "label": "Major concept",
+      "children": [
+        { "label": "Sub-concept", "children": [ { "label": "Specific detail" } ] },
+        { "label": "Another sub-concept" }
+      ]
+    }
+  ]
+}
 
 Rules:
-- "center": the core topic of the document (3-6 words)
-- 5-7 branches, each a distinct major concept from the document
-- 2-4 children per branch (concise, under 10 words each)
-- Cover the entire document breadth, not just the beginning
+- "center": the core topic of the document (3-6 words).
+- 3-6 top-level branches, each a distinct major theme.
+- Build REAL depth: most branches should have children, and those
+  children should themselves have 1-3 children where the material
+  supports it. Aim for 3-4 levels deep overall (not a flat list).
+- A node is a leaf when it has no "children" key (omit it, don't use []).
+- Every "label" is concise: a short phrase, ideally under 8 words.
+- Group related ideas under a shared parent so the hierarchy reads
+  like an outline of the document, not a flat bullet list.
+- Cover the entire document breadth, not just the beginning.
 
 DOCUMENT CONTENT:
 """

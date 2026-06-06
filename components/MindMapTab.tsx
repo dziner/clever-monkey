@@ -1,15 +1,16 @@
 import * as React from 'react';
-import type { DocumentData, MindMapData } from '../types';
+import type { DocumentData, MindMapData, MindMapNode } from '../types';
 import { generateMindMap } from '../services/geminiService';
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
 import { AccountTreeIcon, AutoAwesomeIcon, ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import { Spinner } from './Spinner';
 
-const ZOOM_STEP = 0.25;
-const ZOOM_MIN = 0.25;
+const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 3.0;
+const ZOOM_STEP = 0.2;
 
+// Depth-based color ramp (root uses dark slate, deeper levels cycle).
 const COLORS = [
   { bg: '#eff6ff', border: '#93c5fd', text: '#1e40af', accent: '#3b82f6' },
   { bg: '#f0fdf4', border: '#86efac', text: '#166534', accent: '#22c55e' },
@@ -20,88 +21,299 @@ const COLORS = [
   { bg: '#fff7ed', border: '#fdba74', text: '#9a3412', accent: '#f97316' },
 ];
 
-const MindMapCanvas: React.FC<{ data: MindMapData }> = ({ data }) => {
-  const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
+// ── Normalize legacy / loose data into a strict MindMapNode tree ──────────────
+// Old shape: branches: [{ label, children: string[] }]  → children become leaf nodes.
+function normalizeNode(raw: unknown): MindMapNode {
+  if (typeof raw === 'string') return { label: raw };
+  if (raw && typeof raw === 'object') {
+    const r = raw as { label?: unknown; children?: unknown };
+    const label = typeof r.label === 'string' ? r.label : '';
+    const children = Array.isArray(r.children) ? r.children.map(normalizeNode) : undefined;
+    return children && children.length > 0 ? { label, children } : { label };
+  }
+  return { label: String(raw ?? '') };
+}
 
-  const toggleBranch = (i: number) =>
-    setExpanded(prev => {
-      const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
-    });
+function normalizeData(data: MindMapData): { center: string; branches: MindMapNode[] } {
+  return {
+    center: data.center || 'Mind Map',
+    branches: Array.isArray(data.branches) ? data.branches.map(normalizeNode) : [],
+  };
+}
 
-  const total = data.branches.length;
+// ── Connector column: the rail + horizontal stub linking a parent to a child ──
+const ConnectorColumn: React.FC<{
+  isFirst: boolean;
+  isLast: boolean;
+  single: boolean;
+  accent: string;
+}> = ({ isFirst, isLast, single, accent }) => (
+  <div className="relative w-6 flex-shrink-0 self-stretch">
+    {/* Vertical rail spanning siblings (hidden for a lone child) */}
+    {!single && (
+      <div
+        className="absolute left-0 w-[2px]"
+        style={{
+          background: '#cbd5e1',
+          top: isFirst ? '50%' : 0,
+          bottom: isLast ? '50%' : 0,
+        }}
+      />
+    )}
+    {/* Horizontal stub into the child, in the child's accent color */}
+    <div
+      className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+      style={{ background: accent, opacity: 0.6 }}
+    />
+  </div>
+);
+
+// ── Recursive tree node ───────────────────────────────────────────────────────
+const TreeNode: React.FC<{ node: MindMapNode; depth: number }> = ({ node, depth }) => {
+  const [collapsed, setCollapsed] = React.useState(false);
+  const color = COLORS[depth % COLORS.length];
+  const children = node.children ?? [];
+  const hasChildren = children.length > 0;
+  const isRoot = depth === 0;
 
   return (
-    <div className="inline-flex items-center select-none p-8" style={{ minWidth: 'fit-content' }}>
-      {/* Root node */}
-      <div className="flex-shrink-0 bg-gradient-to-br from-ink-800 to-ink-900 text-white rounded-2xl px-5 py-4 text-center shadow-xl max-w-[180px] z-10">
-        <AccountTreeIcon className="text-2xl text-brand-300 mb-1" />
-        <p className="text-sm font-bold leading-tight">{data.center}</p>
-      </div>
+    <div className="flex items-center">
+      {/* Node card */}
+      <button
+        type="button"
+        onClick={() => hasChildren && setCollapsed(c => !c)}
+        className={[
+          'flex-shrink-0 text-left transition-shadow',
+          hasChildren ? 'cursor-pointer' : 'cursor-default',
+          isRoot
+            ? 'rounded-2xl px-5 py-3 shadow-md max-w-[220px] bg-ink-900 text-white'
+            : 'rounded-xl px-3.5 py-2 shadow-sm border-2 max-w-[260px]',
+        ].join(' ')}
+        style={
+          isRoot
+            ? undefined
+            : { background: color.bg, borderColor: color.border }
+        }
+      >
+        <div className="flex items-center gap-1.5">
+          {isRoot && <AccountTreeIcon className="text-base text-brand-300 flex-shrink-0" />}
+          <span
+            className={isRoot ? 'text-sm font-bold leading-snug' : 'text-[13px] font-semibold leading-snug'}
+            style={isRoot ? undefined : { color: color.text }}
+          >
+            {node.label}
+          </span>
+        </div>
+        {/* Collapsed-children indicator */}
+        {hasChildren && collapsed && (
+          <span
+            className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold"
+            style={{ color: isRoot ? '#cbd5e1' : color.accent }}
+          >
+            +{children.length}
+          </span>
+        )}
+      </button>
 
-      {/* Trunk connector from root to the branch rail */}
-      <div className="w-8 h-0.5 bg-ink-300 flex-shrink-0" />
-
-      {/* Branches — stacked vertically, expanding to the right */}
-      <div className="flex flex-col">
-        {data.branches.map((branch, i) => {
-          const color = COLORS[i % COLORS.length];
-          const isOpen = expanded.has(i);
-          const isFirst = i === 0;
-          const isLast = i === total - 1;
-
-          return (
-            <div key={i} className="flex items-stretch">
-              {/* Connector column: vertical rail + horizontal stub to the card */}
-              <div className="relative w-6 flex-shrink-0">
-                {total > 1 && (
-                  <div
-                    className="absolute left-0 w-0.5 bg-ink-300"
-                    style={{ top: isFirst ? '50%' : 0, bottom: isLast ? '50%' : 0 }}
+      {/* Children */}
+      {hasChildren && !collapsed && (
+        <>
+          {/* Trunk from this node into the child rail */}
+          <div className="w-5 h-[2px] flex-shrink-0 rounded-full" style={{ background: color.accent, opacity: 0.6 }} />
+          <div className="flex flex-col">
+            {children.map((child, i) => {
+              const childColor = COLORS[(depth + 1) % COLORS.length];
+              return (
+                <div key={i} className="flex items-stretch">
+                  <ConnectorColumn
+                    isFirst={i === 0}
+                    isLast={i === children.length - 1}
+                    single={children.length === 1}
+                    accent={childColor.accent}
                   />
-                )}
-                <div
-                  className="absolute left-0 right-0 top-1/2 h-0.5 -translate-y-1/2"
-                  style={{ background: color.accent, opacity: 0.55 }}
-                />
-              </div>
-
-              {/* Branch card */}
-              <div className="py-1.5">
-                <button
-                  type="button"
-                  onClick={() => toggleBranch(i)}
-                  className="rounded-xl border-2 shadow-md transition-all hover:shadow-lg active:scale-[0.98] w-[240px] max-w-[240px] text-left"
-                  style={{ background: color.bg, borderColor: color.border }}
-                >
-                  <div className="px-3 py-2">
-                    <p className="text-sm font-bold leading-snug" style={{ color: color.text }}>
-                      {branch.label}
-                    </p>
-                    {isOpen && (
-                      <ul className="mt-1.5 space-y-0.5">
-                        {branch.children.map((child, ci) => (
-                          <li key={ci} className="flex items-start gap-1.5 text-xs text-ink-700">
-                            <span className="mt-1 w-1 h-1 rounded-full flex-shrink-0" style={{ background: color.accent }} />
-                            <span className="leading-tight">{child}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p className="text-[10px] mt-1 opacity-50" style={{ color: color.text }}>
-                      {isOpen ? 'tap to collapse' : `${branch.children.length} concepts — tap`}
-                    </p>
+                  <div className="py-1.5">
+                    <TreeNode node={child} depth={depth + 1} />
                   </div>
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };
+
+const MindMapTree: React.FC<{ data: MindMapData }> = ({ data }) => {
+  const normalized = React.useMemo(() => normalizeData(data), [data]);
+  const rootNode: MindMapNode = { label: normalized.center, children: normalized.branches };
+  return (
+    <div className="inline-flex p-10 select-none">
+      <TreeNode node={rootNode} depth={0} />
+    </div>
+  );
+};
+
+// ── Pan/zoom canvas — standard mind-map controls ──────────────────────────────
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+interface CanvasHandle {
+  zoomBy: (factor: number) => void;
+  fit: () => void;
+  getZoom: () => number;
+}
+
+const PanZoomCanvas = React.forwardRef<CanvasHandle, { children: React.ReactNode; onZoomChange?: (z: number) => void }>(
+  ({ children, onZoomChange }, ref) => {
+    const viewportRef = React.useRef<HTMLDivElement>(null);
+    const contentRef = React.useRef<HTMLDivElement>(null);
+    const [zoom, setZoom] = React.useState(1);
+    const [pan, setPan] = React.useState({ x: 0, y: 0 });
+    const [isPanning, setIsPanning] = React.useState(false);
+
+    // Pan gesture bookkeeping
+    const panStart = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+    const movedRef = React.useRef(false);
+
+    React.useEffect(() => { onZoomChange?.(zoom); }, [zoom, onZoomChange]);
+
+    // Fit the content into the viewport (centered).
+    const fit = React.useCallback(() => {
+      const vp = viewportRef.current;
+      const content = contentRef.current;
+      if (!vp || !content) return;
+      const cw = content.scrollWidth;
+      const ch = content.scrollHeight;
+      if (cw === 0 || ch === 0) return;
+      const pad = 48;
+      const scale = clamp(
+        Math.min((vp.clientWidth - pad) / cw, (vp.clientHeight - pad) / ch),
+        ZOOM_MIN,
+        ZOOM_MAX,
+      );
+      const z = Math.min(scale, 1); // never upscale on fit
+      setZoom(z);
+      setPan({
+        x: (vp.clientWidth - cw * z) / 2,
+        y: (vp.clientHeight - ch * z) / 2,
+      });
+    }, []);
+
+    // Zoom around the viewport center by a multiplicative factor (for buttons).
+    const zoomBy = React.useCallback((factor: number) => {
+      const vp = viewportRef.current;
+      if (!vp) return;
+      const cx = vp.clientWidth / 2;
+      const cy = vp.clientHeight / 2;
+      setZoom(prevZoom => {
+        const next = clamp(prevZoom * factor, ZOOM_MIN, ZOOM_MAX);
+        setPan(prevPan => {
+          const wx = (cx - prevPan.x) / prevZoom;
+          const wy = (cy - prevPan.y) / prevZoom;
+          return { x: cx - wx * next, y: cy - wy * next };
+        });
+        return next;
+      });
+    }, []);
+
+    React.useImperativeHandle(ref, () => ({ zoomBy, fit, getZoom: () => zoom }), [zoomBy, fit, zoom]);
+
+    // Fit once content is first measured.
+    const didInitialFit = React.useRef(false);
+    React.useEffect(() => {
+      if (didInitialFit.current) return;
+      const content = contentRef.current;
+      if (!content) return;
+      // Wait a frame so layout settles before measuring.
+      const id = requestAnimationFrame(() => {
+        if (content.scrollWidth > 0) {
+          fit();
+          didInitialFit.current = true;
+        }
+      });
+      return () => cancelAnimationFrame(id);
+    });
+
+    // Wheel zoom centered on the pointer (preventDefault needs a non-passive listener).
+    React.useEffect(() => {
+      const vp = viewportRef.current;
+      if (!vp) return;
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        const rect = vp.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        setZoom(prevZoom => {
+          const factor = Math.exp(-e.deltaY * 0.0015); // smooth, trackpad-friendly
+          const next = clamp(prevZoom * factor, ZOOM_MIN, ZOOM_MAX);
+          setPan(prevPan => {
+            const wx = (mx - prevPan.x) / prevZoom;
+            const wy = (my - prevPan.y) / prevZoom;
+            return { x: mx - wx * next, y: my - wy * next };
+          });
+          return next;
+        });
+      };
+      vp.addEventListener('wheel', onWheel, { passive: false });
+      return () => vp.removeEventListener('wheel', onWheel);
+    }, []);
+
+    // Pointer drag to pan.
+    const onPointerDown = (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+      setIsPanning(true);
+      movedRef.current = false;
+      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+    };
+    const onPointerMove = (e: React.PointerEvent) => {
+      if (!isPanning) return;
+      const dx = e.clientX - panStart.current.x;
+      const dy = e.clientY - panStart.current.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) movedRef.current = true;
+      setPan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy });
+    };
+    const endPan = (e: React.PointerEvent) => {
+      if (!isPanning) return;
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      setIsPanning(false);
+    };
+
+    // Suppress node clicks that were actually the end of a pan drag.
+    const onClickCapture = (e: React.MouseEvent) => {
+      if (movedRef.current) {
+        e.stopPropagation();
+        e.preventDefault();
+        movedRef.current = false;
+      }
+    };
+
+    return (
+      <div
+        ref={viewportRef}
+        className={`relative w-full h-full overflow-hidden bg-ink-50 touch-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endPan}
+        onPointerCancel={endPan}
+        onClickCapture={onClickCapture}
+      >
+        <div
+          ref={contentRef}
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            width: 'fit-content',
+            willChange: 'transform',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  },
+);
+PanZoomCanvas.displayName = 'PanZoomCanvas';
 
 interface MindMapTabProps {
   document: DocumentData;
@@ -109,11 +321,8 @@ interface MindMapTabProps {
 
 export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
-  const bodyRef = React.useRef<HTMLDivElement>(null);
-  const scaleRef = React.useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = React.useState(0);
-  const [natural, setNatural] = React.useState({ w: 0, h: 0 });
-  const [userZoom, setUserZoom] = React.useState(1);
+  const canvasRef = React.useRef<CanvasHandle>(null);
+  const [zoomPct, setZoomPct] = React.useState(100);
 
   const { data, loading, error, generate, cancel } = useAIGeneration<MindMapData>(
     React.useCallback(
@@ -135,34 +344,14 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
     }
   }, [data, document.id, dispatch]);
 
-  // Track the scroll container's width for fit-to-width scaling
-  React.useEffect(() => {
-    const obs = new ResizeObserver(entries => {
-      for (const entry of entries) setContainerWidth(entry.contentRect.width);
-    });
-    if (bodyRef.current) obs.observe(bodyRef.current);
-    return () => obs.disconnect();
-  }, []);
-
   const displayData = data ?? document.mindMapData ?? null;
 
-  // Measure the natural (unscaled) size of the rendered tree
-  React.useLayoutEffect(() => {
-    const el = scaleRef.current;
-    if (!el) return;
-    const measure = () => setNatural({ w: el.scrollWidth, h: el.scrollHeight });
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(el);
-    return () => obs.disconnect();
+  // Re-fit the canvas whenever the tree content changes (e.g. Regenerate).
+  React.useEffect(() => {
+    if (!displayData) return;
+    const id = requestAnimationFrame(() => canvasRef.current?.fit());
+    return () => cancelAnimationFrame(id);
   }, [displayData]);
-
-  const fitScale = natural.w > 0 ? Math.min(1, (containerWidth - 32) / natural.w) : 1;
-  const effectiveScale = fitScale * userZoom;
-
-  const zoomIn  = () => setUserZoom(z => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))));
-  const zoomOut = () => setUserZoom(z => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))));
-  const zoomFit = () => setUserZoom(1);
 
   if (!document.documentContent) {
     return (
@@ -214,80 +403,75 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
       </div>
 
       {/* Body */}
-      <div ref={bodyRef} className="flex-1 overflow-auto">
+      <div className="flex-1 relative min-h-0">
         {loading ? (
-          <div className="flex flex-col items-center gap-3 text-ink-500 mt-8">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-ink-500">
             <Spinner />
             <span className="text-sm">Building mind map…</span>
           </div>
         ) : error ? (
-          <div className="text-center text-danger-500 text-sm max-w-sm mt-8 mx-auto">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-danger-500 text-sm max-w-sm mx-auto px-6">
             <p className="font-semibold mb-1">Generation failed</p>
             <p>{error}</p>
           </div>
         ) : !displayData ? (
-          <div className="text-center text-ink-400 max-w-xs mt-8 mx-auto p-4">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-ink-400 max-w-xs mx-auto p-4">
             <AccountTreeIcon className="text-6xl mb-4 opacity-20" />
             <p className="font-semibold text-ink-700 mb-1">Visualize your document</p>
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
-          <div className="p-4 pb-16">
-            <div style={{ width: natural.w * effectiveScale, height: natural.h * effectiveScale }}>
-              <div
-                ref={scaleRef}
-                style={{
-                  transform: `scale(${effectiveScale})`,
-                  transformOrigin: 'top left',
-                  width: 'fit-content',
-                }}
-              >
-                <MindMapCanvas data={displayData} />
-              </div>
-            </div>
-          </div>
+          <PanZoomCanvas ref={canvasRef} onZoomChange={(z) => setZoomPct(Math.round(z * 100))}>
+            <MindMapTree data={displayData} />
+          </PanZoomCanvas>
         )}
       </div>
 
-      {/* Zoom controls — anchored to the panel (not the scroll area), centered */}
+      {/* Hint + zoom controls */}
       {displayData && !loading && !error && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-ink-200 rounded-xl shadow-lg overflow-hidden">
-          <button
-            type="button"
-            onClick={zoomOut}
-            disabled={userZoom <= ZOOM_MIN}
-            title="Zoom out"
-            className="p-2 text-ink-700 hover:bg-ink-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ZoomOutIcon className="text-lg" />
-          </button>
-          <button
-            type="button"
-            onClick={zoomFit}
-            title="Fit to window"
-            className="px-2 py-2 text-xs font-mono font-semibold text-ink-700 hover:bg-ink-100 transition-colors min-w-[46px] text-center border-x border-ink-200"
-          >
-            {Math.round(effectiveScale * 100)}%
-          </button>
-          <button
-            type="button"
-            onClick={zoomIn}
-            disabled={userZoom >= ZOOM_MAX}
-            title="Zoom in"
-            className="p-2 text-ink-700 hover:bg-ink-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            <ZoomInIcon className="text-lg" />
-          </button>
-          <div className="w-px h-5 bg-ink-200 mx-0.5" />
-          <button
-            type="button"
-            onClick={zoomFit}
-            title="Reset zoom"
-            className="p-2 text-ink-500 hover:bg-ink-100 transition-colors"
-          >
-            <FitScreenIcon className="text-lg" />
-          </button>
-        </div>
+        <>
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            <span className="text-[11px] text-ink-400 bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full border border-ink-200">
+              드래그로 이동 · 스크롤로 확대/축소
+            </span>
+          </div>
+
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center bg-white/95 backdrop-blur-sm border border-ink-200 rounded-xl shadow-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => canvasRef.current?.zoomBy(1 / (1 + ZOOM_STEP))}
+              title="Zoom out"
+              className="p-2 text-ink-700 hover:bg-ink-100 transition-colors"
+            >
+              <ZoomOutIcon className="text-lg" />
+            </button>
+            <button
+              type="button"
+              onClick={() => canvasRef.current?.fit()}
+              title="Fit to window"
+              className="px-2 py-2 text-xs font-mono font-semibold text-ink-700 hover:bg-ink-100 transition-colors min-w-[46px] text-center border-x border-ink-200"
+            >
+              {zoomPct}%
+            </button>
+            <button
+              type="button"
+              onClick={() => canvasRef.current?.zoomBy(1 + ZOOM_STEP)}
+              title="Zoom in"
+              className="p-2 text-ink-700 hover:bg-ink-100 transition-colors"
+            >
+              <ZoomInIcon className="text-lg" />
+            </button>
+            <div className="w-px h-5 bg-ink-200 mx-0.5" />
+            <button
+              type="button"
+              onClick={() => canvasRef.current?.fit()}
+              title="Fit to window"
+              className="p-2 text-ink-500 hover:bg-ink-100 transition-colors"
+            >
+              <FitScreenIcon className="text-lg" />
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
