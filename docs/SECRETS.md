@@ -8,7 +8,7 @@ This project uses three external services, each with their own secrets:
 
 | Service | What it does | Where keys live |
 |---|---|---|
-| **Google Gemini** | AI model calls (summary, chat, quiz, …) | `GEMINI_API_KEY` (server-side only) |
+| **Google Gemini** | AI model calls (summary, chat, quiz, …) | `GEMINI_API_KEYS` (preferred, multi-key, server-only) or `GEMINI_API_KEY` (single, legacy) |
 | **Supabase** | Auth, database, file storage | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (client), `SUPABASE_SERVICE_ROLE_KEY` (server) |
 | **Google OAuth** | "Continue with Google" sign-in | Configured **inside Supabase**, not in app code |
 
@@ -18,10 +18,28 @@ This project uses three external services, each with their own secrets:
 
 | Variable | Purpose | Browser-exposed? | Where to get it |
 |---|---|---|---|
-| `GEMINI_API_KEY` | Gemini model access | **Server-only** | Google AI Studio |
+| `GEMINI_API_KEYS` | Gemini model access — **comma- or newline-separated** list of keys for automatic rotation | **Server-only** | Google AI Studio |
+| `GEMINI_API_KEY` | Single Gemini key (legacy / fallback when `GEMINI_API_KEYS` is not set) | **Server-only** | Google AI Studio |
 | `SUPABASE_SERVICE_ROLE_KEY` | Full-access Supabase admin | **Server-only** | Supabase dashboard → Project Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | Supabase public client | OK to expose | Same place — *anon public* key |
 | `VITE_SUPABASE_URL` | Supabase project endpoint | OK to expose | Same place — Project URL |
+
+### Gemini key rotation pool
+
+The Netlify Function maintains an in-memory pool of Gemini API keys
+and automatically rotates to the next healthy key when one returns a
+quota / rate-limit / invalid-key error. Configure via **either**:
+
+- `GEMINI_API_KEYS` = comma- or newline-separated keys (recommended)
+- `GEMINI_API_KEY_1`, `GEMINI_API_KEY_2`, … up to `_10`
+- `GEMINI_API_KEY` = single key (legacy / fallback only)
+
+Exhausted keys cool down before being retried:
+- rate-limit → **1 minute**
+- quota exceeded → **1 hour**
+- invalid key → **24 hours** (effectively disabled until env is fixed)
+
+Pool state lives per warm Function instance; cold starts reset it.
 
 > ⚠️ The `VITE_` prefix is meaningful. Vite **bakes any `VITE_*`
 > variable into the browser bundle at build time**. Never prefix
@@ -41,8 +59,8 @@ This is the most important target. If this isn't updated and
 redeployed, the live site breaks.
 
 - [ ] Netlify dashboard → site → **Site configuration → Environment variables**
-- [ ] Update the four values:
-  - [ ] `GEMINI_API_KEY`
+- [ ] Update the values:
+  - [ ] `GEMINI_API_KEYS` (preferred — comma-separated list) **or** `GEMINI_API_KEY` (single)
   - [ ] `SUPABASE_SERVICE_ROLE_KEY`
   - [ ] `VITE_SUPABASE_ANON_KEY`
   - [ ] `VITE_SUPABASE_URL` (usually unchanged — verify)
@@ -62,7 +80,11 @@ redeployed, the live site breaks.
   ```
 - [ ] Server values (for `netlify dev` running the Functions locally):
   ```
-  GEMINI_API_KEY=...
+  # Multi-key pool (preferred — comma or newline separated):
+  GEMINI_API_KEYS=AIzaKEY_ONE,AIzaKEY_TWO,AIzaKEY_THREE
+  # Or single key (fallback):
+  # GEMINI_API_KEY=AIzaKEY_ONE
+
   SUPABASE_SERVICE_ROLE_KEY=...
   SUPABASE_URL=...
   ```
@@ -171,7 +193,8 @@ app runs on must be allow-listed:
 
 | Rotation event | Code? | Netlify env? | Local `.env.local`? | Supabase dashboard? | Google Cloud? |
 |---|---|---|---|---|---|
-| Gemini key rotated | ❌ | ✅ `GEMINI_API_KEY` | ✅ `GEMINI_API_KEY` | ❌ | ❌ |
+| Gemini key rotated | ❌ | ✅ `GEMINI_API_KEYS` (or `GEMINI_API_KEY`) | ✅ same | ❌ | ❌ |
+| Adding more Gemini keys (rotation pool) | ❌ | ✅ append to `GEMINI_API_KEYS` | ✅ same | ❌ | ❌ |
 | Supabase keys rotated | ❌ | ✅ anon + service_role | ✅ anon + service_role | ❌ | ❌ |
 | Supabase project URL changed | ❌ | ✅ `VITE_SUPABASE_URL` + `SUPABASE_URL` | ✅ same | Update Site URL / Redirect URLs | Update Authorized redirect URI to new `<PROJECT_REF>.supabase.co/auth/v1/callback` |
 | Google OAuth client rotated | ❌ | ❌ | ❌ | ✅ Providers → Google: Client ID + Secret | ✅ new OAuth client + redirect URI |
