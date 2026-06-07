@@ -3,6 +3,7 @@ import type { DocumentData } from '../types';
 import { generatePodcastScript, synthesizeSpeech } from '../services/geminiService';
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { HeadphonesIcon, AutoAwesomeIcon } from './icons';
 import { Spinner } from './Spinner';
 
@@ -22,6 +23,8 @@ const DIRECTION_PLACEHOLDER = '예: 챕터 5~7의 범위만을 대상으로, 진
 
 export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
+  const { userProfile } = useUser();
+  const language = userProfile?.language ?? null;
 
   const [instructions, setInstructions] = React.useState('');
 
@@ -29,9 +32,9 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
     React.useCallback(
       (signal) => {
         if (!document.documentContent) return Promise.reject(new Error('No document content'));
-        return generatePodcastScript(document.documentContent, document.model, signal, instructions);
+        return generatePodcastScript(document.documentContent, document.model, signal, instructions, language);
       },
-      [document.documentContent, document.model, instructions]
+      [document.documentContent, document.model, instructions, language]
     )
   );
 

@@ -2,6 +2,7 @@
 import * as React from 'react';
 import type { FRQData, FRUserAnswer, Model, FRQQuizState, FRQuestion } from '../types';
 import { evaluateFRQAnswer, generateStudyTips } from '../services/geminiService';
+import { useUser } from '../contexts/UserContext';
 import { Spinner } from './Spinner';
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -19,6 +20,8 @@ interface FRQuizProps {
 }
 
 export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
+    const { userProfile } = useUser();
+    const language = userProfile?.language ?? null;
     const { userAnswers, currentQuestionIndex, isFinished, isGrading } = quizState;
     
     const [localAnswerText, setLocalAnswerText] = React.useState('');
@@ -35,7 +38,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
             const fetchTips = async () => {
                 setIsGeneratingTips(true);
                 try {
-                    const tips = await generateStudyTips(documentContent, data, userAnswers, model);
+                    const tips = await generateStudyTips(documentContent, data, userAnswers, model, language);
                     onStudyTipsGenerated?.(tips);
                 } catch (error) {
                     console.error("Failed to generate study tips:", error);
@@ -86,7 +89,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
 
         const gradingPromises = finalAnswers.map(answer => {
             const question = data.questions[answer.questionIndex];
-            return evaluateFRQAnswer(question.questionText, question.explanation, answer.userAnswerText, model)
+            return evaluateFRQAnswer(question.questionText, question.explanation, answer.userAnswerText, model, language)
                 .then(result => ({ ...answer, ...result }))
                 .catch(error => {
                     console.error("Failed to grade answer:", error);

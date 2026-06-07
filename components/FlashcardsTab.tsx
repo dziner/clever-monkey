@@ -3,6 +3,7 @@ import { StyleIcon, TrashIcon, BrainIcon, CheckIcon, XIcon, AddIcon } from './ic
 import { Spinner } from './Spinner';
 import { supabase } from '../services/supabaseClient';
 import { generateFlashcards } from '../services/geminiService';
+import { useUser } from '../contexts/UserContext';
 import {
   fetchDecks, fetchDueCards, fetchAllCards, reviewCard, createDeck, deleteDeck, previewIntervalLabel,
 } from '../services/flashcardsService';
@@ -208,6 +209,8 @@ const GenerateModal: React.FC<{
   onClose: () => void;
   onCreated: (deck: FlashcardDeck) => void;
 }> = ({ document, onClose, onCreated }) => {
+  const { userProfile } = useUser();
+  const language = userProfile?.language ?? null;
   const [cardCount, setCardCount] = React.useState(15);
   const [deckTitle, setDeckTitle] = React.useState('');
   const [isGenerating, setIsGenerating] = React.useState(false);
@@ -219,7 +222,7 @@ const GenerateModal: React.FC<{
     setIsGenerating(true);
     try {
       const title = deckTitle.trim() || `${document.fileName} 플래시카드`;
-      const cards = await generateFlashcards(document.documentContent, document.model as Model, cardCount);
+      const cards = await generateFlashcards(document.documentContent, document.model as Model, cardCount, undefined, language);
       const deck = await createDeck(document.id, document.fileName, title, cards);
       if (!deck) throw new Error('덱 생성에 실패했습니다.');
       onCreated(deck);

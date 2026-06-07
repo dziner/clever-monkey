@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { getErrorMessage } from '../utils/errors';
@@ -63,6 +64,8 @@ const getFileType = (file: File): 'pdf' | 'image' | 'text' => {
  */
 export const useFileHandler = (_onAuthRequired?: () => void) => {
     const { state, dispatch } = useDocuments();
+    const { userProfile } = useUser();
+    const language = userProfile?.language ?? null;
 
     return React.useCallback(async (file: File) => {
         if (!file) return;
@@ -274,7 +277,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
 
         try {
             const modelForProcessing: ProcessingModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(uploadFile, modelForProcessing, onProgress);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(uploadFile, modelForProcessing, onProgress, language);
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {
@@ -333,5 +336,5 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     .eq('user_id', user!.id);
             }
         }
-    }, [dispatch, state.activeFolderId, state.folders]);
+    }, [dispatch, state.activeFolderId, state.folders, language]);
 };

@@ -206,6 +206,11 @@ export interface UserProfile {
   aiActionsToday: number;
   aiActionsDate: string;
   createdAt: string;
+  /**
+   * Preferred language code for AI-generated content (e.g. 'ko', 'en').
+   * `null` or `'auto'` means follow the browser/OS language.
+   */
+  language: string | null;
 }
 
 export const TIER_LIMITS = {

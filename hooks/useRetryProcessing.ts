@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { getErrorMessage } from '../utils/errors';
@@ -7,6 +8,8 @@ import type { DocumentProcessingState, ProcessingModel } from '../types';
 
 export const useRetryProcessing = () => {
     const { state, dispatch } = useDocuments();
+    const { userProfile } = useUser();
+    const language = userProfile?.language ?? null;
     const [retryingIds, setRetryingIds] = React.useState<Set<string>>(new Set());
 
     const retry = React.useCallback(async (docId: string) => {
@@ -43,7 +46,7 @@ export const useRetryProcessing = () => {
 
         try {
             const model: ProcessingModel = doc.fileType === 'image' ? 'gemini-flash-latest' : doc.model as ProcessingModel;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(file, model, onProgress);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(file, model, onProgress, language);
 
             dispatch({
                 type: 'UPDATE_DOCUMENT',
@@ -71,7 +74,7 @@ export const useRetryProcessing = () => {
         } finally {
             setRetryingIds(prev => { const s = new Set(prev); s.delete(docId); return s; });
         }
-    }, [state.documents, dispatch, retryingIds]);
+    }, [state.documents, dispatch, retryingIds, language]);
 
     return { retry, retryingIds };
 };

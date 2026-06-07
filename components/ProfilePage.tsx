@@ -3,30 +3,39 @@ import {
     ChevronLeftIcon, CheckIcon, CleverMonkeyIcon, EditIcon, XIcon,
     DocumentIcon, CloudIcon, WorkspacePremiumIcon,
 } from './icons';
-import { updateMyDisplayName } from '../services/profileService';
+import { updateMyDisplayName, updateMyLanguage } from '../services/profileService';
+import {
+    CONTENT_LANGUAGE_OPTIONS,
+    detectBrowserLanguage,
+    languageDisplayNameForPrompt,
+} from '../services/languageService';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 
 interface ProfilePageProps {
     userEmail: string | null;
     displayName: string | null;
+    language: string | null;
     fileCount: number;
     storageUsage: string;
     planName: string;
     onBack: () => void;
     onUpgrade: () => void;
     onNameSaved: () => void | Promise<void>;
+    onLanguageSaved: () => void | Promise<void>;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
     userEmail,
     displayName,
+    language,
     fileCount,
     storageUsage,
     planName,
     onBack,
     onUpgrade,
     onNameSaved,
+    onLanguageSaved,
 }) => {
     const fallbackName = userEmail?.split('@')[0] || 'Guest';
     const shownName = displayName?.trim() || fallbackName;
@@ -36,6 +45,22 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const [draftName, setDraftName] = React.useState(displayName ?? '');
     const [isSaving, setIsSaving] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+
+    const currentLanguage = language ?? 'auto';
+    const [isSavingLanguage, setIsSavingLanguage] = React.useState(false);
+    const [languageError, setLanguageError] = React.useState<string | null>(null);
+    const browserLangName = React.useMemo(() => languageDisplayNameForPrompt(null), []);
+    const browserLangCode = React.useMemo(() => detectBrowserLanguage(), []);
+
+    const handleLanguageChange = async (next: string) => {
+        if (next === currentLanguage) return;
+        setLanguageError(null);
+        setIsSavingLanguage(true);
+        const ok = await updateMyLanguage(next === 'auto' ? null : next);
+        setIsSavingLanguage(false);
+        if (!ok) { setLanguageError('언어 설정을 저장하지 못했습니다.'); return; }
+        await onLanguageSaved();
+    };
 
     const startEdit = () => {
         setDraftName(displayName ?? '');
@@ -138,6 +163,35 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                         </div>
                         <Badge tone={isPro ? 'brand' : 'neutral'} variant="soft" size="md">{planName}</Badge>
                     </div>
+                </div>
+
+                {/* Language preference */}
+                <div className="bg-white rounded-2xl border border-ink-200 p-5 shadow-soft">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                        <div>
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-400 font-bold">콘텐츠 언어</p>
+                            <h3 className="mt-1.5 text-base font-display font-bold text-ink-900 tracking-tight">AI 생성 언어</h3>
+                            <p className="mt-1 text-xs text-ink-500 leading-relaxed">
+                                퀴즈, 마인드맵, 플래시카드, 슬라이드, 팟캐스트, 챗 응답이 이 언어로 생성됩니다.
+                            </p>
+                        </div>
+                    </div>
+                    <label htmlFor="content-language" className="sr-only">콘텐츠 언어</label>
+                    <select
+                        id="content-language"
+                        value={currentLanguage}
+                        onChange={(e) => handleLanguageChange(e.target.value)}
+                        disabled={isSavingLanguage}
+                        className="w-full h-11 px-3 pr-9 rounded-xl border border-ink-200 bg-white text-sm text-ink-900 font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-400 disabled:opacity-60"
+                    >
+                        {CONTENT_LANGUAGE_OPTIONS.map(opt => (
+                            <option key={opt.code} value={opt.code}>{opt.label}</option>
+                        ))}
+                    </select>
+                    <p className="mt-2 text-[11px] text-ink-400">
+                        자동 선택 시 브라우저 언어를 따릅니다 (현재 감지: <span className="font-semibold text-ink-600">{browserLangName} · {browserLangCode}</span>).
+                    </p>
+                    {languageError && <p className="mt-2 text-xs text-danger-600 font-medium">{languageError}</p>}
                 </div>
 
                 {/* Usage tiles */}

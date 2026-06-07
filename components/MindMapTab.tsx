@@ -3,6 +3,7 @@ import type { DocumentData, MindMapData, MindMapNode } from '../types';
 import { generateMindMap } from '../services/geminiService';
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { AccountTreeIcon, AutoAwesomeIcon, ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import { Spinner } from './Spinner';
 
@@ -321,6 +322,8 @@ interface MindMapTabProps {
 
 export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
+  const { userProfile } = useUser();
+  const language = userProfile?.language ?? null;
   const canvasRef = React.useRef<CanvasHandle>(null);
   const [zoomPct, setZoomPct] = React.useState(100);
 
@@ -328,9 +331,9 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
     React.useCallback(
       (signal) => {
         if (!document.documentContent) return Promise.reject(new Error('No document content'));
-        return generateMindMap(document.documentContent, document.model, signal);
+        return generateMindMap(document.documentContent, document.model, signal, language);
       },
-      [document.documentContent, document.model]
+      [document.documentContent, document.model, language]
     )
   );
 
