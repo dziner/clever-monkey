@@ -124,12 +124,14 @@ const App: React.FC = () => {
                 <ProfilePage
                     userEmail={userEmail}
                     displayName={userProfile?.displayName ?? null}
+                    language={userProfile?.language ?? null}
                     fileCount={fileCount}
                     storageUsage={storageUsage}
                     planName={planName}
                     onBack={() => navigate(ROUTES.STUDY)}
                     onUpgrade={() => setIsAuthModalOpen(true)}
                     onNameSaved={refreshProfile}
+                    onLanguageSaved={refreshProfile}
                 />
             </React.Fragment>
         );

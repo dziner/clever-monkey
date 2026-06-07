@@ -13,6 +13,7 @@ import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
 import { Quiz } from './Quiz';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { Spinner } from './Spinner';
 import { useChat } from '../hooks/useChat';
 import { ChatInput } from './ChatInput';
@@ -188,6 +189,8 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onSignInClick,
 }) => {
     const { dispatch } = useDocuments();
+    const { userProfile } = useUser();
+    const language = userProfile?.language ?? null;
     // activeTab is controlled by prop from StudyPage
 
     // Wrong answers sub-view within Quiz tab
@@ -352,7 +355,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: document.id, updates: { quizTabData: null } } });
 
         try {
-            const data = await generateQuiz(document.documentContent, document.model, type, count);
+            const data = await generateQuiz(document.documentContent, document.model, type, count, undefined, language);
             const initialQuizState: QuizTabState = type === 'mcq'
                 ? { type: 'mcq', userAnswers: [], isFinished: false, currentQuestionIndex: 0 }
                 : { type: 'frq', userAnswers: [], currentQuestionIndex: 0, isFinished: false, isGrading: false };

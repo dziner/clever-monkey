@@ -12,6 +12,7 @@ function mapRow(d: Record<string, unknown>): UserProfile {
         aiActionsToday: (d.ai_actions_today as number) ?? 0,
         aiActionsDate: d.ai_actions_date as string,
         createdAt: d.created_at as string,
+        language: (d.language as string | null) ?? null,
     };
 }
 
@@ -21,7 +22,7 @@ export async function getMyProfile(): Promise<UserProfile | null> {
 
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at')
+        .select('id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at, language')
         .eq('id', user.id)
         .single();
 
@@ -46,6 +47,21 @@ export async function updateMyDisplayName(displayName: string): Promise<boolean>
         .eq('id', user.id);
     if (error) {
         console.error('Failed to update display name:', error);
+        return false;
+    }
+    return true;
+}
+
+export async function updateMyLanguage(language: string | null): Promise<boolean> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const value = !language || language === 'auto' ? null : language;
+    const { error } = await supabase
+        .from('profiles')
+        .update({ language: value })
+        .eq('id', user.id);
+    if (error) {
+        console.error('Failed to update language:', error);
         return false;
     }
     return true;

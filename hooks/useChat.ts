@@ -1,11 +1,13 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useUser } from '../contexts/UserContext';
 import { geminiProxy } from '../services/geminiService';
 import { getSystemInstruction } from '../constants';
 import type { DocumentData, ChatMessage } from '../types';
 
 export const useChat = (document: DocumentData, onChatHistoryChange: (history: ChatMessage[]) => void) => {
   const { dispatch } = useDocuments();
+  const { userProfile } = useUser();
   const [isBotTyping, setIsBotTyping] = React.useState(false);
 
   // Keep a stable ref so callbacks don't need to re-create on every doc state update
@@ -32,6 +34,7 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
             documentContent: doc.documentContent,
             chatHistory: historyWithUserMessage,
             message: text,
+            language: userProfile?.language ?? null,
           }),
         ]);
 
@@ -70,7 +73,7 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
         setIsBotTyping(false);
       }
     },
-    [isBotTyping, onChatHistoryChange, dispatch]
+    [isBotTyping, onChatHistoryChange, dispatch, userProfile?.language]
   );
 
   const changeChatContext = React.useCallback(

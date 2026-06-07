@@ -4,6 +4,7 @@ import type { QuizData, UserAnswer, MCQQuizState, QuizQuestion } from '../types'
 import { renderInline } from './MarkdownRenderer';
 import { CheckIcon, XIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import { generateStudyTips } from '../services/geminiService';
+import { useUser } from '../contexts/UserContext';
 import { Spinner } from './Spinner';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
@@ -19,6 +20,8 @@ interface QuizProps {
 }
 
 export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
+    const { userProfile } = useUser();
+    const language = userProfile?.language ?? null;
     const { userAnswers, currentQuestionIndex } = quizState;
     // Handle legacy state from chat history which might use `showResults`.
     const isFinished = (quizState as any).isFinished ?? (quizState as any).showResults ?? false;
@@ -49,7 +52,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
             const fetchTips = async () => {
                 setIsGeneratingTips(true);
                 try {
-                    const tips = await generateStudyTips(documentContent, data, userAnswers, 'gemini-2.5-flash');
+                    const tips = await generateStudyTips(documentContent, data, userAnswers, 'gemini-2.5-flash', language);
                     onStudyTipsGenerated?.(tips);
                 } catch (error) {
                     console.error("Failed to generate study tips:", error);
