@@ -30,10 +30,12 @@ export async function getMyProfile(): Promise<UserProfile | null> {
     return mapRow(data as Record<string, unknown>);
 }
 
-export async function upsertMyProfile(userId: string, email: string): Promise<void> {
-    await supabase
+export async function upsertMyProfile(userId: string, email: string): Promise<{ error: unknown }> {
+    const { error } = await supabase
         .from('profiles')
         .upsert({ id: userId, email }, { onConflict: 'id' });
+    if (error) console.error('Failed to upsert profile:', error);
+    return { error };
 }
 
 export async function updateMyDisplayName(displayName: string): Promise<boolean> {

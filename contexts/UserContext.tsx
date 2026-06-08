@@ -27,8 +27,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userProfile, setUserProfile] = React.useState<UserProfile | null>(null);
     const [isAuthLoading, setIsAuthLoading] = React.useState(true);
 
-    const fetchProfile = React.useCallback(async (uid: string, email: string) => {
-        await upsertMyProfile(uid, email);
+    const fetchProfile = React.useCallback(async (uid: string, email: string): Promise<'ok' | 'stale_session'> => {
+        const { error: upsertError } = await upsertMyProfile(uid, email);
+        if (upsertError) {
+            // Most common cause: the local session references an auth.users
+            // row that no longer exists server-side (e.g., admin cleanup in
+            // the Supabase dashboard). The FK profiles.id → auth.users(id)
+            // makes the upsert fail and we end up with a half-signed-in
+            // state (userEmail set, no profile). Tell the caller so they
+            // can clear the stale session.
+            return 'stale_session';
+        }
+
         let profile = await getMyProfile();
 
         // Email signup carries an explicit display_name in user_metadata
@@ -46,6 +56,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         setUserProfile(profile);
+        return 'ok';
     }, []);
 
     const refreshProfile = React.useCallback(async () => {
@@ -56,29 +67,49 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     React.useEffect(() => {
         let isMounted = true;
 
-        // Supabase re-emits auth events (SIGNED_IN / TOKEN_REFRESHED) when the
-        // tab regains focus. Only (re)fetch the profile when the user actually
-        // changes so refocusing doesn't trigger redundant network calls.
-        let loadedUserId: string | null | undefined = undefined;
-        const syncUser = (user: { id: string; email?: string } | null | undefined) => {
+        const syncUser = async (user: { id: string; email?: string } | null | undefined) => {
             const email = user?.email ?? null;
             const uid = user?.id ?? null;
+            if (!isMounted) return;
             setUserEmail(email);
             setUserId(uid);
             setIsAuthLoading(false);
-            if (uid === loadedUserId) return;
-            loadedUserId = uid;
             if (uid && email) {
-                fetchProfile(uid, email);
+                // Always re-fetch on every auth event so server-side changes
+                // (role admin↔user, tier free↔pro, language, etc.) propagate
+                // without a page reload. SIGNED_IN/TOKEN_REFRESHED fire at
+                // most every ~hour, so the extra query cost is negligible.
+                const result = await fetchProfile(uid, email);
+                if (result === 'stale_session' && isMounted) {
+                    // Clear the dead session so the user sees the login
+                    // button again instead of being stuck "signed in" with
+                    // no profile.
+                    console.warn('Clearing stale session — auth.users row appears to be missing.');
+                    await supabase.auth.signOut();
+                }
             } else {
                 setUserProfile(null);
             }
         };
 
-        supabase.auth.getSession().then(({ data, error }) => {
+        // Use getUser() (server round-trip) instead of getSession() (local
+        // cache only) so a session whose auth.users row was deleted in the
+        // dashboard surfaces as an error here, not as a phantom "logged in"
+        // state with no profile.
+        supabase.auth.getUser().then(async ({ data, error }) => {
             if (!isMounted) return;
-            if (error) console.error('Failed to load session', error);
-            syncUser(data.session?.user);
+            if (error || !data.user) {
+                if (error) console.warn('Auth user validation failed; clearing stale session', error);
+                await supabase.auth.signOut();
+                syncUser(null);
+                return;
+            }
+            syncUser(data.user);
+        }).catch(async (err) => {
+            if (!isMounted) return;
+            console.warn('Auth init failed; clearing stale session', err);
+            await supabase.auth.signOut();
+            syncUser(null);
         });
 
         const { data } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -86,9 +117,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             syncUser(session?.user);
         });
 
+        // Refresh profile when the tab regains focus — picks up server-side
+        // role/tier changes for users who keep the app open across edits.
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                getMyProfile().then(p => { if (isMounted && p) setUserProfile(p); });
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+
         return () => {
             isMounted = false;
             data.subscription.unsubscribe();
+            document.removeEventListener('visibilitychange', onVisible);
         };
     }, [fetchProfile]);
 
