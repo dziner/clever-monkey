@@ -149,8 +149,10 @@ const App: React.FC = () => {
         );
     }
 
-    // No documents — idle/landing state, full screen
-    if (state.documents.length === 0) {
+    // No documents — guest only. Signed-in users go straight to the
+    // workspace so they can upload from there (the side panel + empty
+    // state both surface upload entry points).
+    if (state.documents.length === 0 && !userEmail) {
         return (
             <React.Fragment>
                 {authUI}
@@ -226,8 +228,8 @@ const App: React.FC = () => {
             <main className="flex-1 flex min-w-0 relative">
               <React.Suspense fallback={<PageLoader />}>
                 <Routes>
-                    <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} />} />
-                    <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} />} />
+                    <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} onFileSelected={handleFileSelected} />} />
+                    <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} onFileSelected={handleFileSelected} />} />
                 </Routes>
               </React.Suspense>
             </main>
