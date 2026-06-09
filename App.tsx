@@ -11,6 +11,7 @@ import { NamePromptModal } from './components/NamePromptModal';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
 import { useUser } from './contexts/UserContext';
+import { isAdminUser } from './services/adminConfig';
 import { ROUTES } from './routes';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
@@ -165,7 +166,7 @@ const App: React.FC = () => {
         );
     }
 
-    const isAdmin = userProfile?.role === 'admin';
+    const isAdmin = isAdminUser(userProfile?.role, userEmail);
 
     // Main layout with sidebar + routed content
     return (

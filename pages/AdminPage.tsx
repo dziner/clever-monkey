@@ -12,6 +12,7 @@ import {
     QuizIcon, FolderOpenIcon, CloudIcon,
 } from '../components/icons';
 import { Spinner } from '../components/Spinner';
+import { isAdminUser } from '../services/adminConfig';
 import { ROUTES } from '../routes';
 import type { UserTier, UserRole } from '../types';
 
@@ -224,7 +225,7 @@ type TabId = 'overview' | 'usage' | 'users';
 
 export const AdminPage: React.FC<AdminPageProps> = () => {
     const navigate = useNavigate();
-    const { userId, userProfile, refreshProfile } = useUser();
+    const { userId, userEmail, userProfile, refreshProfile } = useUser();
 
     const [users, setUsers] = React.useState<AdminUserRow[]>([]);
     const [apiStats, setApiStats] = React.useState<ApiStats | null>(null);
@@ -235,7 +236,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     const [filterTier, setFilterTier] = React.useState<'all' | UserTier>('all');
     const [activeTab, setActiveTab] = React.useState<TabId>('overview');
 
-    const isAdmin = userProfile?.role === 'admin';
+    const isAdmin = isAdminUser(userProfile?.role, userEmail);
 
     const loadAll = React.useCallback(async () => {
         setIsLoading(true);
