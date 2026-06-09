@@ -1,5 +1,5 @@
 -- ===================================================================
--- Bootstrap Admin Account  (run ONCE in the Supabase SQL Editor)
+-- Bootstrap Admin Account  (run in the Supabase SQL Editor)
 -- ===================================================================
 -- Why this exists:
 --   Admin rights are stored in public.profiles.role. Editing a user in
@@ -9,13 +9,27 @@
 --   drift out of sync.
 --
 -- 👉 Replace the email below with the address you sign in with
---    (Google or email/password). It is used in BOTH statements.
+--    (Google or email/password). It is used in EVERY statement.
 -- ===================================================================
 
--- 1) Promote the profile row (gives the "Admin" badge in the user list).
-update public.profiles
-set role = 'admin', updated_at = now()
+-- 0) PREREQUISITE: you must have signed in to the app at least once with
+--    this email so that a row exists in auth.users. Verify here — this
+--    should return exactly one row.
+select id, email, created_at
+from auth.users
 where lower(email) = lower('voicemakesme@gmail.com');
+
+-- 1) UPSERT the profile row.
+--    • If profiles row exists → updates role to 'admin'.
+--    • If it was deleted / never created → re-creates it from auth.users.
+insert into public.profiles (id, email, role)
+select id, email, 'admin'
+from auth.users
+where lower(email) = lower('voicemakesme@gmail.com')
+on conflict (id) do update
+  set role = 'admin',
+      email = excluded.email,
+      updated_at = now();
 
 -- 2) Bulletproof DB-level admin: is_admin_user() — the function every
 --    admin RLS policy and admin RPC relies on — now returns true if EITHER
@@ -42,6 +56,7 @@ as $$
     );
 $$;
 
--- 3) (optional) Verify — should show your row with role = 'admin'.
--- select id, email, role from public.profiles
--- where lower(email) = lower('voicemakesme@gmail.com');
+-- 3) VERIFY — should show your row with role = 'admin'.
+select id, email, role, tier, created_at
+from public.profiles
+where lower(email) = lower('voicemakesme@gmail.com');

@@ -251,6 +251,13 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
         setIsLoading(false);
     }, []);
 
+    // Always re-fetch the profile when entering /admin so a freshly-promoted
+    // role (e.g., right after running make_admin.sql) is picked up without a
+    // page reload.
+    React.useEffect(() => {
+        refreshProfile();
+    }, [refreshProfile]);
+
     React.useEffect(() => {
         if (!isAdmin) return;
         loadAll();
@@ -284,6 +291,21 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                     <p className="font-bold text-ink-700">접근 권한이 없습니다</p>
                     <p className="text-sm text-ink-500 mt-1">관리자 권한이 필요한 페이지입니다.</p>
                 </div>
+                <div className="mt-2 max-w-md w-full text-left bg-white border border-ink-200 rounded-xl p-4 text-xs font-mono text-ink-600 space-y-1">
+                    <p className="font-sans text-[11px] uppercase tracking-wider text-ink-400 font-bold mb-2">진단 정보</p>
+                    <p>email: <span className="text-ink-900">{userEmail || '(none)'}</span></p>
+                    <p>profile.role: <span className="text-ink-900">{userProfile?.role || '(no profile)'}</span></p>
+                    <p>profile.id: <span className="text-ink-900 break-all">{userProfile?.id || '(none)'}</span></p>
+                    <p>auth uid: <span className="text-ink-900 break-all">{userId || '(none)'}</span></p>
+                </div>
+                <p className="max-w-md text-center text-xs text-ink-500">
+                    SQL을 실행했는데도 권한이 안 보이면 위 email이 SQL의 부트스트랩 이메일과 정확히 일치하는지,
+                    profile.role이 admin인지 확인하세요.
+                </p>
+                <button type="button" onClick={async () => { await refreshProfile(); }}
+                    className="px-4 py-2 bg-ink-200 text-ink-800 rounded-xl font-semibold text-sm hover:bg-ink-300 transition-colors">
+                    프로필 다시 불러오기
+                </button>
                 <button type="button" onClick={() => navigate(ROUTES.STUDY)}
                     className="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold text-sm hover:bg-brand-700 transition-colors">
                     홈으로 돌아가기
