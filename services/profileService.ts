@@ -17,16 +17,30 @@ function mapRow(d: Record<string, unknown>): UserProfile {
 }
 
 export async function getMyProfile(): Promise<UserProfile | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+        console.error('[profile] getUser failed:', authError);
+        return null;
+    }
+    if (!user) {
+        console.warn('[profile] getUser returned no user');
+        return null;
+    }
 
     const { data, error } = await supabase
         .from('profiles')
         .select('id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at, language')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-    if (error || !data) return null;
+    if (error) {
+        console.error('[profile] select failed for uid', user.id, ':', error);
+        return null;
+    }
+    if (!data) {
+        console.warn('[profile] no profile row for uid', user.id, '(email:', user.email, ')');
+        return null;
+    }
     return mapRow(data as Record<string, unknown>);
 }
 

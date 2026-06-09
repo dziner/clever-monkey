@@ -281,7 +281,11 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     }, []);
 
     // ── Access guard ──────────────────────────────────────────────────────────
-    if (!isAdmin && userProfile !== null) {
+    // Render the diagnostic even when userProfile is null. Otherwise a failed
+    // profile fetch silently falls through and the panel renders empty with
+    // no explanation.
+    if (!isAdmin) {
+        const profileMissing = userProfile === null;
         return (
             <div className="flex flex-col h-full items-center justify-center bg-ink-50 gap-4 p-8">
                 <div className="w-16 h-16 bg-danger-50 rounded-full flex items-center justify-center">
@@ -289,27 +293,35 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                 </div>
                 <div className="text-center">
                     <p className="font-bold text-ink-700">접근 권한이 없습니다</p>
-                    <p className="text-sm text-ink-500 mt-1">관리자 권한이 필요한 페이지입니다.</p>
+                    <p className="text-sm text-ink-500 mt-1">
+                        {profileMissing
+                            ? '프로필을 불러오지 못했습니다 (브라우저 콘솔의 [profile] 로그를 확인하세요).'
+                            : '관리자 권한이 필요한 페이지입니다.'}
+                    </p>
                 </div>
                 <div className="mt-2 max-w-md w-full text-left bg-white border border-ink-200 rounded-xl p-4 text-xs font-mono text-ink-600 space-y-1">
                     <p className="font-sans text-[11px] uppercase tracking-wider text-ink-400 font-bold mb-2">진단 정보</p>
                     <p>email: <span className="text-ink-900">{userEmail || '(none)'}</span></p>
-                    <p>profile.role: <span className="text-ink-900">{userProfile?.role || '(no profile)'}</span></p>
+                    <p>profile.role: <span className="text-ink-900">{userProfile?.role || '(no profile row)'}</span></p>
+                    <p>profile.tier: <span className="text-ink-900">{userProfile?.tier || '(none)'}</span></p>
                     <p>profile.id: <span className="text-ink-900 break-all">{userProfile?.id || '(none)'}</span></p>
                     <p>auth uid: <span className="text-ink-900 break-all">{userId || '(none)'}</span></p>
                 </div>
                 <p className="max-w-md text-center text-xs text-ink-500">
-                    SQL을 실행했는데도 권한이 안 보이면 위 email이 SQL의 부트스트랩 이메일과 정확히 일치하는지,
-                    profile.role이 admin인지 확인하세요.
+                    {profileMissing
+                        ? 'auth uid와 profile.id가 안 맞는 경우가 가장 흔합니다 (재가입으로 새 uid가 생성됨). supabase/make_admin.sql의 진단 SELECT로 두 값을 비교하세요.'
+                        : 'profile.role이 admin이 아니면 SQL이 다른 행에 적용된 것입니다. SQL 안의 이메일과 위 email을 정확히 맞춰서 다시 실행하세요.'}
                 </p>
-                <button type="button" onClick={async () => { await refreshProfile(); }}
-                    className="px-4 py-2 bg-ink-200 text-ink-800 rounded-xl font-semibold text-sm hover:bg-ink-300 transition-colors">
-                    프로필 다시 불러오기
-                </button>
-                <button type="button" onClick={() => navigate(ROUTES.STUDY)}
-                    className="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold text-sm hover:bg-brand-700 transition-colors">
-                    홈으로 돌아가기
-                </button>
+                <div className="flex items-center gap-2">
+                    <button type="button" onClick={async () => { await refreshProfile(); }}
+                        className="px-4 py-2 bg-ink-200 text-ink-800 rounded-xl font-semibold text-sm hover:bg-ink-300 transition-colors">
+                        프로필 다시 불러오기
+                    </button>
+                    <button type="button" onClick={() => navigate(ROUTES.STUDY)}
+                        className="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold text-sm hover:bg-brand-700 transition-colors">
+                        홈으로 돌아가기
+                    </button>
+                </div>
             </div>
         );
     }
