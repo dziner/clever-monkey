@@ -104,6 +104,54 @@ function cooldownFor(kind: Exclude<ExhaustionKind, 'none'>): number {
 }
 
 /**
+ * "Model overloaded" / "high demand" (HTTP 503 / UNAVAILABLE). Unlike
+ * quota or rate-limit, this is NOT a per-key problem — it's the upstream
+ * model being momentarily busy. We handle it with retries on the same key
+ * plus a fallback to a higher-availability model, NOT by cooling the key
+ * (which would block the fallback).
+ */
+function isOverloaded(err: unknown): boolean {
+  const m = extractMessage(err);
+  return /overload|high demand|currently unavailable|\bUNAVAILABLE\b|\b503\b/i.test(m);
+}
+
+/**
+ * When a model is overloaded, retry the request on a
+ * higher-availability model. Flash models have far more capacity than
+ * pro / preview models, so this recovers most "high demand" failures.
+ */
+const OVERLOAD_FALLBACK_MODEL: Record<string, string> = {
+  'gemini-2.5-pro': 'gemini-2.5-flash',
+  'gemini-flash-latest': 'gemini-2.5-flash',
+  'gemini-2.5-flash': 'gemini-flash-latest',
+};
+
+/**
+ * Run a generateContent call resiliently: key rotation + transient
+ * retries, and on a sustained overload, transparently retry once on a
+ * fallback model so the user gets a result instead of "high demand".
+ */
+async function generateContentResilient(
+  model: string,
+  params: { contents: any; config?: any },
+): Promise<{ text?: string } & Record<string, any>> {
+  try {
+    return await callWithKeyRotation(ai =>
+      withRetry(() => ai.models.generateContent({ model, contents: params.contents, config: params.config })),
+    );
+  } catch (err) {
+    const fallback = OVERLOAD_FALLBACK_MODEL[model];
+    if (fallback && isOverloaded(err)) {
+      console.warn(`[gemini] ${model} overloaded — retrying on ${fallback}`);
+      return await callWithKeyRotation(ai =>
+        withRetry(() => ai.models.generateContent({ model: fallback, contents: params.contents, config: params.config })),
+      );
+    }
+    throw err;
+  }
+}
+
+/**
  * Run a Gemini SDK call against the next healthy API key. On per-key
  * errors (quota / rate-limit / invalid) mark the key as cooling-down and
  * try the next one. Other errors (transient 5xx, bad input, etc.) are
@@ -218,7 +266,7 @@ const ALLOWED_MODELS = new Set(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-fl
  * UNAVAILABLE / DEADLINE_EXCEEDED. Other errors (4xx, parse, etc.)
  * surface immediately.
  */
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
     let lastErr: unknown;
     for (let i = 0; i < attempts; i++) {
         try {
@@ -226,7 +274,8 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
         } catch (err) {
             lastErr = err;
             if (!isTransient(err) || i === attempts - 1) throw err;
-            await new Promise(r => setTimeout(r, 800 * Math.pow(2, i))); // 800ms, 1.6s, 3.2s
+            // 600ms, 1.2s, 2.4s — capped so we stay under the function timeout
+            await new Promise(r => setTimeout(r, Math.min(600 * Math.pow(2, i), 2400)));
         }
     }
     throw lastErr;
@@ -235,7 +284,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 function isTransient(err: unknown): boolean {
     const m = extractMessage(err);
     if (/\b(5\d\d)\b/.test(m)) return true;
-    if (/INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED|temporar|retry/i.test(m)) return true;
+    if (/INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED|temporar|retry|overload|high demand/i.test(m)) return true;
     return false;
 }
 
@@ -368,9 +417,7 @@ export const handler: Handler = async (event) => {
       if (typeof parsed.contents === 'string' && parsed.contents.length > MAX_TEXT_CHARS) {
         return json(400, { error: 'Prompt too large' });
       }
-      const res = await callWithKeyRotation(ai =>
-        withRetry(() => ai.models.generateContent({ model, contents: parsed.contents as any, config: parsed.config as any })),
-      );
+      const res = await generateContentResilient(model, { contents: parsed.contents, config: parsed.config });
       return json(200, { text: res.text });
     }
 
@@ -400,17 +447,14 @@ export const handler: Handler = async (event) => {
         parsed.prompt ||
         'Extract all text from this document. Respond with only the text content. If there is no text, return an empty string.';
 
-      const res = await callWithKeyRotation(ai =>
-        withRetry(() => ai.models.generateContent({
-          model,
-          contents: {
-            parts: [
-              { inlineData: parsed.inlineData },
-              { text: prompt },
-            ],
-          },
-        })),
-      );
+      const res = await generateContentResilient(model, {
+        contents: {
+          parts: [
+            { inlineData: parsed.inlineData },
+            { text: prompt },
+          ],
+        },
+      });
 
       const text = res.text ?? '';
       if (text.length > MAX_TEXT_CHARS) {
