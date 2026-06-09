@@ -3,7 +3,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
-import { DocumentIcon, XIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, StyleIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon } from '../components/icons';
+import { DocumentIcon, XIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, StyleIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon, MenuIcon, UploadIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useRetryProcessing } from '../hooks/useRetryProcessing';
@@ -117,14 +117,102 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
     </React.Fragment>
 ));
 
+const ACCEPTED_FILE_TYPES = 'application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain,text/markdown';
+
+interface EmptyWorkspaceProps {
+    hasDocuments: boolean;
+    onFileSelected?: (file: File) => void;
+    onMenuClick: () => void;
+}
+
+const EmptyWorkspace: React.FC<EmptyWorkspaceProps> = ({ hasDocuments, onFileSelected, onMenuClick }) => {
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const [isDragOver, setIsDragOver] = React.useState(false);
+
+    const pickFile = () => inputRef.current?.click();
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && onFileSelected) onFileSelected(file);
+        e.target.value = '';
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file && onFileSelected) onFileSelected(file);
+    };
+
+    return (
+        <div className="w-full h-full flex flex-col bg-ink-50">
+            <div className="md:hidden flex items-center px-4 py-3 border-b border-ink-200 bg-white">
+                <button
+                    type="button"
+                    onClick={onMenuClick}
+                    className="p-2 -ml-2 text-ink-500 hover:text-ink-900 rounded-lg hover:bg-ink-100"
+                    aria-label="Open file list"
+                >
+                    <MenuIcon className="text-xl" />
+                </button>
+            </div>
+            <div className="flex-1 flex items-center justify-center p-6">
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                    onDragLeave={() => setIsDragOver(false)}
+                    onDrop={handleDrop}
+                    className={`w-full max-w-md rounded-3xl border-2 border-dashed p-8 sm:p-10 text-center transition-colors ${
+                        isDragOver
+                            ? 'border-brand-500 bg-brand-50'
+                            : 'border-ink-200 bg-white hover:border-brand-300 hover:bg-brand-50/30'
+                    }`}
+                >
+                    <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-100 flex items-center justify-center">
+                        <UploadIcon className="text-2xl text-brand-600" />
+                    </div>
+                    <h2 className="mt-5 text-lg font-display font-bold text-ink-900 tracking-tight">
+                        {hasDocuments ? '문서를 선택해 시작하세요' : '첫 문서를 업로드하세요'}
+                    </h2>
+                    <p className="mt-1.5 text-sm text-ink-500 leading-relaxed">
+                        {hasDocuments
+                            ? '왼쪽 패널에서 문서를 선택하거나 새 파일을 업로드할 수 있어요.'
+                            : 'PDF · 이미지 · 텍스트 파일을 끌어다 놓거나 아래 버튼으로 업로드하세요.'}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={pickFile}
+                        disabled={!onFileSelected}
+                        className="mt-6 inline-flex items-center gap-2 px-5 h-11 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-sm font-semibold shadow-brand disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <UploadIcon className="text-base" />
+                        파일 선택
+                    </button>
+                    <p className="mt-4 text-[11px] text-ink-400">
+                        PDF · JPG · PNG · WEBP · TXT · MD
+                    </p>
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        accept={ACCEPTED_FILE_TYPES}
+                        onChange={handleChange}
+                        className="hidden"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface StudyPageProps {
     onMenuClick: () => void;
     /** Plumbed to the InteractionPanel so guest-locked tabs can offer sign-in. */
     isGuest?: boolean;
     onSignInClick?: () => void;
+    /** Trigger an upload from the empty workspace state. */
+    onFileSelected?: (file: File) => void;
 }
 
-export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSignInClick }) => {
+export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSignInClick, onFileSelected }) => {
     const { state, dispatch } = useDocuments();
     const [isPdfVisible, setIsPdfVisible] = React.useState(false);
     const [isPdfViewerCollapsed, setIsPdfViewerCollapsed] = React.useState(false);
@@ -182,10 +270,13 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
     };
 
     if (!activeDocument) {
+        const hasDocuments = state.documents.length > 0;
         return (
-            <div className="w-full h-full flex items-center justify-center bg-ink-50 text-ink-500">
-                <p>Select a document to get started.</p>
-            </div>
+            <EmptyWorkspace
+                hasDocuments={hasDocuments}
+                onFileSelected={onFileSelected}
+                onMenuClick={onMenuClick}
+            />
         );
     }
 
