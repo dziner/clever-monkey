@@ -2,6 +2,7 @@ import type { Part } from '@google/genai';
 import { getSystemInstruction, initialBotMessage } from '../constants';
 import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 import { languageDirective, allCorrectMessage } from './languageService';
+import { extractPdfTextLocally } from '../utils/pdfText';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 
@@ -189,6 +190,20 @@ async function fileToGenerativePart(file: File): Promise<InlineDataPart> {
 async function extractTextFromDocument(file: File, model: ProcessingModel): Promise<string> {
   if (file.type === 'text/plain' || file.type === 'text/markdown') {
     return await file.text();
+  }
+
+  // For PDFs, extract the text layer locally with pdf.js first. Text-based
+  // PDFs (the common case) need no server round-trip at all, which avoids
+  // the serverless function timeout (504) on large files. Only fall back
+  // to Gemini OCR when the PDF has no usable text layer (scanned / image).
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (isPdf) {
+    try {
+      const localText = await extractPdfTextLocally(file);
+      if (localText.trim().length >= 100) return localText;
+    } catch (err) {
+      console.warn('Local PDF text extraction failed; falling back to Gemini OCR', err);
+    }
   }
 
   const documentPart = await fileToGenerativePart(file);
