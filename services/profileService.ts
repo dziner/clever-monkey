@@ -117,14 +117,19 @@ export interface AdminUserRow extends UserProfile {
     documentCount: number;
 }
 
-export async function adminGetUserStats(): Promise<AdminUserRow[]> {
+export async function adminGetUserStats(): Promise<{ rows: AdminUserRow[]; error: string | null }> {
     const { data, error } = await supabase.rpc('admin_get_user_stats');
-    if (error || !data) return [];
+    if (error) {
+        console.error('[admin] admin_get_user_stats failed:', error);
+        return { rows: [], error: error.message };
+    }
+    if (!data) return { rows: [], error: null };
 
-    return (data as Record<string, unknown>[]).map(d => ({
+    const rows = (data as Record<string, unknown>[]).map(d => ({
         ...mapRow(d),
         documentCount: (d.document_count as number) ?? 0,
     }));
+    return { rows, error: null };
 }
 
 export async function adminUpdateProfile(
@@ -167,6 +172,7 @@ export interface DbStats {
 
 export async function adminGetApiStats(): Promise<ApiStats | null> {
     const { data, error } = await supabase.rpc('admin_get_api_stats');
+    if (error) console.error('[admin] admin_get_api_stats failed:', error);
     if (error || !data) return null;
     const d = data as {
         total_actions_today: number;
@@ -188,6 +194,7 @@ export async function adminGetApiStats(): Promise<ApiStats | null> {
 
 export async function adminGetDbStats(): Promise<DbStats | null> {
     const { data, error } = await supabase.rpc('admin_get_db_stats');
+    if (error) console.error('[admin] admin_get_db_stats failed:', error);
     if (error || !data) return null;
     const d = data as Record<string, number>;
     return {
