@@ -9,12 +9,19 @@
 --   1. All auth.users rows are gone (every user must sign up again).
 --   2. All profiles / documents / folders / annotations / quiz history
 --      / wrong answers / flashcards / AI usage logs are gone.
---   3. The storage bucket "docs" is emptied so orphan files don't
---      linger.
 --
 -- The TABLES themselves and their triggers / RLS / functions are kept
 -- intact — only the rows are removed. So the app continues to work
 -- exactly as before; it just has no users yet.
+--
+-- 📁 STORAGE BUCKET — handle separately:
+-- Supabase blocks direct DELETE on storage.objects from SQL
+-- ("Direct deletion from storage tables is not allowed").
+-- After running this script, empty the "docs" bucket manually:
+--     Supabase dashboard → Storage → docs bucket →
+--     Select all files → Delete.
+-- (Skipping this step is harmless — orphan files just sit there
+--  unreachable, since the owner accounts no longer exist.)
 --
 -- After running this, the next person to sign in via the app will
 -- automatically get a profile row via the handle_new_user trigger.
@@ -43,7 +50,7 @@ union all select 'wrong_answers',      count(*) from public.wrong_answers
 union all select 'flashcard_decks',    count(*) from public.flashcard_decks
 union all select 'flashcards',         count(*) from public.flashcards
 union all select 'ai_usage_daily_log', count(*) from public.ai_usage_daily_log
-union all select 'storage.objects (docs)',
+union all select 'storage.objects (docs) — wipe manually via dashboard',
                  count(*) from storage.objects where bucket_id = 'docs';
 
 -- ── WIPE PUBLIC SCHEMA ──────────────────────────────────────────────
@@ -60,10 +67,6 @@ truncate table
     public.profiles
 restart identity cascade;
 
--- ── WIPE STORAGE BUCKET ─────────────────────────────────────────────
--- Removes every object in the "docs" bucket. The bucket itself stays.
-delete from storage.objects where bucket_id = 'docs';
-
 -- ── WIPE AUTH ───────────────────────────────────────────────────────
 -- Cascade also clears auth.identities, refresh_tokens, sessions, etc.
 delete from auth.users;
@@ -79,6 +82,7 @@ union all select 'wrong_answers',      count(*) from public.wrong_answers
 union all select 'flashcard_decks',    count(*) from public.flashcard_decks
 union all select 'flashcards',         count(*) from public.flashcards
 union all select 'ai_usage_daily_log', count(*) from public.ai_usage_daily_log
-union all select 'storage.objects (docs)',
+union all select 'storage.objects (docs) — wipe manually via dashboard',
                  count(*) from storage.objects where bucket_id = 'docs';
--- Every count should now be 0.
+-- All public + auth counts should be 0. The storage count will reflect
+-- whatever is left in the bucket — empty it manually via the dashboard.
