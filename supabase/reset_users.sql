@@ -68,8 +68,48 @@ truncate table
 restart identity cascade;
 
 -- ── WIPE AUTH ───────────────────────────────────────────────────────
--- Cascade also clears auth.identities, refresh_tokens, sessions, etc.
-delete from auth.users;
+-- storage.objects has a FK on auth.users(id) ON DELETE CASCADE, so a
+-- plain `delete from auth.users` cascades into storage.objects and
+-- trips Supabase's storage.protect_delete() trigger:
+--
+--   ERROR: 42501: Direct deletion from storage tables is not allowed.
+--
+-- Workaround: temporarily disable every trigger backed by that
+-- function (the name is usually `protect_delete` but may vary across
+-- Supabase versions, so we look it up by function reference), do the
+-- delete, then re-enable. Cascade also clears auth.identities,
+-- refresh_tokens, sessions, etc.
+do $$
+declare
+    t record;
+    fn_oid oid;
+begin
+    -- Resolve the function oid; bail gracefully if Supabase removes it.
+    select 'storage.protect_delete'::regproc into fn_oid;
+
+    for t in
+        select tgname, tgrelid::regclass::text as tbl
+        from pg_trigger
+        where tgfoid = fn_oid
+          and not tgisinternal
+    loop
+        execute format('alter table %s disable trigger %I', t.tbl, t.tgname);
+    end loop;
+
+    delete from auth.users;
+
+    for t in
+        select tgname, tgrelid::regclass::text as tbl
+        from pg_trigger
+        where tgfoid = fn_oid
+          and not tgisinternal
+    loop
+        execute format('alter table %s enable trigger %I', t.tbl, t.tgname);
+    end loop;
+exception when undefined_function then
+    -- Older Supabase project without the protection — just delete.
+    delete from auth.users;
+end $$;
 
 -- ── VERIFY ──────────────────────────────────────────────────────────
 select 'auth.users'           as table_name, count(*) as rows from auth.users
