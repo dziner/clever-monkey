@@ -9,6 +9,7 @@ import {
   MAX_TEXT_CHARS,
   STREAM_ERROR_SENTINEL,
 } from './lib/shared';
+import { routedStream } from './lib/router';
 
 // Streaming Gemini proxy (Netlify Functions v2). Long generations — the
 // document summary above all — blow past the 10s buffered-response limit
@@ -23,7 +24,8 @@ import {
 interface StreamRequest {
   model: string;
   contents: unknown;
-  config?: unknown;
+  config?: { temperature?: number; responseMimeType?: string };
+  task?: string;
 }
 
 export default async (req: Request): Promise<Response> => {
@@ -58,7 +60,9 @@ export default async (req: Request): Promise<Response> => {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  if (!ALLOWED_MODELS.has(parsed.model)) {
+  // Model is only validated for the non-routed path; routed tasks pick
+  // their own (server-controlled) models from the route table.
+  if (!parsed.task && !ALLOWED_MODELS.has(parsed.model)) {
     return Response.json({ error: `Unsupported model: ${String(parsed.model)}` }, { status: 400 });
   }
   if (typeof parsed.contents === 'string' && parsed.contents.length > MAX_TEXT_CHARS) {
@@ -68,12 +72,26 @@ export default async (req: Request): Promise<Response> => {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const emit = (chunk: string) => { controller.enqueue(encoder.encode(chunk)); };
       try {
-        await streamGeneratedText(
-          parsed.model,
-          { contents: parsed.contents, config: parsed.config },
-          (chunk) => { controller.enqueue(encoder.encode(chunk)); },
-        );
+        if (parsed.task) {
+          // Multi-provider routing (Gemini → Groq → Cerebras) by task type.
+          await routedStream(
+            parsed.task,
+            {
+              prompt: typeof parsed.contents === 'string' ? parsed.contents : String(parsed.contents),
+              json: parsed.config?.responseMimeType === 'application/json',
+              temperature: parsed.config?.temperature,
+            },
+            emit,
+          );
+        } else {
+          await streamGeneratedText(
+            parsed.model,
+            { contents: parsed.contents, config: parsed.config },
+            emit,
+          );
+        }
       } catch (err) {
         console.error('gemini-stream error', err);
         controller.enqueue(encoder.encode(STREAM_ERROR_SENTINEL + extractMessage(err)));

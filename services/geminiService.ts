@@ -8,10 +8,10 @@ import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBud
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
 
-// Mirrors STREAM_ERROR_SENTINEL in netlify/functions/_shared.ts — a
-// mid-stream failure can't change the HTTP status anymore, so the server
-// appends this marker followed by the error message.
-const STREAM_ERROR_SENTINEL = ' __GEMINI_STREAM_ERROR__ ';
+// Mirrors STREAM_ERROR_SENTINEL in netlify/functions/lib/shared.ts (kept
+// byte-identical) — a mid-stream failure can't change the HTTP status
+// anymore, so the server appends this marker followed by the error message.
+const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
 
 const repairJSON = (text: string): string =>
   text
@@ -68,9 +68,11 @@ const cleanAndParseJSON = (text: string) => {
   }
 };
 
+// `task` (when set) routes the call through the multi-provider router
+// server-side (Gemini → Groq → Cerebras fallback per task type).
 type GeminiPayload =
   | { action: 'countTokens'; model: string; text: string }
-  | { action: 'generateContent'; model: string; contents: unknown; config?: unknown }
+  | { action: 'generateContent'; model: string; contents: unknown; config?: unknown; task?: string }
   | { action: 'chat'; model: string; systemInstruction: string; history: unknown; message: string }
   | { action: 'extractText'; model: string; inlineData: unknown }
   | { action: 'tts'; text: string; voice: string };
@@ -103,12 +105,13 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
   return data as T;
 }
 
-async function generateContent(model: string, contents: unknown, config?: { temperature?: number; responseMimeType?: string }, signal?: AbortSignal): Promise<string> {
+async function generateContent(model: string, contents: unknown, config?: { temperature?: number; responseMimeType?: string }, signal?: AbortSignal, task?: string): Promise<string> {
   const data = await callGemini<{ text: string }>({
     action: 'generateContent',
     model,
     contents,
     config,
+    task,
   }, signal);
   return data.text;
 }
@@ -126,6 +129,7 @@ async function generateContentStreaming(
   onChunk?: (textSoFar: string) => void,
   config?: { temperature?: number },
   signal?: AbortSignal,
+  task?: string,
 ): Promise<string> {
   const authHeader = await getAuthHeader();
   const headers: Record<string, string> = { 'content-type': 'application/json' };
@@ -134,7 +138,7 @@ async function generateContentStreaming(
   const res = await fetch(GEMINI_STREAM_ENDPOINT, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model, contents, config }),
+    body: JSON.stringify({ model, contents, config, task }),
     signal,
   });
 
@@ -300,8 +304,8 @@ export async function processDocument(
   // an evenly-sampled excerpt and the cheap flash model are plenty.
   onProgress('summarizing');
   const [summary, questionsText] = await Promise.all([
-    generateContentStreaming(model, summaryPrompt, onSummaryChunk),
-    generateContent('gemini-2.5-flash', questionsPrompt),
+    generateContentStreaming(model, summaryPrompt, onSummaryChunk, undefined, undefined, 'summary'),
+    generateContent('gemini-2.5-flash', questionsPrompt, undefined, undefined, 'presetQuestions'),
   ]);
 
   let presetQuestions: string[];
@@ -354,7 +358,7 @@ ${diversityRules}`;
   }
 
   const fullPrompt = `${prompt}\n\n${languageDirective(language)}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.quiz)}\n"""`;
-  const text = await generateContent(model, fullPrompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal);
+  const text = await generateContent(model, fullPrompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal, 'quiz');
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }
 
@@ -385,7 +389,7 @@ DOCUMENT CONTENT:
 ${sampleEvenly(documentContent, CONTENT_BUDGET.flashcards)}
 """`;
 
-  const text = await generateContent(model, prompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal);
+  const text = await generateContent(model, prompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal, 'flashcards');
   const parsed = cleanAndParseJSON(text);
   if (!Array.isArray(parsed)) throw new Error('Unexpected flashcard response format');
   return parsed as Array<{ front: string; back: string }>;
@@ -400,7 +404,7 @@ export async function evaluateFRQAnswer(
 ): Promise<{ score: number; feedback: string }> {
   const prompt = `A user was asked a question based on a document. Please evaluate their answer.\n\nQuestion: "${question}"\nIdeal Answer (for reference): "${referenceAnswer}"\nUser's Answer: "${userAnswer}"\n\nProvide a score from 0 to 100 and brief, constructive feedback. Respond ONLY with valid JSON: {"score": number, "feedback": string}.\n\n${languageDirective(language)}`;
 
-  const text = await generateContent(model, prompt, { responseMimeType: 'application/json' });
+  const text = await generateContent(model, prompt, { responseMimeType: 'application/json' }, undefined, 'evaluate');
   return cleanAndParseJSON(text);
 }
 
@@ -444,7 +448,7 @@ export async function generateStudyTips(
 
   const prompt = `You are a precise AI Tutor. Analyze the user's quiz results and provide a concise "Key Concepts for Review" list based ONLY on incorrect/low-scoring answers.\n\n### DOCUMENT CONTENT\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.studyTips)}\n"""\n\n### QUIZ RESULTS (Incorrect/Low-Scoring Only)\n"""\n${incorrectResultsSummary}\n"""\n\nRules:\n- Output MUST start with a heading line equivalent to "### 🎯 Key Concepts for Review" — keep the leading "###" and 🎯 emoji, but translate the heading text.\n- Use Markdown bullet points.\n- Be concise; no motivational phrases; focus only on content corrections.\n\n${languageDirective(language)}\n`;
 
-  return await generateContent(model, prompt);
+  return await generateContent(model, prompt, undefined, undefined, 'studyTips');
 }
 
 export type { MindMapData, SlideData };
@@ -489,7 +493,7 @@ DOCUMENT CONTENT:
 """
 ${sampleEvenly(documentContent, CONTENT_BUDGET.mindmap)}
 """`;
-  const text = await generateContent(model, prompt, { temperature: 0.7, responseMimeType: 'application/json' }, signal);
+  const text = await generateContent(model, prompt, { temperature: 0.7, responseMimeType: 'application/json' }, signal, 'mindmap');
   return cleanAndParseJSON(text) as MindMapData;
 }
 
@@ -516,7 +520,7 @@ DOCUMENT CONTENT:
 """
 ${sampleEvenly(documentContent, CONTENT_BUDGET.slides)}
 """`;
-  const text = await generateContent(model, prompt, { temperature: 0.8, responseMimeType: 'application/json' }, signal);
+  const text = await generateContent(model, prompt, { temperature: 0.8, responseMimeType: 'application/json' }, signal, 'slides');
   return cleanAndParseJSON(text) as SlideData;
 }
 
@@ -627,7 +631,10 @@ DOCUMENT CONTENT:
 """
 ${sampleEvenly(documentContent, CONTENT_BUDGET.podcast)}
 """`;
-  return await generateContent(model, prompt, { temperature: 1.0 }, signal);
+  // Podcast scripts are the longest single generation and the original
+  // source of the 504s — stream them so the response starts before the
+  // gateway timeout, with Gemini→Groq provider fallback behind the scenes.
+  return await generateContentStreaming(model, prompt, undefined, { temperature: 1.0 }, signal, 'podcast');
 }
 
 export const geminiProxy = {

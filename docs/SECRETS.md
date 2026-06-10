@@ -4,13 +4,33 @@
 > Supabase credential. Keep this document up-to-date as new integrations
 > are added.
 
-This project uses three external services, each with their own secrets:
+This project uses these external services, each with their own secrets:
 
 | Service | What it does | Where keys live |
 |---|---|---|
 | **Google Gemini** | AI model calls (summary, chat, quiz, …) | `GEMINI_API_KEYS` (preferred, multi-key, server-only) or `GEMINI_API_KEY` (single, legacy) |
+| **Groq** *(optional)* | Fallback / overflow AI provider (OpenAI-wire compatible) | `GROQ_API_KEY` (server-only) |
+| **Cerebras** *(optional)* | Extra fallback AI provider (OpenAI-wire compatible) | `CEREBRAS_API_KEY` (server-only) |
 | **Supabase** | Auth, database, file storage | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (client), `SUPABASE_SERVICE_ROLE_KEY` (server) |
 | **Google OAuth** | "Continue with Google" sign-in | Configured **inside Supabase**, not in app code |
+
+### Multi-provider AI routing
+
+AI generation is routed per task type by `netlify/functions/lib/router.ts`.
+Each task tries an ordered chain of providers and falls back to the next
+on a 429 / 503 / 504 / timeout (or unparseable JSON). **Groq and Cerebras
+are optional** — if their key is absent, those route steps are skipped and
+the task runs Gemini-only. Every route chain ends on a Gemini step, so the
+app works with just `GEMINI_API_KEY` set.
+
+- `GROQ_API_KEY` — free tier, ~14.4k req/day on small models. Get it at
+  [console.groq.com](https://console.groq.com) → API Keys. No card needed.
+- `CEREBRAS_API_KEY` — free tier, Groq-class limits. Get it at
+  [cloud.cerebras.ai](https://cloud.cerebras.ai) → API Keys.
+
+Adding either key is **zero-downtime**: set it in Netlify env and redeploy;
+routing picks it up automatically. To tune which provider leads each task,
+edit the `TASK_ROUTES` table in `netlify/functions/lib/router.ts`.
 
 ---
 

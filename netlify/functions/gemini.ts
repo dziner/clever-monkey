@@ -13,6 +13,7 @@ import {
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
 } from './lib/shared';
+import { routedGenerate } from './lib/router';
 
 // Gemini proxy (buffered responses). Key pool, retries, auth and tier
 // limits live in ./lib/shared so this handler and the streaming variant
@@ -20,12 +21,13 @@ import {
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024; // 4MB
 
-function json(statusCode: number, body: any) {
+function json(statusCode: number, body: any, extraHeaders?: Record<string, string>) {
   return {
     statusCode,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
+      ...extraHeaders,
     },
     body: JSON.stringify(body),
   };
@@ -42,6 +44,7 @@ type GeminiRequest =
       model: string;
       contents: any;
       config?: any;
+      task?: string;
     }
   | {
       action: 'chat';
@@ -139,6 +142,15 @@ export const handler: Handler = async (event) => {
       // best-effort size check on string prompts
       if (typeof parsed.contents === 'string' && parsed.contents.length > MAX_TEXT_CHARS) {
         return json(400, { error: 'Prompt too large' });
+      }
+      if (parsed.task) {
+        // Multi-provider routing (Gemini → Groq → Cerebras) by task type.
+        const { text, provider, model: usedModel } = await routedGenerate(parsed.task, {
+          prompt: typeof parsed.contents === 'string' ? parsed.contents : String(parsed.contents),
+          json: parsed.config?.responseMimeType === 'application/json',
+          temperature: parsed.config?.temperature,
+        });
+        return json(200, { text }, { 'X-AI-Provider': `${provider}/${usedModel}` });
       }
       const res = await generateContentResilient(model, { contents: parsed.contents, config: parsed.config });
       return json(200, { text: res.text });

@@ -123,6 +123,7 @@ export const OVERLOAD_FALLBACK_MODEL: Record<string, string> = {
   'gemini-2.5-pro': 'gemini-2.5-flash',
   'gemini-flash-latest': 'gemini-2.5-flash',
   'gemini-2.5-flash': 'gemini-flash-latest',
+  'gemini-2.5-flash-lite': 'gemini-2.5-flash',
 };
 
 /**
@@ -344,5 +345,6 @@ export function extractMessage(err: unknown): string {
 // Streamed-response error protocol. When a stream fails after the HTTP
 // response has already begun (status is locked at 200), the server appends
 // this sentinel followed by the error message; the client detects it and
-// throws. Null chars make accidental collisions with real text impossible.
-export const STREAM_ERROR_SENTINEL = ' __GEMINI_STREAM_ERROR__ ';
+// throws. The bracketed marker is kept byte-identical to the client copy
+// in services/geminiService.ts.
+export const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
