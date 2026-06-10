@@ -7,17 +7,22 @@
 // never grant data access on its own, because every admin query is
 // re-checked server-side by RLS.
 //
-// Configure with the `VITE_ADMIN_EMAILS` env var (comma-separated), e.g.
-//   VITE_ADMIN_EMAILS=you@example.com,teammate@example.com
-// Set it in Netlify → Site configuration → Environment variables, then
-// redeploy (VITE_* values are baked in at build time).
+// DEFAULT_ADMIN_EMAILS is hardcoded so admin access survives user-table
+// resets, uid changes from re-signups, and missing profile rows — the
+// admin gate depends only on the signed-in email. Additional admins can
+// be added via the `VITE_ADMIN_EMAILS` env var (comma-separated) in
+// Netlify → Site configuration → Environment variables (redeploy after).
 
-const raw = (import.meta.env.VITE_ADMIN_EMAILS as string | undefined) ?? '';
+const DEFAULT_ADMIN_EMAILS = ['voicemakesme@gmail.com'];
 
-export const ADMIN_EMAILS: string[] = raw
+const fromEnv = ((import.meta.env.VITE_ADMIN_EMAILS as string | undefined) ?? '')
     .split(',')
     .map(s => s.trim().toLowerCase())
     .filter(Boolean);
+
+export const ADMIN_EMAILS: string[] = [
+    ...new Set([...DEFAULT_ADMIN_EMAILS.map(s => s.toLowerCase()), ...fromEnv]),
+];
 
 /** True if this email is in the bootstrap admin allowlist. */
 export function isAdminEmail(email: string | null | undefined): boolean {
@@ -27,8 +32,8 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 
 /**
  * Whether the current user should see admin UI. Combines the DB-backed
- * role with the bootstrap email allowlist so a freshly-promoted admin
- * sees the panel immediately, even before the profile row syncs.
+ * role with the bootstrap email allowlist so admin access works even
+ * when the profile row is missing or out of sync.
  */
 export function isAdminUser(
     role: string | null | undefined,

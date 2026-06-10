@@ -230,6 +230,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     const [users, setUsers] = React.useState<AdminUserRow[]>([]);
     const [apiStats, setApiStats] = React.useState<ApiStats | null>(null);
     const [dbStats, setDbStats] = React.useState<DbStats | null>(null);
+    const [serverError, setServerError] = React.useState<string | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
     const [updatingId, setUpdatingId] = React.useState<string | null>(null);
     const [search, setSearch] = React.useState('');
@@ -240,14 +241,15 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
     const loadAll = React.useCallback(async () => {
         setIsLoading(true);
-        const [usersData, apiData, dbData] = await Promise.all([
+        const [usersResult, apiData, dbData] = await Promise.all([
             adminGetUserStats(),
             adminGetApiStats(),
             adminGetDbStats(),
         ]);
-        setUsers(usersData);
+        setUsers(usersResult.rows);
         setApiStats(apiData);
         setDbStats(dbData);
+        setServerError(usersResult.error);
         setIsLoading(false);
     }, []);
 
@@ -383,6 +385,20 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                 <div className="flex-1 flex items-center justify-center"><Spinner /></div>
             ) : (
                 <div className="flex-1 overflow-y-auto">
+
+                    {/* Server-side denial banner — the client gate passed but
+                        the DB rejected the admin RPCs. */}
+                    {serverError && (
+                        <div className="m-4 max-w-4xl mx-auto bg-danger-50 border border-danger-500/30 rounded-xl p-4 text-sm">
+                            <p className="font-bold text-danger-600">서버가 관리자 권한을 거부했습니다</p>
+                            <p className="mt-1 font-mono text-xs text-ink-600 break-all">{serverError}</p>
+                            <p className="mt-2 text-xs text-ink-500 leading-relaxed">
+                                DB의 <code className="font-mono">is_admin_user()</code> 함수가 아직 이 계정을 인정하지 않습니다.
+                                Supabase SQL Editor에서 <code className="font-mono">supabase/make_admin.sql</code>을
+                                실행하세요 (로그인 이메일과 SQL 안의 이메일이 일치해야 합니다). 실행 후 위의 새로고침 버튼을 누르세요.
+                            </p>
+                        </div>
+                    )}
 
                     {/* ══ 개요 탭 ═══════════════════════════════════════════ */}
                     {activeTab === 'overview' && (
