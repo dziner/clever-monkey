@@ -215,16 +215,22 @@ export async function processDocument(
     throw new Error('Could not extract any text from the document. It might be empty, contain only images, or be unreadable.');
   }
 
-  const tokenCount = await countTokens(model, documentContent);
   const langDir = languageDirective(language);
 
-  onProgress('summarizing');
   const summaryPrompt = `Based on the following document, provide a comprehensive, well-structured summary. Use Markdown for formatting (headings, lists, bold text) to make it clear and easy to read.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""`;
-  const summary = await generateContent(model, summaryPrompt);
-
-  onProgress('generating_questions');
   const questionsPrompt = `Based on the following document, generate 3-4 insightful and distinct preset questions a user might ask to better understand the content. Prefix each question with a relevant emoji. Format the response as a JSON array of strings.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""\n\nExample output (translate to the target language): ["❓ What is the main topic?", "📄 Can you summarize section 2?", "🔑 What are the key terms?"]`;
-  const questionsText = await generateContent(model, questionsPrompt);
+
+  // Token count, summary and preset questions each depend only on
+  // documentContent — not on one another — so run them concurrently
+  // instead of in series. With a multi-key pool these fan out across
+  // separate keys, cutting three sequential round-trips down to roughly
+  // one. (extractText must still finish first; everything needs its text.)
+  onProgress('summarizing');
+  const [tokenCount, summary, questionsText] = await Promise.all([
+    countTokens(model, documentContent),
+    generateContent(model, summaryPrompt),
+    generateContent(model, questionsPrompt),
+  ]);
 
   let presetQuestions: string[];
   try {
