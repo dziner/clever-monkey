@@ -1,45 +1,56 @@
 -- ===================================================================
 -- ⚠️  DESTRUCTIVE: Reset All User Data  ⚠️
 -- ===================================================================
--- This wipes EVERY user account and ALL their data so you can start
--- from a clean slate. Use only on staging / when you have decided to
--- throw away all current users.
+-- Wipes EVERY user account and ALL their data for a clean slate.
+-- The TABLES, triggers, RLS policies and functions are kept intact —
+-- only the rows are removed. The app keeps working; it just has no
+-- users yet.
 --
--- After running this script:
---   1. All auth.users rows are gone (every user must sign up again).
---   2. All profiles / documents / folders / annotations / quiz history
---      / wrong answers / flashcards / AI usage logs are gone.
+-- ┌─────────────────────────────────────────────────────────────────┐
+-- │ STEP 1 (DO THIS FIRST — in the dashboard, NOT here):            │
+-- │   Supabase → Storage → "docs" bucket → select all → Delete.     │
+-- │                                                                  │
+-- │ Why: storage.objects.owner has a FK on auth.users(id) with      │
+-- │ ON DELETE CASCADE. Deleting auth.users from SQL tries to cascade │
+-- │ into storage.objects, which trips Supabase's protect_delete()    │
+-- │ guard:                                                           │
+-- │   ERROR 42501: Direct deletion from storage tables is not        │
+-- │   allowed. Use the Storage API instead.                          │
+-- │ Emptying the bucket through the dashboard (which uses the        │
+-- │ Storage API) removes those rows so the cascade has nothing to    │
+-- │ delete and the guard never fires.                                │
+-- └─────────────────────────────────────────────────────────────────┘
 --
--- The TABLES themselves and their triggers / RLS / functions are kept
--- intact — only the rows are removed. So the app continues to work
--- exactly as before; it just has no users yet.
---
--- 📁 STORAGE BUCKET — handle separately:
--- Supabase blocks direct DELETE on storage.objects from SQL
--- ("Direct deletion from storage tables is not allowed").
--- After running this script, empty the "docs" bucket manually:
---     Supabase dashboard → Storage → docs bucket →
---     Select all files → Delete.
--- (Skipping this step is harmless — orphan files just sit there
---  unreachable, since the owner accounts no longer exist.)
---
--- After running this, the next person to sign in via the app will
--- automatically get a profile row via the handle_new_user trigger.
--- Run supabase/make_admin.sql ONCE more after that to make yourself
--- admin again.
+-- STEP 2: run THIS script in the SQL Editor (after emptying the bucket).
+-- STEP 3: sign up again in the app, then run supabase/make_admin.sql.
 -- ===================================================================
 
 -- ── SAFETY CHECK ────────────────────────────────────────────────────
 -- Comment out this block ONLY when you really intend to wipe everything.
--- Leaving it active will abort the transaction.
 do $$
 begin
     raise exception
       'SAFETY: comment out this DO block in reset_users.sql to run the reset.';
 end $$;
 
+-- ── PREFLIGHT: bucket must be empty first ───────────────────────────
+-- Aborts with a clear message if any storage object still references a
+-- user we're about to delete. Empty the docs bucket (Step 1) and retry.
+do $$
+declare
+    n integer;
+begin
+    select count(*) into n
+    from storage.objects
+    where owner is not null;
+
+    if n > 0 then
+        raise exception
+          'Storage still has % object(s) with an owner. Empty the docs bucket via the dashboard FIRST (Storage → docs → select all → Delete), then re-run.', n;
+    end if;
+end $$;
+
 -- ── PREVIEW (what will be deleted) ──────────────────────────────────
--- These SELECTs show the current row counts. Confirm before proceeding.
 select 'auth.users'           as table_name, count(*) as rows from auth.users
 union all select 'profiles',           count(*) from public.profiles
 union all select 'documents',          count(*) from public.documents
@@ -49,12 +60,10 @@ union all select 'quiz_sessions',      count(*) from public.quiz_sessions
 union all select 'wrong_answers',      count(*) from public.wrong_answers
 union all select 'flashcard_decks',    count(*) from public.flashcard_decks
 union all select 'flashcards',         count(*) from public.flashcards
-union all select 'ai_usage_daily_log', count(*) from public.ai_usage_daily_log
-union all select 'storage.objects (docs) — wipe manually via dashboard',
-                 count(*) from storage.objects where bucket_id = 'docs';
+union all select 'ai_usage_daily_log', count(*) from public.ai_usage_daily_log;
 
 -- ── WIPE PUBLIC SCHEMA ──────────────────────────────────────────────
--- Order matters because of FK references. truncate cascade handles it.
+-- Order handled by truncate cascade (FK references).
 truncate table
     public.flashcards,
     public.flashcard_decks,
@@ -68,50 +77,12 @@ truncate table
 restart identity cascade;
 
 -- ── WIPE AUTH ───────────────────────────────────────────────────────
--- storage.objects has a FK on auth.users(id) ON DELETE CASCADE, so a
--- plain `delete from auth.users` cascades into storage.objects and
--- trips Supabase's storage.protect_delete() trigger:
---
---   ERROR: 42501: Direct deletion from storage tables is not allowed.
---
--- Workaround: temporarily disable every trigger backed by that
--- function (the name is usually `protect_delete` but may vary across
--- Supabase versions, so we look it up by function reference), do the
--- delete, then re-enable. Cascade also clears auth.identities,
+-- With the bucket emptied there are no storage.objects to cascade into,
+-- so protect_delete() never fires. Cascade still clears auth.identities,
 -- refresh_tokens, sessions, etc.
-do $$
-declare
-    t record;
-    fn_oid oid;
-begin
-    -- Resolve the function oid; bail gracefully if Supabase removes it.
-    select 'storage.protect_delete'::regproc into fn_oid;
+delete from auth.users;
 
-    for t in
-        select tgname, tgrelid::regclass::text as tbl
-        from pg_trigger
-        where tgfoid = fn_oid
-          and not tgisinternal
-    loop
-        execute format('alter table %s disable trigger %I', t.tbl, t.tgname);
-    end loop;
-
-    delete from auth.users;
-
-    for t in
-        select tgname, tgrelid::regclass::text as tbl
-        from pg_trigger
-        where tgfoid = fn_oid
-          and not tgisinternal
-    loop
-        execute format('alter table %s enable trigger %I', t.tbl, t.tgname);
-    end loop;
-exception when undefined_function then
-    -- Older Supabase project without the protection — just delete.
-    delete from auth.users;
-end $$;
-
--- ── VERIFY ──────────────────────────────────────────────────────────
+-- ── VERIFY (every count should be 0) ────────────────────────────────
 select 'auth.users'           as table_name, count(*) as rows from auth.users
 union all select 'profiles',           count(*) from public.profiles
 union all select 'documents',          count(*) from public.documents
@@ -121,8 +92,4 @@ union all select 'quiz_sessions',      count(*) from public.quiz_sessions
 union all select 'wrong_answers',      count(*) from public.wrong_answers
 union all select 'flashcard_decks',    count(*) from public.flashcard_decks
 union all select 'flashcards',         count(*) from public.flashcards
-union all select 'ai_usage_daily_log', count(*) from public.ai_usage_daily_log
-union all select 'storage.objects (docs) — wipe manually via dashboard',
-                 count(*) from storage.objects where bucket_id = 'docs';
--- All public + auth counts should be 0. The storage count will reflect
--- whatever is left in the bucket — empty it manually via the dashboard.
+union all select 'ai_usage_daily_log', count(*) from public.ai_usage_daily_log;
