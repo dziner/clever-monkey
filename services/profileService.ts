@@ -52,6 +52,34 @@ export async function upsertMyProfile(userId: string, email: string): Promise<{ 
     return { error };
 }
 
+/**
+ * Guarantee a profile row exists for the signed-in user, then return it.
+ * Self-heals the case where the signup trigger never created a row (or
+ * the row was deleted): inserts {id,email} and re-reads. Returns null
+ * only if the user isn't signed in or the insert is genuinely rejected
+ * (which is logged so the real cause is visible).
+ */
+export async function ensureMyProfile(): Promise<UserProfile | null> {
+    const existing = await getMyProfile();
+    if (existing) return existing;
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.warn('[profile] ensureMyProfile: no signed-in user');
+        return null;
+    }
+
+    console.info('[profile] no row for uid', user.id, '— creating one');
+    const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, email: user.email ?? '' }, { onConflict: 'id' });
+    if (error) {
+        console.error('[profile] failed to create profile row for uid', user.id, ':', error);
+        return null;
+    }
+    return await getMyProfile();
+}
+
 export async function updateMyDisplayName(displayName: string): Promise<boolean> {
     const trimmed = displayName.trim();
     if (!trimmed) return false;

@@ -1,57 +1,74 @@
 -- ===================================================================
--- Bootstrap Admin Account  (run in the Supabase SQL Editor)
+-- Repair Profiles + Bootstrap Admin   (run in the Supabase SQL Editor)
 -- ===================================================================
--- 👉 Replace the email below with the address you sign in with
---    (Google or email/password). It is used in EVERY statement.
+-- Use this when a signed-in user has NO profile row (the app shows
+-- "no profile row" / sidebar stuck on FREE / admin denied), and/or to
+-- (re)grant admin. It repairs every moving part:
+--   • the handle_new_user trigger that auto-creates profiles on signup
+--   • the RLS policies that let users read/insert their own profile
+--   • a profile row for every existing auth.users (set to admin/pro)
+--   • is_admin_user() honoring a bootstrap email
+--
+-- 👉 Replace the email below with the address you sign in with.
 -- ===================================================================
 
--- ── DIAGNOSTIC ───────────────────────────────────────────────────────
--- 0a) All auth.users rows for that email. If you have MULTIPLE rows here,
---     you signed up more than once (e.g. email signup AND Google OAuth).
---     The currently active session uses ONE of these UIDs — the others
---     are orphans.
-select id as auth_user_id, email, created_at, last_sign_in_at,
-       raw_user_meta_data->>'provider' as provider
-from auth.users
+-- ── 0) DIAGNOSE ─────────────────────────────────────────────────────
+-- Compare these two: the auth.users id MUST have a matching profiles id.
+select 'auth.users' as src, id, email from auth.users
 where lower(email) = lower('voicemakesme@gmail.com')
-order by last_sign_in_at desc nulls last;
+union all
+select 'profiles' as src, id, email from public.profiles
+where lower(email) = lower('voicemakesme@gmail.com');
 
--- 0b) All profile rows for that email AND for any uid in auth.users
---     matching that email. If a profile.id has no matching auth.users row,
---     it's orphaned (the auth.users row was deleted but the profile
---     row remained) — those can never be matched by getMyProfile().
-select p.id as profile_id, p.email, p.role, p.tier, p.created_at,
-       case when u.id is null then '⚠️ ORPHAN (no auth.users)' else 'ok' end as status
-from public.profiles p
-left join auth.users u on u.id = p.id
-where lower(p.email) = lower('voicemakesme@gmail.com')
-   or p.id in (select id from auth.users where lower(email) = lower('voicemakesme@gmail.com'));
+-- ── 1) Ensure the signup trigger exists (auto-creates profiles) ─────
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, coalesce(new.email, ''))
+  on conflict (id) do update
+    set email = excluded.email, updated_at = now();
+  return new;
+end; $$;
 
--- ── FIX ──────────────────────────────────────────────────────────────
--- 1) Delete any orphan profile rows for this email (profile.id with no
---    matching auth.users). They can never be retrieved by the client
---    and confuse the dashboard view.
-delete from public.profiles p
-where lower(p.email) = lower('voicemakesme@gmail.com')
-  and not exists (select 1 from auth.users u where u.id = p.id);
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 
--- 2) UPSERT a profile row for EVERY current auth.users row with this
---    email, setting role=admin and tier=pro. This covers the case where
---    you have a fresh signup whose profile was never created (trigger
---    only fires on INSERT — manual deletions break that chain).
+-- ── 2) Reassert RLS so users can read/insert/update their own row ───
+alter table public.profiles enable row level security;
+
+drop policy if exists "Users can view own profile"  on public.profiles;
+drop policy if exists "Admins can view all profiles" on public.profiles;
+drop policy if exists "Users can insert own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Admins can update any profile" on public.profiles;
+
+create policy "Users can view own profile"
+  on public.profiles for select using (auth.uid() = id);
+create policy "Admins can view all profiles"
+  on public.profiles for select using (public.is_admin_user());
+create policy "Users can insert own profile"
+  on public.profiles for insert with check (auth.uid() = id);
+create policy "Users can update own profile"
+  on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+create policy "Admins can update any profile"
+  on public.profiles for update using (public.is_admin_user());
+
+-- ── 3) Create/promote a profile row for EVERY auth.users (admin/pro) ─
 insert into public.profiles (id, email, role, tier)
 select id, email, 'admin', 'pro'
 from auth.users
 where lower(email) = lower('voicemakesme@gmail.com')
 on conflict (id) do update
-  set role = 'admin',
-      tier = 'pro',
-      email = excluded.email,
-      updated_at = now();
+  set role = 'admin', tier = 'pro', email = excluded.email, updated_at = now();
 
--- 3) Bulletproof DB-level admin: is_admin_user() — every admin RPC and
---    RLS policy relies on this. Returns true if EITHER profiles.role is
---    'admin' OR the signed-in user's email matches the bootstrap address.
+-- ── 4) Bulletproof DB-level admin (honors bootstrap email) ──────────
 create or replace function public.is_admin_user()
 returns boolean
 language sql
@@ -60,25 +77,13 @@ stable
 set search_path = public
 as $$
   select
-    coalesce(
-      (select role = 'admin' from public.profiles where id = auth.uid()),
-      false
-    )
-    or coalesce(
-      (select lower(email) = lower('voicemakesme@gmail.com')
-       from auth.users
-       where id = auth.uid()),
-      false
-    );
+    coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false)
+    or coalesce((select lower(email) = lower('voicemakesme@gmail.com')
+                 from auth.users where id = auth.uid()), false);
 $$;
 
--- ── VERIFY ───────────────────────────────────────────────────────────
--- 4) Final state. You should see one row per active auth.users entry,
---    all with role='admin' and tier='pro'.
-select p.id, p.email, p.role, p.tier,
-       u.last_sign_in_at,
-       u.raw_user_meta_data->>'provider' as provider
+-- ── 5) VERIFY — should show your row with role=admin, tier=pro ──────
+select p.id, p.email, p.role, p.tier
 from public.profiles p
 join auth.users u on u.id = p.id
-where lower(p.email) = lower('voicemakesme@gmail.com')
-order by u.last_sign_in_at desc nulls last;
+where lower(p.email) = lower('voicemakesme@gmail.com');

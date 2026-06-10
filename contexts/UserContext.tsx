@@ -1,6 +1,6 @@
 import React from 'react';
 import { supabase } from '../services/supabaseClient';
-import { getMyProfile, upsertMyProfile, updateMyDisplayName } from '../services/profileService';
+import { getMyProfile, ensureMyProfile, upsertMyProfile, updateMyDisplayName } from '../services/profileService';
 import type { UserProfile } from '../types';
 
 interface UserContextValue {
@@ -12,6 +12,13 @@ interface UserContextValue {
 }
 
 const UserContext = React.createContext<UserContextValue | undefined>(undefined);
+
+/** Detects the FK violation that means the auth.users row is gone. */
+function isMissingUserError(err: unknown): boolean {
+    const e = err as { code?: string; message?: string } | null;
+    const msg = `${e?.code ?? ''} ${e?.message ?? ''}`.toLowerCase();
+    return /23503|foreign key|violates foreign key|not present in table "users"/.test(msg);
+}
 
 export const useUser = (): UserContextValue => {
     const context = React.useContext(UserContext);
@@ -29,17 +36,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProfile = React.useCallback(async (uid: string, email: string): Promise<'ok' | 'stale_session'> => {
         const { error: upsertError } = await upsertMyProfile(uid, email);
-        if (upsertError) {
-            // Most common cause: the local session references an auth.users
-            // row that no longer exists server-side (e.g., admin cleanup in
-            // the Supabase dashboard). The FK profiles.id → auth.users(id)
-            // makes the upsert fail and we end up with a half-signed-in
-            // state (userEmail set, no profile). Tell the caller so they
-            // can clear the stale session.
+        if (upsertError && isMissingUserError(upsertError)) {
+            // The local session references an auth.users row that no longer
+            // exists server-side (FK profiles.id → auth.users(id) violation).
+            // Signal the caller to clear the stale session.
             return 'stale_session';
         }
 
-        let profile = await getMyProfile();
+        // ensureMyProfile self-heals a missing row, so a signup whose
+        // trigger never fired still ends up with a profile.
+        let profile = await ensureMyProfile();
 
         // Email signup carries an explicit display_name in user_metadata
         // — seed the profile so the user doesn't have to re-enter it.
@@ -60,7 +66,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const refreshProfile = React.useCallback(async () => {
-        const profile = await getMyProfile();
+        // Self-heal a missing profile row (e.g. the signup trigger never
+        // fired) so the user isn't stuck with no profile.
+        const profile = await ensureMyProfile();
         setUserProfile(profile);
     }, []);
 
