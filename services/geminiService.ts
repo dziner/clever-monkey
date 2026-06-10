@@ -3,8 +3,15 @@ import { getSystemInstruction, initialBotMessage } from '../constants';
 import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 import { languageDirective, allCorrectMessage } from './languageService';
 import { extractPdfTextLocally } from '../utils/pdfText';
+import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBudget';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
+const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
+
+// Mirrors STREAM_ERROR_SENTINEL in netlify/functions/_shared.ts — a
+// mid-stream failure can't change the HTTP status anymore, so the server
+// appends this marker followed by the error message.
+const STREAM_ERROR_SENTINEL = ' __GEMINI_STREAM_ERROR__ ';
 
 const repairJSON = (text: string): string =>
   text
@@ -96,15 +103,6 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
   return data as T;
 }
 
-async function countTokens(model: string, text: string): Promise<number> {
-  const data = await callGemini<{ totalTokens: number }>({
-    action: 'countTokens',
-    model,
-    text,
-  });
-  return data.totalTokens ?? 0;
-}
-
 async function generateContent(model: string, contents: unknown, config?: { temperature?: number; responseMimeType?: string }, signal?: AbortSignal): Promise<string> {
   const data = await callGemini<{ text: string }>({
     action: 'generateContent',
@@ -115,6 +113,58 @@ async function generateContent(model: string, contents: unknown, config?: { temp
   return data.text;
 }
 
+/**
+ * Streamed generateContent. Long generations (the document summary above
+ * all) used to buffer server-side until the serverless gateway timed out
+ * (504); streaming starts the response with the first token. `onChunk`
+ * receives the accumulated text so far, throttled by network framing.
+ * Resolves with the complete text.
+ */
+async function generateContentStreaming(
+  model: string,
+  contents: unknown,
+  onChunk?: (textSoFar: string) => void,
+  config?: { temperature?: number },
+  signal?: AbortSignal,
+): Promise<string> {
+  const authHeader = await getAuthHeader();
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (authHeader) headers['authorization'] = authHeader;
+
+  const res = await fetch(GEMINI_STREAM_ENDPOINT, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ model, contents, config }),
+    signal,
+  });
+
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(data?.error || `Gemini request failed (${res.status})`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    full += decoder.decode(value, { stream: true });
+    // Hold back the tail in case the sentinel arrives split across chunks
+    const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
+    if (errAt >= 0) {
+      throw new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream failed');
+    }
+    onChunk?.(full);
+  }
+  full += decoder.decode();
+  const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
+  if (errAt >= 0) {
+    throw new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream failed');
+  }
+  return full;
+}
+
 async function sendChatMessage(params: {
   model: Model;
   systemInstruction: string;
@@ -123,9 +173,15 @@ async function sendChatMessage(params: {
   message: string;
   language?: string | null;
 }): Promise<string> {
+  // Every chat request re-sends the conversation, so an unbounded history
+  // makes each message progressively more expensive. The last 20 turns are
+  // plenty of conversational context — the document itself (sent below) is
+  // what grounds the answers.
+  const MAX_HISTORY_MESSAGES = 20;
   const historyForModel = params.chatHistory
     .slice(1)
     .filter((msg) => !msg.type)
+    .slice(-MAX_HISTORY_MESSAGES)
     .map((msg) => ({
       role: msg.sender === 'user' ? ('user' as const) : ('model' as const),
       parts: [{ text: msg.text }],
@@ -221,7 +277,8 @@ export async function processDocument(
   file: File,
   model: ProcessingModel,
   onProgress: (state: DocumentProcessingState) => void,
-  language?: string | null
+  language?: string | null,
+  onSummaryChunk?: (partialSummary: string) => void
 ): Promise<{ summary: string; presetQuestions: string[]; chat: null; documentContent: string; tokenCount: number }> {
   onProgress('reading');
   const documentContent = await extractTextFromDocument(file, model);
@@ -230,21 +287,21 @@ export async function processDocument(
     throw new Error('Could not extract any text from the document. It might be empty, contain only images, or be unreadable.');
   }
 
+  // Token count is a display-only number — estimate it locally instead of
+  // spending an API round-trip on it.
+  const tokenCount = estimateTokens(documentContent);
   const langDir = languageDirective(language);
 
-  const summaryPrompt = `Based on the following document, provide a comprehensive, well-structured summary. Use Markdown for formatting (headings, lists, bold text) to make it clear and easy to read.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""`;
-  const questionsPrompt = `Based on the following document, generate 3-4 insightful and distinct preset questions a user might ask to better understand the content. Prefix each question with a relevant emoji. Format the response as a JSON array of strings.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""\n\nExample output (translate to the target language): ["❓ What is the main topic?", "📄 Can you summarize section 2?", "🔑 What are the key terms?"]`;
+  const summaryPrompt = `Based on the following document, provide a comprehensive, well-structured summary. Use Markdown for formatting (headings, lists, bold text) to make it clear and easy to read.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.summary)}\n"""`;
+  const questionsPrompt = `Based on the following document, generate 3-4 insightful and distinct preset questions a user might ask to better understand the content. Prefix each question with a relevant emoji. Format the response as a JSON array of strings.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.presetQuestions)}\n"""\n\nExample output (translate to the target language): ["❓ What is the main topic?", "📄 Can you summarize section 2?", "🔑 What are the key terms?"]`;
 
-  // Token count, summary and preset questions each depend only on
-  // documentContent — not on one another — so run them concurrently
-  // instead of in series. With a multi-key pool these fan out across
-  // separate keys, cutting three sequential round-trips down to roughly
-  // one. (extractText must still finish first; everything needs its text.)
+  // Summary streams (long output; live display, no gateway timeout) while
+  // the preset questions run concurrently. Questions are a small task:
+  // an evenly-sampled excerpt and the cheap flash model are plenty.
   onProgress('summarizing');
-  const [tokenCount, summary, questionsText] = await Promise.all([
-    countTokens(model, documentContent),
-    generateContent(model, summaryPrompt),
-    generateContent(model, questionsPrompt),
+  const [summary, questionsText] = await Promise.all([
+    generateContentStreaming(model, summaryPrompt, onSummaryChunk),
+    generateContent('gemini-2.5-flash', questionsPrompt),
   ]);
 
   let presetQuestions: string[];
@@ -296,7 +353,7 @@ ${diversityRules}`;
 ${diversityRules}`;
   }
 
-  const fullPrompt = `${prompt}\n\n${languageDirective(language)}\n\nDOCUMENT CONTENT:\n"""\n${documentContent}\n"""`;
+  const fullPrompt = `${prompt}\n\n${languageDirective(language)}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.quiz)}\n"""`;
   const text = await generateContent(model, fullPrompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal);
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }
@@ -325,7 +382,7 @@ ${languageDirective(language)}
 
 DOCUMENT CONTENT:
 """
-${documentContent}
+${sampleEvenly(documentContent, CONTENT_BUDGET.flashcards)}
 """`;
 
   const text = await generateContent(model, prompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal);
@@ -385,7 +442,7 @@ export async function generateStudyTips(
     return allCorrectMessage(language);
   }
 
-  const prompt = `You are a precise AI Tutor. Analyze the user's quiz results and provide a concise "Key Concepts for Review" list based ONLY on incorrect/low-scoring answers.\n\n### DOCUMENT CONTENT\n"""\n${documentContent}\n"""\n\n### QUIZ RESULTS (Incorrect/Low-Scoring Only)\n"""\n${incorrectResultsSummary}\n"""\n\nRules:\n- Output MUST start with a heading line equivalent to "### 🎯 Key Concepts for Review" — keep the leading "###" and 🎯 emoji, but translate the heading text.\n- Use Markdown bullet points.\n- Be concise; no motivational phrases; focus only on content corrections.\n\n${languageDirective(language)}\n`;
+  const prompt = `You are a precise AI Tutor. Analyze the user's quiz results and provide a concise "Key Concepts for Review" list based ONLY on incorrect/low-scoring answers.\n\n### DOCUMENT CONTENT\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.studyTips)}\n"""\n\n### QUIZ RESULTS (Incorrect/Low-Scoring Only)\n"""\n${incorrectResultsSummary}\n"""\n\nRules:\n- Output MUST start with a heading line equivalent to "### 🎯 Key Concepts for Review" — keep the leading "###" and 🎯 emoji, but translate the heading text.\n- Use Markdown bullet points.\n- Be concise; no motivational phrases; focus only on content corrections.\n\n${languageDirective(language)}\n`;
 
   return await generateContent(model, prompt);
 }
@@ -430,7 +487,7 @@ ${languageDirective(language)}
 
 DOCUMENT CONTENT:
 """
-${documentContent}
+${sampleEvenly(documentContent, CONTENT_BUDGET.mindmap)}
 """`;
   const text = await generateContent(model, prompt, { temperature: 0.7, responseMimeType: 'application/json' }, signal);
   return cleanAndParseJSON(text) as MindMapData;
@@ -457,7 +514,7 @@ ${languageDirective(language)}
 
 DOCUMENT CONTENT:
 """
-${documentContent}
+${sampleEvenly(documentContent, CONTENT_BUDGET.slides)}
 """`;
   const text = await generateContent(model, prompt, { temperature: 0.8, responseMimeType: 'application/json' }, signal);
   return cleanAndParseJSON(text) as SlideData;
@@ -504,18 +561,23 @@ export async function synthesizeSpeech(
   signal?: AbortSignal
 ): Promise<Blob> {
   const chunks = splitIntoChunks(text);
-  const pcmBuffers: Uint8Array[] = [];
 
-  for (let i = 0; i < chunks.length; i++) {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    const data = await callGemini<{ audioData: string; mimeType: string }>({
-      action: 'tts',
-      text: chunks[i],
-      voice,
-    }, signal);
-    pcmBuffers.push(Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0)));
-    onProgress(i + 1, chunks.length);
-  }
+  // Chunks are independent, so synthesize them concurrently — with the
+  // server-side key pool they fan out across API keys, cutting podcast
+  // audio generation from sum-of-chunks to roughly the slowest chunk.
+  // Order is preserved by index; progress counts completions.
+  let completed = 0;
+  const pcmBuffers = await Promise.all(
+    chunks.map(async (chunk) => {
+      const data = await callGemini<{ audioData: string; mimeType: string }>({
+        action: 'tts',
+        text: chunk,
+        voice,
+      }, signal);
+      onProgress(++completed, chunks.length);
+      return Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0));
+    }),
+  );
 
   // Concatenate PCM buffers, add 480-sample silence between chunks
   const silence = new Uint8Array(480 * 2); // 20ms @ 24kHz, 16-bit
@@ -563,12 +625,11 @@ ${languageDirective(language)}
 ${instructionBlock}
 DOCUMENT CONTENT:
 """
-${documentContent}
+${sampleEvenly(documentContent, CONTENT_BUDGET.podcast)}
 """`;
   return await generateContent(model, prompt, { temperature: 1.0 }, signal);
 }
 
 export const geminiProxy = {
   sendChatMessage,
-  countTokens,
 };

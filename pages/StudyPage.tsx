@@ -11,10 +11,11 @@ import type { DocumentProcessingState } from '../types';
 
 const TAB_ORDER: ActiveTab[] = ['overview', 'chat', 'quiz', 'mindmap', 'flashcards', 'podcast'];
 
+// Summary and preset questions now generate concurrently, so they share
+// one visible step.
 const PROCESSING_STEPS: { state: DocumentProcessingState; label: string }[] = [
     { state: 'reading', label: 'Extracting text' },
-    { state: 'summarizing', label: 'Summarizing' },
-    { state: 'generating_questions', label: 'Preparing questions' },
+    { state: 'summarizing', label: 'Summarizing & preparing questions' },
 ];
 
 const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }> = ({ processingState }) => {

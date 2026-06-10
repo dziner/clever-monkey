@@ -275,9 +275,19 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             });
         };
 
+        // Live-update the summary as it streams in (throttled so a long
+        // summary doesn't dispatch on every network chunk).
+        let lastSummaryDispatch = 0;
+        const onSummaryChunk = (partial: string) => {
+            const now = Date.now();
+            if (now - lastSummaryDispatch < 150) return;
+            lastSummaryDispatch = now;
+            dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { summary: partial } } });
+        };
+
         try {
             const modelForProcessing: ProcessingModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(uploadFile, modelForProcessing, onProgress, language);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(uploadFile, modelForProcessing, onProgress, language, onSummaryChunk);
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {

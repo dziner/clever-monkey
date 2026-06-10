@@ -44,9 +44,19 @@ export const useRetryProcessing = () => {
             dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: progressState } } });
         };
 
+        // Live-update the summary as it streams in (throttled so a long
+        // summary doesn't dispatch on every network chunk).
+        let lastSummaryDispatch = 0;
+        const onSummaryChunk = (partial: string) => {
+            const now = Date.now();
+            if (now - lastSummaryDispatch < 150) return;
+            lastSummaryDispatch = now;
+            dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { summary: partial } } });
+        };
+
         try {
             const model: ProcessingModel = doc.fileType === 'image' ? 'gemini-flash-latest' : doc.model as ProcessingModel;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(file, model, onProgress, language);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(file, model, onProgress, language, onSummaryChunk);
 
             dispatch({
                 type: 'UPDATE_DOCUMENT',

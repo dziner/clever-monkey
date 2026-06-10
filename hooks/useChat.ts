@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { geminiProxy } from '../services/geminiService';
+import { estimateTokens } from '../utils/promptBudget';
 import { getSystemInstruction } from '../constants';
 import type { DocumentData, ChatMessage } from '../types';
 
@@ -26,20 +27,18 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
       onChatHistoryChange(historyWithUserMessage);
 
       try {
-        const [userTokens, botResponseText] = await Promise.all([
-          geminiProxy.countTokens(doc.model, text),
-          geminiProxy.sendChatMessage({
-            model: doc.model,
-            systemInstruction: getSystemInstruction(doc.answerScope, doc.monkeyMode),
-            documentContent: doc.documentContent,
-            chatHistory: historyWithUserMessage,
-            message: text,
-            language: userProfile?.language ?? null,
-          }),
-        ]);
+        const botResponseText = await geminiProxy.sendChatMessage({
+          model: doc.model,
+          systemInstruction: getSystemInstruction(doc.answerScope, doc.monkeyMode),
+          documentContent: doc.documentContent,
+          chatHistory: historyWithUserMessage,
+          message: text,
+          language: userProfile?.language ?? null,
+        });
 
-        const botTokens = await geminiProxy.countTokens(doc.model, botResponseText);
-        const newTokens = userTokens + botTokens;
+        // The token counter is display-only; a local estimate avoids the
+        // two countTokens API round-trips this used to spend per message.
+        const newTokens = estimateTokens(text) + estimateTokens(botResponseText);
 
         dispatch({
           type: 'UPDATE_DOCUMENT',
