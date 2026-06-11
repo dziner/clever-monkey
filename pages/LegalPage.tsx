@@ -44,7 +44,7 @@ const BODIES: Record<'ko' | 'en', Body> = {
             },
             {
                 heading: '4. 보관 기간',
-                body: '계정이 활성 상태인 동안 보관하며, 계정 삭제 요청 시 7일 이내에 모든 개인 데이터를 영구 삭제합니다.',
+                body: '계정이 활성 상태인 동안 보관하며, 프로필에서 계정 삭제를 실행하면 모든 개인 데이터(문서·퀴즈 이력·프로필·업로드 파일)가 즉시 영구 삭제됩니다.',
             },
             {
                 heading: '5. 사용자 권리',
@@ -105,7 +105,7 @@ const BODIES: Record<'ko' | 'en', Body> = {
             },
             {
                 heading: '4. Retention',
-                body: 'We retain data while your account is active. On account-deletion request we permanently remove all personal data within 7 days.',
+                body: 'We retain data while your account is active. Running "Delete account" from your profile permanently removes all personal data (documents, quiz history, profile, uploaded files) immediately.',
             },
             {
                 heading: '5. Your rights',

@@ -66,6 +66,8 @@ export type UiKey =
     | 'account.delete.title'
     | 'account.delete.body'
     | 'account.delete.requestSent'
+    | 'account.delete.done'
+    | 'account.delete.error'
     // Account security (email / password)
     | 'account.section'
     | 'account.email.label'
@@ -519,17 +521,43 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         id: 'Yakin mau menghapus akun?',
     },
     'account.delete.body': {
-        en: 'This permanently removes your documents, quiz history, and profile. We\'ll process your request within 7 days and email you when it\'s done.',
-        ko: '문서, 퀴즈 이력, 프로필이 영구적으로 삭제돼요. 7일 이내에 처리하고 완료되면 이메일로 알려드릴게요.',
-        ja: '文書・クイズ履歴・プロフィールが完全に削除されます。7日以内に処理し、完了したらメールでお知らせします。',
-        zh: '将永久删除你的文档、测验记录和资料。我们会在 7 天内处理，完成后邮件告知你。',
-        es: 'Esto elimina tus documentos, historial y perfil de forma permanente. Procesaremos tu solicitud en 7 días y te avisaremos por email.',
-        fr: 'Cela supprime tes documents, historiques et profil pour de bon. Nous traiterons ta demande sous 7 jours et te préviendrons par email.',
-        de: 'Damit werden Dokumente, Quizverlauf und Profil dauerhaft entfernt. Wir bearbeiten deine Anfrage innerhalb von 7 Tagen und melden uns per E-Mail.',
-        pt: 'Isso remove permanentemente seus documentos, histórico de quizzes e perfil. Vamos processar em até 7 dias e avisar por email.',
-        ru: 'Это навсегда удалит документы, историю викторин и профиль. Обработаем запрос в течение 7 дней и сообщим по email.',
-        vi: 'Thao tác này xoá vĩnh viễn tài liệu, lịch sử kiểm tra và hồ sơ. Mình sẽ xử lý trong 7 ngày và gửi email khi xong.',
-        id: 'Ini menghapus dokumen, riwayat kuis, dan profil secara permanen. Kami akan memproses dalam 7 hari dan mengabari via email.',
+        en: 'This permanently removes your documents, quiz history, and profile. The action runs immediately and cannot be undone.',
+        ko: '문서, 퀴즈 이력, 프로필이 즉시 영구 삭제돼요. 되돌릴 수 없어요.',
+        ja: '文書・クイズ履歴・プロフィールが即座に完全削除されます。元には戻せません。',
+        zh: '将立即永久删除你的文档、测验记录和资料。无法撤销。',
+        es: 'Esto elimina tus documentos, historial y perfil de forma permanente. La acción es inmediata e irreversible.',
+        fr: 'Cela supprime immédiatement tes documents, historiques et profil pour de bon. C\'est irréversible.',
+        de: 'Damit werden Dokumente, Quizverlauf und Profil sofort dauerhaft entfernt. Die Aktion ist unumkehrbar.',
+        pt: 'Isso remove permanentemente seus documentos, histórico e perfil. A ação é imediata e irreversível.',
+        ru: 'Это сразу и навсегда удалит документы, историю и профиль. Отменить нельзя.',
+        vi: 'Thao tác này xoá vĩnh viễn tài liệu, lịch sử và hồ sơ ngay lập tức. Không thể hoàn tác.',
+        id: 'Ini menghapus dokumen, riwayat, dan profil secara permanen. Aksi langsung berlaku dan tidak bisa dibatalkan.',
+    },
+    'account.delete.done': {
+        en: 'Your account has been deleted. Goodbye, friend. 🐒',
+        ko: '계정이 삭제됐어요. 잘 지내요, 친구. 🐒',
+        ja: 'アカウントを削除しました。元気でね、友よ。🐒',
+        zh: '账户已删除。再见，朋友。🐒',
+        es: 'Tu cuenta ha sido eliminada. Hasta siempre, amigo. 🐒',
+        fr: 'Ton compte a été supprimé. Adieu, ami. 🐒',
+        de: 'Dein Konto wurde gelöscht. Mach\'s gut, Freund. 🐒',
+        pt: 'Sua conta foi excluída. Até mais, amigo. 🐒',
+        ru: 'Аккаунт удалён. Прощай, друг. 🐒',
+        vi: 'Tài khoản đã bị xoá. Tạm biệt, bạn nhé. 🐒',
+        id: 'Akun Anda sudah dihapus. Sampai jumpa, sahabat. 🐒',
+    },
+    'account.delete.error': {
+        en: "Couldn't delete your account. Please try again or contact support.",
+        ko: '계정 삭제에 실패했어요. 다시 시도하거나 고객 지원에 문의해 주세요.',
+        ja: 'アカウントを削除できませんでした。もう一度試すか、サポートにお問い合わせください。',
+        zh: '无法删除账户。请重试或联系客服。',
+        es: 'No se pudo eliminar tu cuenta. Inténtalo de nuevo o contacta a soporte.',
+        fr: 'Impossible de supprimer ton compte. Réessaie ou contacte le support.',
+        de: 'Konto konnte nicht gelöscht werden. Bitte erneut versuchen oder Support kontaktieren.',
+        pt: 'Não foi possível excluir sua conta. Tente novamente ou contate o suporte.',
+        ru: 'Не удалось удалить аккаунт. Попробуйте снова или свяжитесь с поддержкой.',
+        vi: 'Không thể xoá tài khoản. Vui lòng thử lại hoặc liên hệ hỗ trợ.',
+        id: 'Tidak bisa menghapus akun. Coba lagi atau hubungi dukungan.',
     },
     'account.delete.requestSent': {
         en: 'Request received. We\'ll email you when it\'s done.',

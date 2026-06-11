@@ -110,3 +110,31 @@ export const getAuthProviders = async (): Promise<string[]> => {
     if (primary) providers.add(primary)
     return [...providers]
 }
+
+/**
+ * Hard-delete the signed-in user's account. Calls our Netlify function
+ * (which uses the service-role key to remove storage + auth.users; every
+ * app table cascades). After the function returns we sign out locally
+ * so the now-stale session can't make follow-up requests.
+ */
+export const deleteMyAccount = async (): Promise<{ error: SimpleError }> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) return { error: { message: 'NO_SESSION' } }
+
+    try {
+        const res = await fetch('/api/delete-account', {
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        })
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({})) as { error?: string }
+            return { error: { message: body.error || `HTTP ${res.status}` } }
+        }
+        await supabase.auth.signOut()
+        return { error: null }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Network error'
+        return { error: { message } }
+    }
+}

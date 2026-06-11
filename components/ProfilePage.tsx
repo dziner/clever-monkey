@@ -4,6 +4,7 @@ import {
     DocumentIcon, CloudIcon, WorkspacePremiumIcon,
 } from './icons';
 import { updateMyDisplayName, updateMyLanguage } from '../services/profileService';
+import { deleteMyAccount } from '../services/supabaseClient';
 import {
     CONTENT_LANGUAGE_OPTIONS,
     detectBrowserLanguage,
@@ -56,19 +57,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const [error, setError] = React.useState<string | null>(null);
 
     const requestAccountDeletion = React.useCallback(async () => {
-        // Until the backend cascade-delete RPC ships, route the request
-        // through a mailto with a templated subject so the operations
-        // team can process it manually within the 7-day SLA we commit to
-        // in the legal page. Toast confirms reception to the user.
-        const subject = encodeURIComponent('[Clever Monkey] Account deletion request');
-        const body = encodeURIComponent(
-            `User email: ${userEmail ?? '(unknown)'}\n` +
-            'I would like to delete my account and all associated data.\n',
-        );
-        window.location.href = `mailto:support@clevermonkey.app?subject=${subject}&body=${body}`;
-        showToast(t('account.delete.requestSent', langPref), 'success');
+        // Real hard-delete via the service-role Netlify function. The
+        // auth user goes; every app table cascades; storage files are
+        // wiped first. The signOut inside deleteMyAccount also clears
+        // the local session, so the auth listener will redirect us out
+        // of the now-orphaned profile page on its own.
+        const { error } = await deleteMyAccount();
         setIsDeleteOpen(false);
-    }, [userEmail, langPref, showToast]);
+        if (error) {
+            showToast(t('account.delete.error', langPref), 'error');
+            return;
+        }
+        showToast(t('account.delete.done', langPref), 'success');
+    }, [langPref, showToast]);
 
     const currentLanguage = language ?? 'auto';
     const [isSavingLanguage, setIsSavingLanguage] = React.useState(false);

@@ -52,6 +52,8 @@ const ALL_KEYS: UiKey[] = [
     'account.delete.title',
     'account.delete.body',
     'account.delete.requestSent',
+    'account.delete.done',
+    'account.delete.error',
     'account.section',
     'account.email.label',
     'account.email.change',
