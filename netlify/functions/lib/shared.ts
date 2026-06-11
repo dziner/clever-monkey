@@ -248,11 +248,19 @@ const rateState: Map<string, number[]> =
 
 export function tooManyRequestsByIp(ip: string): boolean {
   const now = Date.now();
-  const arr = rateState.get(ip) ?? [];
-  const next = arr.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  next.push(now);
-  rateState.set(ip, next);
-  return next.length > RATE_LIMIT_MAX;
+  const arr = (rateState.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  // Once the window is full, deny WITHOUT recording the timestamp. Pushing
+  // unconditionally let a single spamming IP grow this array without bound,
+  // turning every subsequent call into an O(n) filter — quadratic CPU that
+  // a stress run surfaced as 224s for 200k same-IP hits. Capping the array
+  // at RATE_LIMIT_MAX keeps each call O(RATE_LIMIT_MAX).
+  if (arr.length >= RATE_LIMIT_MAX) {
+    rateState.set(ip, arr);
+    return true;
+  }
+  arr.push(now);
+  rateState.set(ip, arr);
+  return false;
 }
 
 // Actions that consume a daily AI credit (countTokens is free)

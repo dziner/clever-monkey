@@ -7,7 +7,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-    exclude: ['**/node_modules/**', '**/tests/e2e/**'],
+    // Stress tests run on demand via `npm run test:stress` — they mutate
+    // module-scope singletons (key pool) and run large loops, so they stay
+    // out of the fast default unit run.
+    exclude: ['**/node_modules/**', '**/tests/e2e/**', '**/tests/stress/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

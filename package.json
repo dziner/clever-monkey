@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:api": "vitest run --reporter=verbose tests/api"
+    "test:api": "vitest run --reporter=verbose tests/api",
+    "test:stress": "vitest run --config vitest.stress.config.ts"
   },
   "dependencies": {
     "@google/genai": "^1.25.0",
