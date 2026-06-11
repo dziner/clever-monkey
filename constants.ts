@@ -1,4 +1,5 @@
 import type { ChatMessage } from './types';
+import { t } from './services/uiStrings';
 
 const BASE_PROMPT = `You are Study Pal, a friendly, witty, and encouraging learning companion. Your goal is to help users understand the document they've uploaded.
 
@@ -63,7 +64,12 @@ export const getSystemInstruction = (scope: 'document' | 'general', monkeyMode?:
     ].join('\n\n');
 };
 
-export const initialBotMessage: ChatMessage = {
+/**
+ * Welcome message shown immediately after a document finishes processing.
+ * Localized per user — kept as a builder so the chat history rendered
+ * with one user's language doesn't get baked at module load.
+ */
+export const buildInitialBotMessage = (language?: string | null): ChatMessage => ({
     sender: 'bot',
-    text: "Hello! I've finished reading your document. What would you like to know? You can ask me a question or try one of the suggestions below. Let's get learning! 🚀",
-};
+    text: t('chat.welcome', language),
+});

@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import { geminiProxy } from '../services/geminiService';
 import { estimateTokens } from '../utils/promptBudget';
 import { getSystemInstruction } from '../constants';
+import { t } from '../services/uiStrings';
 import type { DocumentData, ChatMessage } from '../types';
 
 export const useChat = (document: DocumentData, onChatHistoryChange: (history: ChatMessage[]) => void) => {
@@ -50,7 +51,7 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
           const cleanText = botResponseText.replace('<goto_quiz_tab />', '').trim();
           const suggestionMessage: ChatMessage = {
             sender: 'bot',
-            text: cleanText || "Great idea! Let's head over to the Quiz tab to create a test for you. ✨",
+            text: cleanText || t('chat.quizSuggestionFallback', userProfile?.language),
             type: 'quiz_suggestion',
             wasMonkeyMode: doc.monkeyMode,
           };
@@ -63,7 +64,7 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
         console.error('Error sending message:', e);
         const errorMessage: ChatMessage = {
           sender: 'bot',
-          text: 'Sorry, I encountered an error. Please try again. 🙏',
+          text: t('chat.errorReply', userProfile?.language),
           wasMonkeyMode: doc.monkeyMode,
           isError: true,
         };
@@ -86,23 +87,21 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
       const newScope = updates.answerScope || doc.answerScope;
       const newMode = updates.monkeyMode ?? doc.monkeyMode;
 
+      const lang = userProfile?.language;
       let statusMessage: ChatMessage;
       if (updates.answerScope) {
         statusMessage = {
           sender: 'bot',
-          text:
-            newScope === 'document'
-              ? 'My focus is narrowed.\nI will now answer questions based only on the document.'
-              : 'My scope has expanded!\nI can now use my general knowledge to answer your questions.',
+          text: t(newScope === 'document' ? 'chat.scopeChange.document' : 'chat.scopeChange.general', lang),
           type: 'scope_change',
+          variant: newScope === 'document' ? 'document' : 'general',
         };
       } else {
         statusMessage = {
           sender: 'bot',
-          text: newMode
-            ? "Ooki-ooki! The clever, mischievous monkey is here! 🍌 I'll be answering from now on! Eek!"
-            : "Phew, that's enough mischief for now. Back to serious study mode.",
+          text: t(newMode ? 'chat.monkeyMode.on' : 'chat.monkeyMode.off', lang),
           type: 'monkey_mode_status',
+          variant: newMode ? 'on' : 'off',
         };
       }
 
@@ -114,7 +113,7 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
         },
       });
     },
-    [dispatch]
+    [dispatch, userProfile?.language]
   );
 
   const handleScopeChange = React.useCallback(

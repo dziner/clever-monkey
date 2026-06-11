@@ -2,6 +2,8 @@ import * as React from 'react';
 import type { ChatMessage } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { CleverMonkeyIcon, RefreshIcon } from './icons';
+import { useUser } from '../contexts/UserContext';
+import { t } from '../services/uiStrings';
 
 interface ChatBubbleProps {
     message: ChatMessage;
@@ -26,9 +28,15 @@ const TypingIndicator: React.FC<TypingIndicatorProps> = ({ isMonkeyMode }) => {
 export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
     const isUser = message.sender === 'user';
     const isBot = message.sender === 'bot';
+    const { userProfile } = useUser();
+    const language = userProfile?.language;
 
     if (message.type === 'monkey_mode_status') {
-        const isEnabled = message.text.includes('monkey is here');
+        // Prefer the structured variant; fall back to a text grep only for
+        // legacy chats saved before the variant field existed (always English).
+        const isEnabled = message.variant
+            ? message.variant === 'on'
+            : message.text.includes('monkey is here');
         const emoji = isEnabled ? '🍌' : '📚';
 
         return (
@@ -44,7 +52,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
     }
 
     if (message.type === 'scope_change') {
-        const isExpanded = message.text.includes('expanded');
+        const isExpanded = message.variant
+            ? message.variant === 'general'
+            : message.text.includes('expanded');
         const [title, description] = message.text.split('\n');
         const emoji = isExpanded ? '🌎' : '📚';
         const bgColor = isExpanded ? 'bg-orange-100' : 'bg-green-100';
@@ -95,7 +105,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
                             className="flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-100 px-2 py-1 rounded-lg transition-colors"
                         >
                             <RefreshIcon className="text-base" />
-                            Retry
+                            {t('chat.retry', language)}
                         </button>
                     </div>
                 )}

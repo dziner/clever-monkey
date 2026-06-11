@@ -6,6 +6,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { HeadphonesIcon, AutoAwesomeIcon } from './icons';
 import { Spinner } from './Spinner';
+import { t } from '../services/uiStrings';
 
 const VOICES = [
   { id: 'Puck',   label: 'Puck',   desc: 'Enthusiastic' },
@@ -97,7 +98,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-ink-400 p-6">
         <HeadphonesIcon className="text-5xl mb-3 opacity-30" />
-        <p className="text-sm font-medium">Document content not available</p>
+        <p className="text-sm font-medium">{t('podcast.documentMissing', language)}</p>
       </div>
     );
   }
@@ -118,7 +119,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                 onClick={cancel}
                 className="flex items-center gap-1 px-3 py-1.5 bg-ink-200 hover:bg-ink-300 text-ink-700 rounded-lg text-xs font-semibold transition-colors"
               >
-                Cancel
+                {t('podcast.cancel', language)}
               </button>
               <button
                 type="button"
@@ -126,7 +127,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                 className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 opacity-50 text-white rounded-lg text-xs font-semibold cursor-not-allowed"
               >
                 <AutoAwesomeIcon className="text-sm" />
-                Generating…
+                {t('podcast.generating', language)}
               </button>
             </>
           ) : (
@@ -137,7 +138,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
             >
               <AutoAwesomeIcon className="text-sm" />
-              {displayScript ? 'New Script' : 'Generate Script'}
+              {t(displayScript ? 'podcast.newScript' : 'podcast.generateScript', language)}
             </button>
           )}
         </div>
@@ -156,6 +157,10 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               onChange={(e) => setInstructions(e.target.value)}
               placeholder={DIRECTION_PLACEHOLDER}
               rows={3}
+              // Direction snippets are inserted verbatim into the LLM
+              // prompt; cap so a paste of a whole document doesn't blow
+              // the prompt budget or surprise-charge tokens.
+              maxLength={1000}
               className="w-full resize-none rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-700 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
             />
             <p className="mt-1.5 text-xs text-ink-400">
@@ -215,7 +220,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                         onClick={() => audioAbortRef.current?.abort()}
                         className="px-2 py-0.5 bg-ink-200 hover:bg-ink-300 text-ink-700 rounded text-xs font-semibold"
                       >
-                        Cancel
+                        {t('podcast.cancel', language)}
                       </button>
                     </div>
                   </div>

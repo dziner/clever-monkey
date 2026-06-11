@@ -77,6 +77,10 @@ export interface ChatMessage {
   quizState?: MCQQuizState; // Chat-based quizzes are currently only MCQ
   wasMonkeyMode?: boolean;
   isError?: boolean;
+  // Captures the structured on/off state for status messages so the
+  // renderer doesn't have to grep the (localized) message text for
+  // keywords like "monkey is here" / "expanded" to pick an icon.
+  variant?: 'on' | 'off' | 'document' | 'general';
 }
 
 export type DocumentProcessingState = 'reading' | 'summarizing' | 'generating_questions' | 'error' | 'done';

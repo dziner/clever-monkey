@@ -16,6 +16,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { Spinner } from './Spinner';
 import { useChat } from '../hooks/useChat';
+import { t } from '../services/uiStrings';
 import { ChatInput } from './ChatInput';
 import { QuizGenerator } from './QuizGenerator';
 import { FRQuiz } from './FRQuiz';
@@ -347,7 +348,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     const handleGenerateQuiz = async (type: 'mcq' | 'frq', count: number) => {
         if (!document.documentContent) {
-            setQuizError("Document content is not available to generate a quiz.");
+            setQuizError(t('quiz.docMissing', language));
             return;
         }
         setIsGeneratingQuiz(true);
@@ -622,7 +623,13 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                             </div>
                         </div>
                     )}
-                    <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4">
+                    <div
+                        ref={chatContainerRef}
+                        className="flex-1 overflow-y-auto p-4"
+                        role="log"
+                        aria-live="polite"
+                        aria-label="Chat history"
+                    >
                         {document.chatHistory.filter(msg => !chatSearch || msg.text.toLowerCase().includes(chatSearch.toLowerCase())).map((msg, index) => {
                             if (msg.type === 'quiz_suggestion') {
                                 const suggestionText = msg.text || "Let's make a quiz! Click the button below to go to the quiz generator.";

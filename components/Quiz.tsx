@@ -5,6 +5,7 @@ import { renderInline } from './MarkdownRenderer';
 import { CheckIcon, XIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import { generateStudyTips } from '../services/geminiService';
 import { useUser } from '../contexts/UserContext';
+import { t } from '../services/uiStrings';
 import { Spinner } from './Spinner';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
@@ -56,14 +57,16 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                     onStudyTipsGenerated?.(tips);
                 } catch (error) {
                     console.error("Failed to generate study tips:", error);
-                    onStudyTipsGenerated?.("Sorry, I couldn't generate study tips at this time.");
+                    onStudyTipsGenerated?.(t('studyTips.error', language));
                 } finally {
                     setIsGeneratingTips(false);
                 }
             };
             fetchTips();
         }
-    }, [isFinished, documentContent, data, userAnswers, studyTips, onStudyTipsGenerated]);
+    // language is in the dep array so a profile language change between
+    // finishing the quiz and the tips fetch regenerates in the new language.
+    }, [isFinished, documentContent, data, userAnswers, studyTips, onStudyTipsGenerated, language]);
 
     const handleOptionSelect = (optionIndex: number) => {
         if (isChecked) return;

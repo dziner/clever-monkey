@@ -1,7 +1,7 @@
 
 import React from 'react';
 import type { DocumentData, DocumentState, DocumentAction, Folder } from '../types';
-import { initialBotMessage } from '../constants';
+import { buildInitialBotMessage } from '../constants';
 import { supabase } from '../services/supabaseClient';
 
 interface FolderRow {
@@ -208,10 +208,15 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           console.error('문서 목록을 불러오지 못했습니다:', documentError);
         }
 
+        // Welcome seed is only used for legacy documents whose chat_history
+        // is empty — new uploads seed their own (already language-aware)
+        // welcome via useFileHandler. Falling back to the browser language
+        // here keeps the UI consistent without needing a UserContext dep.
+        const fallbackWelcome = buildInitialBotMessage(null);
         const documents: DocumentData[] = (documentRows as DocumentRow[] || []).map((doc) => {
           const chatHistory = Array.isArray(doc.chat_history) && doc.chat_history.length > 0
             ? doc.chat_history
-            : [initialBotMessage];
+            : [fallbackWelcome];
 
           return {
             id: doc.id,

@@ -51,6 +51,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
                 value={userInput}
                 onChange={handleTextAreaChange}
                 onKeyDown={handleKeyDown}
+                // maxLength matches the server-side chat message cap
+                // (20,000 chars in netlify/functions/gemini.ts) so the
+                // browser caps before a paste of giant text trips the
+                // server validation.
+                maxLength={20000}
                 placeholder="Ask a question..."
                 className="w-full border-none focus:ring-0 focus:outline-none resize-none bg-transparent py-3 text-base placeholder-ink-500 text-ink-900"
                 style={{ minHeight: '56px', maxHeight: '150px' }}

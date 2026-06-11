@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { Spinner } from './Spinner';
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { t } from '../services/uiStrings';
 
 interface FRQuizProps {
     data: FRQData;
@@ -42,7 +43,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                     onStudyTipsGenerated?.(tips);
                 } catch (error) {
                     console.error("Failed to generate study tips:", error);
-                    onStudyTipsGenerated?.("Sorry, I couldn't generate study tips at this time.");
+                    onStudyTipsGenerated?.(t('studyTips.error', language));
                 } finally {
                     setIsGeneratingTips(false);
                 }
@@ -93,7 +94,7 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                 .then(result => ({ ...answer, ...result }))
                 .catch(error => {
                     console.error("Failed to grade answer:", error);
-                    return { ...answer, score: 0, feedback: "Sorry, an error occurred while grading this answer." };
+                    return { ...answer, score: 0, feedback: t('frq.gradeError', language) };
                 });
         });
 

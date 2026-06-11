@@ -45,10 +45,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (
         <ToastContext.Provider value={{ showToast }}>
             {children}
-            <div className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 items-end pointer-events-none">
+            <div
+                className="fixed bottom-5 right-5 z-[200] flex flex-col gap-2 items-end pointer-events-none"
+                role="region"
+                aria-label="Notifications"
+                aria-live="polite"
+            >
                 {toasts.map(toast => (
                     <div
                         key={toast.id}
+                        role={toast.type === 'error' ? 'alert' : 'status'}
                         className={[
                             'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-pop text-white text-sm font-semibold max-w-xs',
                             'transition-all duration-300 ring-1 ring-white/10',

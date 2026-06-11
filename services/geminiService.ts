@@ -1,5 +1,5 @@
 import type { Part } from '@google/genai';
-import { getSystemInstruction, initialBotMessage } from '../constants';
+import { getSystemInstruction, buildInitialBotMessage } from '../constants';
 import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 import { languageDirective, allCorrectMessage } from './languageService';
 import { extractPdfTextLocally } from '../utils/pdfText';
@@ -200,7 +200,9 @@ async function sendChatMessage(params: {
         },
       ],
     },
-    { role: 'model' as const, parts: [{ text: initialBotMessage.text }] },
+    // Seed the model history with the same localized welcome line the
+    // user saw — keeps the model in-language from the very first turn.
+    { role: 'model' as const, parts: [{ text: buildInitialBotMessage(params.language).text }] },
     ...historyForModel,
   ];
 

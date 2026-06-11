@@ -4,7 +4,8 @@ import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { getErrorMessage } from '../utils/errors';
-import { initialBotMessage } from '../constants';
+import { buildInitialBotMessage } from '../constants';
+import { t } from '../services/uiStrings';
 import { maybeCompressPdf } from '../utils/pdfCompression';
 import { GUEST_LIMITS } from '../types';
 import type { DocumentData, DocumentProcessingState, ProcessingModel } from '../types';
@@ -66,6 +67,11 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
     const { state, dispatch } = useDocuments();
     const { userProfile } = useUser();
     const language = userProfile?.language ?? null;
+
+    // Snapshot the welcome message at the time of upload so a language
+    // change while a file is still processing doesn't rewrite a chat the
+    // user has already seen.
+    const welcomeMessage = React.useMemo(() => buildInitialBotMessage(language), [language]);
 
     return React.useCallback(async (file: File) => {
         if (!file) return;
@@ -146,7 +152,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                 chat: null,
                 chatHistory: [],
                 processingState: 'error',
-                errorMessage: `Unsupported file type: '${file.type}'. Please upload a PDF, a supported image (JPEG, PNG, WEBP, HEIC, HEIF), or a text/markdown file.`,
+                errorMessage: t('file.unsupportedType', language),
                 model: 'gemini-2.5-flash',
                 answerScope: 'document',
                 monkeyMode: false,
@@ -172,7 +178,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             imageUrl: fileType === 'image' ? URL.createObjectURL(uploadFile) : undefined,
             summary: '',
             chat: null,
-            chatHistory: [initialBotMessage],
+            chatHistory: [welcomeMessage],
             processingState: 'reading',
             model: 'gemini-2.5-flash',
             answerScope: 'document',
@@ -231,7 +237,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     file_type: fileType,
                     storage_path: storagePath,
                     summary: '',
-                    chat_history: [initialBotMessage],
+                    chat_history: [welcomeMessage],
                     processing_state: 'reading',
                     model: newDoc.model,
                     answer_scope: newDoc.answerScope,

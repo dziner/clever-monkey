@@ -6,6 +6,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { AccountTreeIcon, AutoAwesomeIcon, ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import { Spinner } from './Spinner';
+import { t } from '../services/uiStrings';
 
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 3.0;
@@ -360,7 +361,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-ink-400 p-6">
         <AccountTreeIcon className="text-5xl mb-3 opacity-30" />
-        <p className="text-sm font-medium">Document content not available</p>
+        <p className="text-sm font-medium">{t('podcast.documentMissing', language)}</p>
       </div>
     );
   }
