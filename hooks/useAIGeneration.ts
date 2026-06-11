@@ -10,7 +10,7 @@ export interface AIGenerationState<T> {
 }
 
 export function useAIGeneration<T>(
-  fn: (signal: AbortSignal) => Promise<T>
+  fn: (signal: AbortSignal, onProgress: (partial: T) => void) => Promise<T>
 ): AIGenerationState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,8 +28,12 @@ export function useAIGeneration<T>(
     abortRef.current = new AbortController();
     setLoading(true);
     setError(null);
+    setData(null);
     try {
-      const result = await fnRef.current(abortRef.current.signal);
+      // onProgress lets streaming generators surface partial output (e.g.
+      // a podcast script being written token-by-token) before the final
+      // promise resolves. The signal aborts in-flight network requests.
+      const result = await fnRef.current(abortRef.current.signal, setData);
       setData(result);
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') return;

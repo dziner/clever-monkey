@@ -30,6 +30,12 @@ const step = (provider: ProviderName, model: string): RouteStep => ({ provider, 
 
 export const TASK_ROUTES: Record<string, RouteStep[]> = {
   podcast: [
+    // Lead with Flash-Lite for faster time-to-first-token: podcast scripts
+    // are the longest single generation and the most likely task to brush
+    // against the Netlify Function 26s execution cap. Flash-Lite finishes
+    // a 300-word Korean script comfortably; full Flash and Groq's 70B are
+    // there as quality / capacity backups.
+    step('gemini', 'gemini-2.5-flash-lite'),
     step('gemini', 'gemini-2.5-flash'),
     step('groq', 'llama-3.3-70b-versatile'),
     step('cerebras', 'llama-3.3-70b'),
@@ -81,7 +87,8 @@ export const TASK_ROUTES: Record<string, RouteStep[]> = {
 // can't hang the function (the original podcast 504), while never
 // truncating a legitimately large structured result into invalid JSON.
 export const TASK_MAX_TOKENS: Record<string, number> = {
-  podcast: 2048,          // 400-500 word script
+  podcast: 4096,          // ~300-word default; headroom for longer user-specified durations.
+                          // Korean is ~1 token per syllable, so a snug cap truncates mid-sentence.
   summary: 8192,
   quiz: 8192,             // many questions + options + explanations
   flashcards: 8192,

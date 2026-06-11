@@ -30,9 +30,14 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
   const { data, loading, error, generate, cancel } = useAIGeneration<string>(
     React.useCallback(
-      (signal) => {
+      (signal, onProgress) => {
         if (!document.documentContent) return Promise.reject(new Error('No document content'));
-        return generatePodcastScript(document.documentContent, document.model, signal, instructions, language);
+        // Forward streaming chunks so the transcript renders live — gives
+        // the user visible progress and confirms the function is alive
+        // long before the full script finishes.
+        return generatePodcastScript(
+          document.documentContent, document.model, signal, instructions, language, onProgress,
+        );
       },
       [document.documentContent, document.model, instructions, language]
     )

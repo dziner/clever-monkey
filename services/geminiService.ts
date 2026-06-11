@@ -604,16 +604,22 @@ export async function generatePodcastScript(
   model: Model,
   signal?: AbortSignal,
   instructions?: string,
-  language?: string | null
+  language?: string | null,
+  onChunk?: (textSoFar: string) => void
 ): Promise<string> {
   const trimmedInstructions = instructions?.trim();
   const instructionBlock = trimmedInstructions
-    ? `\nUSER DIRECTION (follow this closely):
+    ? `\nUSER DIRECTION (follow this exactly — it OVERRIDES the default length):
 """
 ${trimmedInstructions}
 """\n`
     : '';
 
+  // Length rule: a default ~300 words keeps generation comfortably under
+  // Netlify's function timeout. If the user direction specifies a
+  // duration or word count, follow that instead — otherwise a "30-second"
+  // request conflicts with a hard 400-500-word rule and the model burns
+  // time trying to reconcile both, which is what caused the 504s.
   const prompt = `Write an engaging podcast-style audio script based on the DOCUMENT CONTENT.
 A single narrator presents the material in a conversational, educational style.
 
@@ -622,8 +628,9 @@ Rules:
 - Use natural transitions equivalent to: "Moving on to...", "Here's something interesting...", "Let's now look at..." (translated naturally).
 - Explain concepts clearly — assume the listener hasn't read the document.
 - Close with a 2-sentence recap and sign-off.
-- 400-500 words total.
+- Length: about 300 words by default. If the USER DIRECTION specifies a duration (e.g. "30 seconds") or word count, follow that instead — use ~100 words per 30 seconds of audio as a guide.
 - Plain prose only — absolutely no markdown, no headers, no bullet points.
+- ALWAYS finish the closing sentence with proper punctuation; never end mid-sentence.
 
 ${languageDirective(language)}
 ${instructionBlock}
@@ -631,10 +638,11 @@ DOCUMENT CONTENT:
 """
 ${sampleEvenly(documentContent, CONTENT_BUDGET.podcast)}
 """`;
-  // Podcast scripts are the longest single generation and the original
-  // source of the 504s — stream them so the response starts before the
-  // gateway timeout, with Gemini→Groq provider fallback behind the scenes.
-  return await generateContentStreaming(model, prompt, undefined, { temperature: 1.0 }, signal, 'podcast');
+  // Stream so the gateway never times out before first byte AND so the UI
+  // can render the transcript as it's written. The router falls back
+  // Gemini Flash-Lite → Flash → Groq if the upstream stalls before
+  // emitting a token.
+  return await generateContentStreaming(model, prompt, onChunk, { temperature: 1.0 }, signal, 'podcast');
 }
 
 export const geminiProxy = {
