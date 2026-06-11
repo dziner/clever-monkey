@@ -90,6 +90,19 @@ const ALL_KEYS: UiKey[] = [
     'tour.done',
     'tour.skip',
     'tour.progress',
+    'dash.title',
+    'dash.empty.title',
+    'dash.empty.body',
+    'dash.streak.label',
+    'dash.streak.unit',
+    'dash.avgScore.label',
+    'dash.avgScore.unit',
+    'dash.quizzes.label',
+    'dash.quizzes.unit',
+    'dash.review.label',
+    'dash.review.unit',
+    'dash.review.empty',
+    'dash.trend.title',
 ];
 
 describe('uiStrings — translation completeness', () => {

@@ -6,6 +6,7 @@ import {
     ErrorOutlineIcon, ChevronDownIcon, ChevronUpIcon, AutoAwesomeIcon,
 } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { ProgressDashboard } from './ProgressDashboard';
 import { fetchQuizSessions, fetchWrongAnswers } from '../services/wrongAnswersService';
 import type { QuizSession } from '../services/wrongAnswersService';
 import { fetchDecks } from '../services/flashcardsService';
@@ -63,6 +64,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ document, onSelectTab 
     return (
         <div className="flex-1 overflow-y-auto bg-ink-50">
             <div className="max-w-2xl w-full mx-auto p-4 sm:p-6 space-y-5">
+                <ProgressDashboard />
                 {/* Summary card */}
                 <section className="bg-white border border-ink-200 rounded-lg p-4 shadow-card">
                     <div>

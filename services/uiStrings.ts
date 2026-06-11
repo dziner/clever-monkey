@@ -101,6 +101,20 @@ export type UiKey =
     | 'tour.done'
     | 'tour.skip'
     | 'tour.progress'
+    // Progress dashboard
+    | 'dash.title'
+    | 'dash.empty.title'
+    | 'dash.empty.body'
+    | 'dash.streak.label'
+    | 'dash.streak.unit'
+    | 'dash.avgScore.label'
+    | 'dash.avgScore.unit'
+    | 'dash.quizzes.label'
+    | 'dash.quizzes.unit'
+    | 'dash.review.label'
+    | 'dash.review.unit'
+    | 'dash.review.empty'
+    | 'dash.trend.title'
     // 404
     | 'notFound.title'
     | 'notFound.subtitle'
@@ -874,6 +888,96 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         en: '{n}/{total}', ko: '{n}/{total}', ja: '{n}/{total}', zh: '{n}/{total}',
         es: '{n}/{total}', fr: '{n}/{total}', de: '{n}/{total}', pt: '{n}/{total}',
         ru: '{n}/{total}', vi: '{n}/{total}', id: '{n}/{total}',
+    },
+
+    'dash.title': {
+        en: 'Your progress', ko: '나의 학습 현황', ja: '学習の進捗', zh: '我的进度',
+        es: 'Tu progreso', fr: 'Ton progrès', de: 'Dein Fortschritt', pt: 'Seu progresso',
+        ru: 'Ваш прогресс', vi: 'Tiến độ của bạn', id: 'Kemajuan Anda',
+    },
+    'dash.empty.title': {
+        en: 'No stats yet — take your first quiz to start',
+        ko: '아직 통계가 없어요 — 첫 퀴즈를 풀어 보세요',
+        ja: 'まだ統計がありません — まずは1問解いてみましょう',
+        zh: '还没有数据 — 来做一次测验开始吧',
+        es: 'Aún no hay estadísticas — haz tu primer quiz',
+        fr: 'Pas encore de stats — fais ton premier quiz',
+        de: 'Noch keine Daten — mach dein erstes Quiz',
+        pt: 'Sem estatísticas ainda — faça seu primeiro quiz',
+        ru: 'Пока нет статистики — пройдите первый тест',
+        vi: 'Chưa có thống kê — hãy thử quiz đầu tiên',
+        id: 'Belum ada statistik — coba kuis pertama dulu',
+    },
+    'dash.empty.body': {
+        en: 'Streaks, scores, and review backlog show up here as soon as you finish a quiz.',
+        ko: '퀴즈를 한 번이라도 풀면 스트릭·점수·복습 대기 항목이 여기에 나타나요.',
+        ja: 'クイズを終えると、ストリーク・スコア・復習待ちがここに表示されます。',
+        zh: '完成测验后，连续天数、得分和待复习数会出现在这里。',
+        es: 'Las rachas, puntuaciones y revisiones pendientes aparecen aquí después del primer quiz.',
+        fr: 'Série, scores et révisions s\'affichent ici après ton premier quiz.',
+        de: 'Streak, Punkte und offene Wiederholungen erscheinen hier nach dem ersten Quiz.',
+        pt: 'Sequência, notas e revisões pendentes aparecem aqui após seu primeiro quiz.',
+        ru: 'Серия, баллы и список повторений появятся здесь после первого теста.',
+        vi: 'Chuỗi ngày, điểm số và bài cần ôn sẽ hiện ở đây sau bài kiểm tra đầu tiên.',
+        id: 'Streak, skor, dan tunggakan ulasan muncul di sini setelah kuis pertama.',
+    },
+    'dash.streak.label': {
+        en: 'Streak', ko: '연속 학습', ja: 'ストリーク', zh: '连续',
+        es: 'Racha', fr: 'Série', de: 'Serie', pt: 'Sequência',
+        ru: 'Серия', vi: 'Chuỗi', id: 'Streak',
+    },
+    'dash.streak.unit': {
+        en: 'days', ko: '일', ja: '日', zh: '天',
+        es: 'días', fr: 'jours', de: 'Tage', pt: 'dias',
+        ru: 'дн.', vi: 'ngày', id: 'hari',
+    },
+    'dash.avgScore.label': {
+        en: '7-day avg', ko: '7일 평균', ja: '7日平均', zh: '7天平均',
+        es: 'Promedio 7d', fr: 'Moyenne 7j', de: '7-Tage-Ø', pt: 'Média 7d',
+        ru: 'Среднее 7д', vi: 'TB 7 ngày', id: 'Rata-rata 7h',
+    },
+    'dash.avgScore.unit': {
+        en: 'points', ko: '점', ja: '点', zh: '分',
+        es: 'puntos', fr: 'points', de: 'Punkte', pt: 'pontos',
+        ru: 'баллов', vi: 'điểm', id: 'poin',
+    },
+    'dash.quizzes.label': {
+        en: 'Quizzes', ko: '퀴즈 수', ja: 'クイズ数', zh: '测验次数',
+        es: 'Quizzes', fr: 'Quiz', de: 'Quiz', pt: 'Quizzes',
+        ru: 'Викторин', vi: 'Số quiz', id: 'Jumlah kuis',
+    },
+    'dash.quizzes.unit': {
+        en: 'in 7 days', ko: '최근 7일', ja: '直近7日', zh: '近 7 天',
+        es: 'en 7 días', fr: 'sur 7j', de: 'in 7 Tagen', pt: 'em 7 dias',
+        ru: 'за 7 дн.', vi: 'trong 7 ngày', id: 'dalam 7 hari',
+    },
+    'dash.review.label': {
+        en: 'To review', ko: '복습 대기', ja: '復習待ち', zh: '待复习',
+        es: 'Por repasar', fr: 'À réviser', de: 'Zum Wiederholen', pt: 'Para revisar',
+        ru: 'К повторению', vi: 'Cần ôn', id: 'Untuk ditinjau',
+    },
+    'dash.review.unit': {
+        en: 'wrong answers', ko: '오답', ja: '誤答', zh: '错题',
+        es: 'errores', fr: 'erreurs', de: 'Fehler', pt: 'erros',
+        ru: 'ошибок', vi: 'câu sai', id: 'jawaban salah',
+    },
+    'dash.review.empty': {
+        en: 'All caught up ✨', ko: '모두 따라잡았어요 ✨', ja: '全部追いつきました ✨', zh: '全部已复习 ✨',
+        es: 'Todo al día ✨', fr: 'Tout est à jour ✨', de: 'Alles erledigt ✨', pt: 'Tudo em dia ✨',
+        ru: 'Всё в порядке ✨', vi: 'Đã ôn hết ✨', id: 'Semua sudah dikejar ✨',
+    },
+    'dash.trend.title': {
+        en: 'Quizzes this week',
+        ko: '이번 주 퀴즈 추이',
+        ja: '今週のクイズ推移',
+        zh: '本周测验趋势',
+        es: 'Quizzes esta semana',
+        fr: 'Quiz cette semaine',
+        de: 'Quiz diese Woche',
+        pt: 'Quizzes nesta semana',
+        ru: 'Тесты на этой неделе',
+        vi: 'Quiz trong tuần này',
+        id: 'Kuis pekan ini',
     },
 };
 
