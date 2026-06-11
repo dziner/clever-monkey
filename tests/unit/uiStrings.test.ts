@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CONTENT_LANGUAGE_OPTIONS } from '../../services/languageService';
-import { t, type UiKey } from '../../services/uiStrings';
+import { t, hasTranslation, type UiKey } from '../../services/uiStrings';
 
 // All supported user-selectable languages (excluding 'auto', which is a
 // resolver hint, not a content language). Every UI string must cover
@@ -52,6 +52,25 @@ const ALL_KEYS: UiKey[] = [
     'account.delete.title',
     'account.delete.body',
     'account.delete.requestSent',
+    'account.section',
+    'account.email.label',
+    'account.email.change',
+    'account.email.new',
+    'account.email.invalid',
+    'account.email.sent',
+    'account.email.error',
+    'account.password.label',
+    'account.password.change',
+    'account.password.current',
+    'account.password.new',
+    'account.password.confirm',
+    'account.password.mismatch',
+    'account.password.tooShort',
+    'account.password.wrong',
+    'account.password.updated',
+    'account.password.error',
+    'account.google.note',
+    'common.save',
     'notFound.title',
     'notFound.subtitle',
     'notFound.cta',
@@ -61,17 +80,17 @@ const ALL_KEYS: UiKey[] = [
 
 describe('uiStrings — translation completeness', () => {
     for (const lang of SUPPORTED_LANGS) {
-        it(`returns a non-English string for every key in '${lang}'`, () => {
+        it(`has an explicit translation for every key in '${lang}'`, () => {
             for (const key of ALL_KEYS) {
-                const localized = t(key, lang);
-                const english = t(key, 'en');
-                expect(localized, `missing translation for ${key} in ${lang}`).toBeTruthy();
-                if (lang !== 'en') {
-                    expect(
-                        localized,
-                        `'${key}' falls back to English for language '${lang}' — add a translation`,
-                    ).not.toBe(english);
-                }
+                // Presence, not difference: some real translations equal the
+                // English string (e.g. "Email" in vi/id) and that's fine —
+                // what we're guarding against is a missing entry that
+                // silently falls back to English.
+                expect(
+                    hasTranslation(key, lang),
+                    `'${key}' has no '${lang}' translation — add one to MESSAGES`,
+                ).toBe(true);
+                expect(t(key, lang), `empty string for ${key} in ${lang}`).toBeTruthy();
             }
         });
     }

@@ -12,6 +12,7 @@ import {
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { ConfirmDialog } from './ConfirmDialog';
+import { AccountSecurityCard } from './AccountSecurityCard';
 import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 import { useToast } from './Toast';
@@ -255,6 +256,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                                 Pro 업그레이드
                             </Button>
                         </div>
+                    </div>
+                )}
+
+                {/* Email / password management (email accounts only). */}
+                {userEmail && (
+                    <div className="mt-6">
+                        <AccountSecurityCard userEmail={userEmail} />
                     </div>
                 )}
 

@@ -66,6 +66,26 @@ export type UiKey =
     | 'account.delete.title'
     | 'account.delete.body'
     | 'account.delete.requestSent'
+    // Account security (email / password)
+    | 'account.section'
+    | 'account.email.label'
+    | 'account.email.change'
+    | 'account.email.new'
+    | 'account.email.invalid'
+    | 'account.email.sent'
+    | 'account.email.error'
+    | 'account.password.label'
+    | 'account.password.change'
+    | 'account.password.current'
+    | 'account.password.new'
+    | 'account.password.confirm'
+    | 'account.password.mismatch'
+    | 'account.password.tooShort'
+    | 'account.password.wrong'
+    | 'account.password.updated'
+    | 'account.password.error'
+    | 'account.google.note'
+    | 'common.save'
     // 404
     | 'notFound.title'
     | 'notFound.subtitle'
@@ -575,6 +595,118 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         es: 'Términos', fr: 'Conditions', de: 'Nutzungsbedingungen', pt: 'Termos',
         ru: 'Условия', vi: 'Điều khoản', id: 'Ketentuan',
     },
+
+    'account.section': {
+        en: 'Account & security', ko: '계정 및 보안', ja: 'アカウントとセキュリティ', zh: '账户与安全',
+        es: 'Cuenta y seguridad', fr: 'Compte et sécurité', de: 'Konto & Sicherheit', pt: 'Conta e segurança',
+        ru: 'Аккаунт и безопасность', vi: 'Tài khoản & bảo mật', id: 'Akun & keamanan',
+    },
+    'account.email.label': {
+        en: 'Email', ko: '이메일', ja: 'メールアドレス', zh: '邮箱',
+        es: 'Correo', fr: 'E-mail', de: 'E-Mail', pt: 'E-mail',
+        ru: 'Эл. почта', vi: 'Email', id: 'Email',
+    },
+    'account.email.change': {
+        en: 'Change email', ko: '이메일 변경', ja: 'メール変更', zh: '更改邮箱',
+        es: 'Cambiar correo', fr: 'Changer l\'e-mail', de: 'E-Mail ändern', pt: 'Alterar e-mail',
+        ru: 'Сменить почту', vi: 'Đổi email', id: 'Ubah email',
+    },
+    'account.email.new': {
+        en: 'New email address', ko: '새 이메일 주소', ja: '新しいメールアドレス', zh: '新邮箱地址',
+        es: 'Nuevo correo', fr: 'Nouvelle adresse e-mail', de: 'Neue E-Mail-Adresse', pt: 'Novo e-mail',
+        ru: 'Новый адрес почты', vi: 'Email mới', id: 'Email baru',
+    },
+    'account.email.invalid': {
+        en: 'Enter a valid email address.', ko: '올바른 이메일 주소를 입력해 주세요.', ja: '有効なメールアドレスを入力してください。', zh: '请输入有效的邮箱地址。',
+        es: 'Introduce un correo válido.', fr: 'Saisis une adresse e-mail valide.', de: 'Gib eine gültige E-Mail-Adresse ein.', pt: 'Digite um e-mail válido.',
+        ru: 'Введите корректный адрес.', vi: 'Nhập email hợp lệ.', id: 'Masukkan email yang valid.',
+    },
+    'account.email.sent': {
+        en: 'Confirmation link sent to your new email — click it to finish.',
+        ko: '새 이메일로 확인 링크를 보냈어요 — 클릭하면 변경이 완료됩니다.',
+        ja: '新しいメールに確認リンクを送りました — クリックすると完了します。',
+        zh: '已向新邮箱发送确认链接 — 点击即可完成更改。',
+        es: 'Enviamos un enlace de confirmación a tu nuevo correo — haz clic para terminar.',
+        fr: 'Lien de confirmation envoyé à ta nouvelle adresse — clique dessus pour finir.',
+        de: 'Bestätigungslink an deine neue E-Mail gesendet — klicke ihn an, um abzuschließen.',
+        pt: 'Enviamos um link de confirmação para o novo e-mail — clique para concluir.',
+        ru: 'Ссылка для подтверждения отправлена на новую почту — нажмите её, чтобы завершить.',
+        vi: 'Đã gửi liên kết xác nhận đến email mới — nhấp vào để hoàn tất.',
+        id: 'Tautan konfirmasi dikirim ke email baru — klik untuk menyelesaikan.',
+    },
+    'account.email.error': {
+        en: "Couldn't update email. Please try again.", ko: '이메일을 변경하지 못했어요. 다시 시도해 주세요.', ja: 'メールを変更できませんでした。もう一度お試しください。', zh: '无法更改邮箱，请重试。',
+        es: 'No se pudo cambiar el correo. Inténtalo de nuevo.', fr: 'Impossible de changer l\'e-mail. Réessaie.', de: 'E-Mail konnte nicht geändert werden. Bitte erneut versuchen.', pt: 'Não foi possível alterar o e-mail. Tente novamente.',
+        ru: 'Не удалось сменить почту. Попробуйте снова.', vi: 'Không thể đổi email. Vui lòng thử lại.', id: 'Gagal mengubah email. Coba lagi.',
+    },
+    'account.password.label': {
+        en: 'Password', ko: '비밀번호', ja: 'パスワード', zh: '密码',
+        es: 'Contraseña', fr: 'Mot de passe', de: 'Passwort', pt: 'Senha',
+        ru: 'Пароль', vi: 'Mật khẩu', id: 'Kata sandi',
+    },
+    'account.password.change': {
+        en: 'Change password', ko: '비밀번호 변경', ja: 'パスワード変更', zh: '更改密码',
+        es: 'Cambiar contraseña', fr: 'Changer le mot de passe', de: 'Passwort ändern', pt: 'Alterar senha',
+        ru: 'Сменить пароль', vi: 'Đổi mật khẩu', id: 'Ubah kata sandi',
+    },
+    'account.password.current': {
+        en: 'Current password', ko: '현재 비밀번호', ja: '現在のパスワード', zh: '当前密码',
+        es: 'Contraseña actual', fr: 'Mot de passe actuel', de: 'Aktuelles Passwort', pt: 'Senha atual',
+        ru: 'Текущий пароль', vi: 'Mật khẩu hiện tại', id: 'Kata sandi saat ini',
+    },
+    'account.password.new': {
+        en: 'New password', ko: '새 비밀번호', ja: '新しいパスワード', zh: '新密码',
+        es: 'Nueva contraseña', fr: 'Nouveau mot de passe', de: 'Neues Passwort', pt: 'Nova senha',
+        ru: 'Новый пароль', vi: 'Mật khẩu mới', id: 'Kata sandi baru',
+    },
+    'account.password.confirm': {
+        en: 'Confirm new password', ko: '새 비밀번호 확인', ja: '新しいパスワード（確認）', zh: '确认新密码',
+        es: 'Confirmar nueva contraseña', fr: 'Confirme le nouveau mot de passe', de: 'Neues Passwort bestätigen', pt: 'Confirmar nova senha',
+        ru: 'Подтвердите новый пароль', vi: 'Xác nhận mật khẩu mới', id: 'Konfirmasi kata sandi baru',
+    },
+    'account.password.mismatch': {
+        en: "New passwords don't match.", ko: '새 비밀번호가 일치하지 않아요.', ja: '新しいパスワードが一致しません。', zh: '两次输入的新密码不一致。',
+        es: 'Las contraseñas no coinciden.', fr: 'Les mots de passe ne correspondent pas.', de: 'Die Passwörter stimmen nicht überein.', pt: 'As senhas não coincidem.',
+        ru: 'Пароли не совпадают.', vi: 'Mật khẩu mới không khớp.', id: 'Kata sandi tidak cocok.',
+    },
+    'account.password.tooShort': {
+        en: 'Use at least 8 characters.', ko: '8자 이상 입력해 주세요.', ja: '8文字以上で入力してください。', zh: '请至少输入 8 个字符。',
+        es: 'Usa al menos 8 caracteres.', fr: 'Utilise au moins 8 caractères.', de: 'Mindestens 8 Zeichen verwenden.', pt: 'Use ao menos 8 caracteres.',
+        ru: 'Минимум 8 символов.', vi: 'Dùng ít nhất 8 ký tự.', id: 'Gunakan minimal 8 karakter.',
+    },
+    'account.password.wrong': {
+        en: 'Current password is incorrect.', ko: '현재 비밀번호가 올바르지 않아요.', ja: '現在のパスワードが正しくありません。', zh: '当前密码不正确。',
+        es: 'La contraseña actual es incorrecta.', fr: 'Le mot de passe actuel est incorrect.', de: 'Aktuelles Passwort ist falsch.', pt: 'A senha atual está incorreta.',
+        ru: 'Текущий пароль неверен.', vi: 'Mật khẩu hiện tại không đúng.', id: 'Kata sandi saat ini salah.',
+    },
+    'account.password.updated': {
+        en: 'Password updated.', ko: '비밀번호가 변경됐어요.', ja: 'パスワードを変更しました。', zh: '密码已更新。',
+        es: 'Contraseña actualizada.', fr: 'Mot de passe mis à jour.', de: 'Passwort aktualisiert.', pt: 'Senha atualizada.',
+        ru: 'Пароль обновлён.', vi: 'Đã cập nhật mật khẩu.', id: 'Kata sandi diperbarui.',
+    },
+    'account.password.error': {
+        en: "Couldn't update password. Please try again.", ko: '비밀번호를 변경하지 못했어요. 다시 시도해 주세요.', ja: 'パスワードを変更できませんでした。もう一度お試しください。', zh: '无法更改密码，请重试。',
+        es: 'No se pudo cambiar la contraseña. Inténtalo de nuevo.', fr: 'Impossible de changer le mot de passe. Réessaie.', de: 'Passwort konnte nicht geändert werden. Bitte erneut versuchen.', pt: 'Não foi possível alterar a senha. Tente novamente.',
+        ru: 'Не удалось сменить пароль. Попробуйте снова.', vi: 'Không thể đổi mật khẩu. Vui lòng thử lại.', id: 'Gagal mengubah kata sandi. Coba lagi.',
+    },
+    'account.google.note': {
+        en: 'You sign in with Google. Manage your email and password in your Google account.',
+        ko: 'Google로 로그인하고 계세요. 이메일과 비밀번호는 Google 계정에서 관리됩니다.',
+        ja: 'Google でログインしています。メールとパスワードは Google アカウントで管理されます。',
+        zh: '你通过 Google 登录。邮箱和密码请在 Google 账户中管理。',
+        es: 'Inicias sesión con Google. Gestiona tu correo y contraseña en tu cuenta de Google.',
+        fr: 'Tu te connectes avec Google. Gère ton e-mail et ton mot de passe dans ton compte Google.',
+        de: 'Du meldest dich mit Google an. Verwalte E-Mail und Passwort in deinem Google-Konto.',
+        pt: 'Você entra com o Google. Gerencie e-mail e senha na sua conta Google.',
+        ru: 'Вы входите через Google. Управляйте почтой и паролем в аккаунте Google.',
+        vi: 'Bạn đăng nhập bằng Google. Quản lý email và mật khẩu trong tài khoản Google.',
+        id: 'Anda masuk dengan Google. Kelola email dan kata sandi di akun Google Anda.',
+    },
+    'common.save': {
+        en: 'Save', ko: '저장', ja: '保存', zh: '保存',
+        es: 'Guardar', fr: 'Enregistrer', de: 'Speichern', pt: 'Salvar',
+        ru: 'Сохранить', vi: 'Lưu', id: 'Simpan',
+    },
 };
 
 /**
@@ -587,4 +719,14 @@ export function t(key: UiKey, profileLang?: string | null): string {
     const code = resolveContentLanguage(profileLang);
     const entry = MESSAGES[key];
     return entry[code] ?? entry.en;
+}
+
+/**
+ * Whether a key has an explicit translation for a language (vs. silently
+ * falling back to English). Used by the completeness test — a real
+ * translation that happens to equal the English string (e.g. "Email" in
+ * many languages) still counts as present.
+ */
+export function hasTranslation(key: UiKey, lang: string): boolean {
+    return Object.prototype.hasOwnProperty.call(MESSAGES[key], lang);
 }
