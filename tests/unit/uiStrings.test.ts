@@ -78,6 +78,18 @@ const ALL_KEYS: UiKey[] = [
     'notFound.cta',
     'legal.privacy',
     'legal.terms',
+    'tour.step1.title',
+    'tour.step1.body',
+    'tour.step2.title',
+    'tour.step2.body',
+    'tour.step3.title',
+    'tour.step3.body',
+    'tour.step4.title',
+    'tour.step4.body',
+    'tour.next',
+    'tour.done',
+    'tour.skip',
+    'tour.progress',
 ];
 
 describe('uiStrings — translation completeness', () => {

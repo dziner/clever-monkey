@@ -9,6 +9,7 @@ import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
 import { NamePromptModal } from './components/NamePromptModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { OnboardingTour, tourCompleted, markTourCompleted } from './components/OnboardingTour';
 import { t } from './services/uiStrings';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
@@ -95,6 +96,23 @@ const App: React.FC = () => {
         return () => { document.body.style.overflow = 'hidden'; };
     }, [state.documents.length]);
 
+    // First-run onboarding tour: fire the first time a signed-in user has
+    // at least one finished document. We watch processingState rather
+    // than length, so a fresh upload that's still processing doesn't
+    // pop the tour over a half-rendered Overview tab.
+    const [isTourOpen, setIsTourOpen] = React.useState(false);
+    const hasFinishedDoc = React.useMemo(
+        () => state.documents.some(d => d.processingState === 'done'),
+        [state.documents],
+    );
+    React.useEffect(() => {
+        if (!userEmail || !hasFinishedDoc || tourCompleted()) return;
+        // Give the layout a beat to settle so anchor measurements land
+        // on the rendered tab buttons, not the pre-mount placeholder.
+        const id = window.setTimeout(() => setIsTourOpen(true), 600);
+        return () => window.clearTimeout(id);
+    }, [userEmail, hasFinishedDoc]);
+
     const fileCount = state.documents.length;
     const totalFileSize = state.documents.reduce((acc, doc) => acc + (doc.fileSize || 0), 0);
     const storageUsage = formatBytes(totalFileSize);
@@ -119,6 +137,10 @@ const App: React.FC = () => {
                 title={t('signout.title', userProfile?.language)}
                 body={t('signout.body', userProfile?.language)}
                 confirmKey="signout.confirm"
+            />
+            <OnboardingTour
+                isOpen={isTourOpen}
+                onClose={() => { markTourCompleted(); setIsTourOpen(false); }}
             />
         </>
     );

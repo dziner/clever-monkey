@@ -523,6 +523,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 <button
                     key={tab.id}
                     type="button"
+                    data-tour={`tab-${tab.id}`}
                     title={locked ? `${tab.label} — 로그인 필요` : tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
                     className={[
@@ -549,6 +550,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 <button
                     key={tab.id}
                     type="button"
+                    data-tour={`tab-${tab.id}`}
                     title={locked ? `${tab.label} — 로그인 필요` : tab.label}
                     onClick={() => onTabChange(tab.id as ActiveTab)}
                     className={[

@@ -88,6 +88,19 @@ export type UiKey =
     | 'account.password.error'
     | 'account.google.note'
     | 'common.save'
+    // Onboarding tour
+    | 'tour.step1.title'
+    | 'tour.step1.body'
+    | 'tour.step2.title'
+    | 'tour.step2.body'
+    | 'tour.step3.title'
+    | 'tour.step3.body'
+    | 'tour.step4.title'
+    | 'tour.step4.body'
+    | 'tour.next'
+    | 'tour.done'
+    | 'tour.skip'
+    | 'tour.progress'
     // 404
     | 'notFound.title'
     | 'notFound.subtitle'
@@ -734,6 +747,133 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         en: 'Save', ko: '저장', ja: '保存', zh: '保存',
         es: 'Guardar', fr: 'Enregistrer', de: 'Speichern', pt: 'Salvar',
         ru: 'Сохранить', vi: 'Lưu', id: 'Simpan',
+    },
+
+    'tour.step1.title': {
+        en: 'Your document is ready 🐒',
+        ko: '문서 준비됐어요 🐒',
+        ja: 'ドキュメントの準備ができました 🐒',
+        zh: '文档准备好了 🐒',
+        es: 'Tu documento está listo 🐒',
+        fr: 'Ton document est prêt 🐒',
+        de: 'Dein Dokument ist bereit 🐒',
+        pt: 'Seu documento está pronto 🐒',
+        ru: 'Документ готов 🐒',
+        vi: 'Tài liệu đã sẵn sàng 🐒',
+        id: 'Dokumen Anda siap 🐒',
+    },
+    'tour.step1.body': {
+        en: 'I read the whole thing and made a summary you can scan first. Let me show you what else we can do together.',
+        ko: '문서 전체를 읽고 한눈에 볼 수 있는 요약을 만들어 뒀어요. 함께 할 수 있는 다른 것들도 잠깐 보여드릴게요.',
+        ja: '全文を読んで、まず目を通せる要約を用意しました。一緒にできることをサッとご紹介します。',
+        zh: '我把整份内容读完了，先做了一份摘要给你看。来看看我们还能一起做些什么。',
+        es: 'Lo leí todo y armé un resumen para que lo revises primero. Te muestro qué más podemos hacer.',
+        fr: 'J\'ai tout lu et préparé un résumé à parcourir en premier. Voyons ce qu\'on peut faire ensemble.',
+        de: 'Ich habe alles gelesen und eine Zusammenfassung vorbereitet. Schauen wir, was wir sonst noch tun können.',
+        pt: 'Li tudo e fiz um resumo pra você ver primeiro. Deixa eu mostrar o que mais dá pra fazer.',
+        ru: 'Я прочитал всё и сделал краткое резюме. Покажу, чем мы ещё можем заняться.',
+        vi: 'Mình đã đọc toàn bộ và làm bản tóm tắt cho bạn xem trước. Cùng khám phá những gì có thể làm thêm nhé.',
+        id: 'Saya membaca semuanya dan menyiapkan ringkasan untuk Anda baca dulu. Mari lihat apa lagi yang bisa kita lakukan.',
+    },
+    'tour.step2.title': {
+        en: 'Ask me anything in Chat',
+        ko: '채팅에서 무엇이든 물어보세요',
+        ja: 'チャットでなんでも聞いてください',
+        zh: '在聊天里随便问我',
+        es: 'Pregúntame lo que sea en el Chat',
+        fr: 'Pose-moi toute question dans le Chat',
+        de: 'Frag mich alles im Chat',
+        pt: 'Pergunte qualquer coisa no Chat',
+        ru: 'Спросите что угодно в чате',
+        vi: 'Hỏi mình bất cứ điều gì ở mục Chat',
+        id: 'Tanyakan apa pun di Chat',
+    },
+    'tour.step2.body': {
+        en: '"Explain chapter 3 simply", "What\'s the main argument?", or anything else. I\'ll answer from the document.',
+        ko: '"3장을 쉽게 설명해 주세요", "핵심 주장이 뭔가요?" 같은 질문이요. 문서를 근거로 답해드릴게요.',
+        ja: '「第3章をやさしく説明して」「主な主張は？」など。ドキュメントに基づいて答えます。',
+        zh: '比如"用简单的话讲讲第三章""主要观点是什么？"。我会根据文档回答。',
+        es: '"Explícame el capítulo 3 de forma simple", "¿Cuál es el argumento principal?" Respondo desde el documento.',
+        fr: '« Explique-moi le chapitre 3 simplement », « Quel est l\'argument principal ? » Je réponds depuis le document.',
+        de: '"Erklär mir Kapitel 3 einfach", "Was ist das Hauptargument?" Ich antworte aus dem Dokument.',
+        pt: '"Explica o capítulo 3 de forma simples", "Qual é o argumento principal?" Respondo a partir do documento.',
+        ru: '«Объясни 3 главу простыми словами», «В чём главная мысль?» — отвечаю по документу.',
+        vi: '"Giải thích chương 3 đơn giản giúp mình", "Luận điểm chính là gì?". Mình trả lời dựa trên tài liệu.',
+        id: '"Jelaskan bab 3 secara sederhana", "Apa argumen utamanya?" Saya jawab berdasarkan dokumen.',
+    },
+    'tour.step3.title': {
+        en: 'Test yourself in Quiz',
+        ko: '퀴즈로 스스로 점검해 보세요',
+        ja: 'クイズで自分を試そう',
+        zh: '在测验里检验自己',
+        es: 'Ponte a prueba en Quiz',
+        fr: 'Teste-toi dans Quiz',
+        de: 'Teste dich im Quiz',
+        pt: 'Teste-se no Quiz',
+        ru: 'Проверьте себя в викторине',
+        vi: 'Tự kiểm tra ở mục Quiz',
+        id: 'Uji diri di Quiz',
+    },
+    'tour.step3.body': {
+        en: 'I generate multiple-choice or open-ended questions from the document. Wrong answers get saved so you can review them later.',
+        ko: '문서에서 객관식·서술형 문제를 만들어 드려요. 틀린 문제는 따로 저장해서 나중에 복습할 수 있어요.',
+        ja: 'ドキュメントから選択式・記述式の問題を作ります。間違えた問題は保存され、あとで復習できます。',
+        zh: '我会根据文档生成选择题或问答题。答错的题会保存下来供你之后复习。',
+        es: 'Genero preguntas de opción múltiple o abiertas. Tus errores se guardan para repasarlos luego.',
+        fr: 'Je crée des QCM ou des questions ouvertes. Les mauvaises réponses sont gardées pour révision.',
+        de: 'Ich erstelle Multiple-Choice- oder offene Fragen. Falsche Antworten werden zur Wiederholung gespeichert.',
+        pt: 'Eu gero perguntas de múltipla escolha ou abertas. Os erros ficam salvos para revisar depois.',
+        ru: 'Создаю тесты или открытые вопросы. Неправильные ответы сохраняются для повторения.',
+        vi: 'Mình tạo câu hỏi trắc nghiệm hoặc tự luận. Câu sai sẽ lưu lại để bạn ôn sau.',
+        id: 'Saya membuat soal pilihan ganda atau esai. Jawaban salah disimpan untuk ditinjau nanti.',
+    },
+    'tour.step4.title': {
+        en: 'And there\'s more in the other tabs',
+        ko: '다른 탭에도 더 있어요',
+        ja: '他のタブにもまだあります',
+        zh: '其他标签里还有更多',
+        es: 'Y hay más en las otras pestañas',
+        fr: 'Et il y a plus dans les autres onglets',
+        de: 'Und es gibt mehr in den anderen Tabs',
+        pt: 'E tem mais nas outras abas',
+        ru: 'В других вкладках есть ещё',
+        vi: 'Và còn nhiều thứ ở các tab khác',
+        id: 'Masih ada lagi di tab lain',
+    },
+    'tour.step4.body': {
+        en: 'Mind maps to see structure, flashcards to memorize, and a narrated podcast for hands-free study. Pop in whenever you\'re curious.',
+        ko: '구조를 보는 마인드맵, 암기를 돕는 플래시카드, 손 떼고 들을 수 있는 팟캐스트까지요. 궁금할 때 들러보세요.',
+        ja: '構造をつかむマインドマップ、暗記用のフラッシュカード、手を使わずに聴けるポッドキャストもあります。気になったら覗いてみて。',
+        zh: '思维导图帮你看结构、闪卡帮你记忆、播客让你边走边学。想看就来。',
+        es: 'Mapas mentales para ver la estructura, flashcards para memorizar y un podcast narrado para estudiar sin manos. Entra cuando quieras.',
+        fr: 'Cartes mentales pour la structure, flashcards pour la mémorisation, et un podcast narré pour étudier mains libres. Viens quand tu veux.',
+        de: 'Mindmaps für die Struktur, Karteikarten zum Merken und ein Podcast für freihändiges Lernen. Schau jederzeit rein.',
+        pt: 'Mapas mentais pra ver a estrutura, flashcards pra memorizar, e um podcast narrado pra estudar sem mãos. Entra quando quiser.',
+        ru: 'Майндмэпы для структуры, карточки для запоминания и подкаст для учёбы без рук. Загляните, когда захочется.',
+        vi: 'Sơ đồ tư duy để thấy cấu trúc, thẻ học để ghi nhớ, và podcast để học mà không cần nhìn. Ghé bất cứ lúc nào.',
+        id: 'Peta pikiran untuk struktur, flashcard untuk hafalan, dan podcast bernarasi untuk belajar tanpa tangan. Mampir kapan saja.',
+    },
+    'tour.next': {
+        en: 'Next', ko: '다음', ja: '次へ', zh: '下一个',
+        es: 'Siguiente', fr: 'Suivant', de: 'Weiter', pt: 'Próximo',
+        ru: 'Дальше', vi: 'Tiếp', id: 'Lanjut',
+    },
+    'tour.done': {
+        en: "Let's start", ko: '시작하기', ja: '始める', zh: '开始',
+        es: 'Empezar', fr: 'Commencer', de: 'Los geht\'s', pt: 'Começar',
+        ru: 'Начать', vi: 'Bắt đầu', id: 'Mulai',
+    },
+    'tour.skip': {
+        en: 'Skip tour', ko: '건너뛰기', ja: 'スキップ', zh: '跳过',
+        es: 'Saltar', fr: 'Passer', de: 'Überspringen', pt: 'Pular',
+        ru: 'Пропустить', vi: 'Bỏ qua', id: 'Lewati',
+    },
+    'tour.progress': {
+        // Two-placeholder pattern keyed off slash so we don't need a
+        // translation library for one screen.
+        en: '{n}/{total}', ko: '{n}/{total}', ja: '{n}/{total}', zh: '{n}/{total}',
+        es: '{n}/{total}', fr: '{n}/{total}', de: '{n}/{total}', pt: '{n}/{total}',
+        ru: '{n}/{total}', vi: '{n}/{total}', id: '{n}/{total}',
     },
 };
 

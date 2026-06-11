@@ -342,6 +342,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                             <button
                                 key={tab.id}
                                 type="button"
+                                data-tour={`tab-${tab.id}`}
                                 onClick={() => { setIsRightPanelCollapsed(false); setActiveTab(tab.id); }}
                                 className={`p-2 rounded-lg transition-colors ${activeTab === tab.id ? 'bg-brand-50 text-brand-600' : 'text-ink-400 hover:text-ink-700 hover:bg-ink-100'}`}
                                 title={tab.label}
