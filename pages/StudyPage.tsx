@@ -7,6 +7,8 @@ import { DocumentIcon, XIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, StyleIc
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useRetryProcessing } from '../hooks/useRetryProcessing';
+import { useUser } from '../contexts/UserContext';
+import { t } from '../services/uiStrings';
 import type { DocumentProcessingState } from '../types';
 
 const TAB_ORDER: ActiveTab[] = ['overview', 'chat', 'quiz', 'mindmap', 'flashcards', 'podcast'];
@@ -129,6 +131,8 @@ interface EmptyWorkspaceProps {
 const EmptyWorkspace: React.FC<EmptyWorkspaceProps> = ({ hasDocuments, onFileSelected, onMenuClick }) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [isDragOver, setIsDragOver] = React.useState(false);
+    const { userProfile } = useUser();
+    const language = userProfile?.language;
 
     const pickFile = () => inputRef.current?.click();
 
@@ -172,12 +176,10 @@ const EmptyWorkspace: React.FC<EmptyWorkspaceProps> = ({ hasDocuments, onFileSel
                         <UploadIcon className="text-2xl text-brand-600" />
                     </div>
                     <h2 className="mt-5 text-lg font-display font-bold text-ink-900 tracking-tight">
-                        {hasDocuments ? '문서를 선택해 시작하세요' : '첫 문서를 업로드하세요'}
+                        {t(hasDocuments ? 'workspace.selectDoc.title' : 'workspace.empty.title', language)}
                     </h2>
                     <p className="mt-1.5 text-sm text-ink-500 leading-relaxed">
-                        {hasDocuments
-                            ? '왼쪽 패널에서 문서를 선택하거나 새 파일을 업로드할 수 있어요.'
-                            : 'PDF · 이미지 · 텍스트 파일을 끌어다 놓거나 아래 버튼으로 업로드하세요.'}
+                        {t(hasDocuments ? 'workspace.selectDoc.subtitle' : 'workspace.empty.subtitle', language)}
                     </p>
                     <button
                         type="button"

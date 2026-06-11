@@ -68,6 +68,21 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
     // finishing the quiz and the tips fetch regenerates in the new language.
     }, [isFinished, documentContent, data, userAnswers, studyTips, onStudyTipsGenerated, language]);
 
+    // Browser-level guard against accidental refresh / tab close while a
+    // quiz is mid-progress. Browsers ignore the custom message text (a
+    // legacy spam mitigation) but still show their own "leave site?" UI
+    // when preventDefault is called — which is the protection we want.
+    React.useEffect(() => {
+        const inProgress = !isFinished && userAnswers.length > 0 && userAnswers.length < totalQuestions;
+        if (!inProgress) return;
+        const handler = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [isFinished, userAnswers.length, totalQuestions]);
+
     const handleOptionSelect = (optionIndex: number) => {
         if (isChecked) return;
         setSelectedOption(optionIndex);
@@ -128,17 +143,26 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
         const numCorrect = userAnswers.filter(a => a.isCorrect).length;
         const score = totalQuestions > 0 ? Math.round((numCorrect / totalQuestions) * 100) : 0;
         const hasIncorrect = numCorrect < totalQuestions;
-        
+        // Peak-end-rule celebration: a one-liner that adapts to the actual
+        // result instead of a flat "Quiz complete." Stays warm even when
+        // the score is mid — the goal is encouragement, not grading.
+        const celebrationKey = score === 100
+            ? 'quiz.celebrate.perfect'
+            : score >= 70
+                ? 'quiz.celebrate.great'
+                : 'quiz.celebrate.good';
+
         return (
             <div className="space-y-4">
                 {/* Results Card */}
                 <div className="bg-brand-50 border border-brand-200 rounded-xl shadow-md p-4 text-ink-800 space-y-4">
                     <h2 className="text-lg font-bold text-center">{data.title} - Results</h2>
-                    
+
                     <div className="my-4 text-center">
                         <p className="text-sm text-ink-700">You scored</p>
                         <p className="text-4xl font-bold text-ink-800 my-1">{score}%</p>
                         <p className="text-sm font-semibold">{numCorrect} out of {totalQuestions} correct</p>
+                        <p className="mt-3 text-sm text-brand-700 font-semibold">{t(celebrationKey, language)}</p>
                     </div>
                     
                     <div className="space-y-2 pt-2">

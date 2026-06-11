@@ -8,6 +8,8 @@ import { PanelLeftCloseIcon, CleverMonkeyIcon, AdminPanelIcon } from './componen
 import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
 import { NamePromptModal } from './components/NamePromptModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { t } from './services/uiStrings';
 import { ProfilePage } from './components/ProfilePage';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } from './services/supabaseClient';
 import { useUser } from './contexts/UserContext';
@@ -17,6 +19,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const LegalPage = React.lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 const PageLoader: React.FC = () => (
   <div className="flex-1 flex items-center justify-center bg-ink-50">
@@ -68,9 +72,16 @@ const App: React.FC = () => {
         return error?.message ?? null;
     }, []);
 
-    const handleSignOut = React.useCallback(async () => {
+    const [isSignOutConfirmOpen, setIsSignOutConfirmOpen] = React.useState(false);
+    const handleSignOut = React.useCallback(() => {
+        // Opens the confirmation; actual sign-out runs from the dialog.
+        // Prevents accidental sidebar misclicks from ending a session.
+        setIsSignOutConfirmOpen(true);
+    }, []);
+    const confirmSignOut = React.useCallback(async () => {
         const { error } = await signOut();
         if (error) console.error('Sign out failed', error);
+        setIsSignOutConfirmOpen(false);
     }, []);
 
     React.useEffect(() => {
@@ -101,6 +112,14 @@ const App: React.FC = () => {
                 onEmailSignUp={handleEmailSignUp}
             />
             <NamePromptModal isOpen={needsName} onSaved={refreshProfile} />
+            <ConfirmDialog
+                isOpen={isSignOutConfirmOpen}
+                onClose={() => setIsSignOutConfirmOpen(false)}
+                onConfirm={confirmSignOut}
+                title={t('signout.title', userProfile?.language)}
+                body={t('signout.body', userProfile?.language)}
+                confirmKey="signout.confirm"
+            />
         </>
     );
 
@@ -230,7 +249,9 @@ const App: React.FC = () => {
               <React.Suspense fallback={<PageLoader />}>
                 <Routes>
                     <Route path={ROUTES.STUDY} element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} onFileSelected={handleFileSelected} />} />
-                    <Route path="*" element={<StudyPage onMenuClick={() => setIsPanelCollapsed(false)} isGuest={!userEmail} onSignInClick={() => setIsAuthModalOpen(true)} onFileSelected={handleFileSelected} />} />
+                    <Route path={ROUTES.PRIVACY} element={<LegalPage mode="privacy" />} />
+                    <Route path={ROUTES.TERMS} element={<LegalPage mode="terms" />} />
+                    <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </React.Suspense>
             </main>

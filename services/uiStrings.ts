@@ -37,7 +37,42 @@ export type UiKey =
     // Quiz / generators
     | 'quiz.docMissing'
     // File handler
-    | 'file.unsupportedType';
+    | 'file.unsupportedType'
+    // Common actions
+    | 'common.cancel'
+    | 'common.close'
+    | 'common.back'
+    | 'common.confirm'
+    | 'common.delete'
+    // Empty workspace (signed in, zero documents)
+    | 'workspace.empty.title'
+    | 'workspace.empty.subtitle'
+    | 'workspace.empty.uploadHint'
+    // Empty workspace (has docs, none selected)
+    | 'workspace.selectDoc.title'
+    | 'workspace.selectDoc.subtitle'
+    // Sign-out confirmation
+    | 'signout.title'
+    | 'signout.body'
+    | 'signout.confirm'
+    // Quiz exit guard
+    | 'quiz.exitWarn'
+    // Quiz celebration
+    | 'quiz.celebrate.perfect'
+    | 'quiz.celebrate.great'
+    | 'quiz.celebrate.good'
+    // Account deletion
+    | 'account.delete.label'
+    | 'account.delete.title'
+    | 'account.delete.body'
+    | 'account.delete.requestSent'
+    // 404
+    | 'notFound.title'
+    | 'notFound.subtitle'
+    | 'notFound.cta'
+    // Legal
+    | 'legal.privacy'
+    | 'legal.terms';
 
 type Lang = string;
 
@@ -265,6 +300,280 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         ru: 'Неподдерживаемый тип файла. Загрузите PDF, изображение, текст или Markdown.',
         vi: 'Loại tệp không được hỗ trợ. Hãy tải lên PDF, hình ảnh, văn bản hoặc Markdown.',
         id: 'Tipe berkas tidak didukung. Unggah PDF, gambar, teks, atau Markdown.',
+    },
+    'common.cancel': {
+        en: 'Cancel', ko: '취소', ja: 'キャンセル', zh: '取消',
+        es: 'Cancelar', fr: 'Annuler', de: 'Abbrechen', pt: 'Cancelar',
+        ru: 'Отмена', vi: 'Huỷ', id: 'Batal',
+    },
+    'common.close': {
+        en: 'Close', ko: '닫기', ja: '閉じる', zh: '关闭',
+        es: 'Cerrar', fr: 'Fermer', de: 'Schließen', pt: 'Fechar',
+        ru: 'Закрыть', vi: 'Đóng', id: 'Tutup',
+    },
+    'common.back': {
+        en: 'Back', ko: '뒤로', ja: '戻る', zh: '返回',
+        es: 'Volver', fr: 'Retour', de: 'Zurück', pt: 'Voltar',
+        ru: 'Назад', vi: 'Quay lại', id: 'Kembali',
+    },
+    'common.confirm': {
+        en: 'Confirm', ko: '확인', ja: '確認', zh: '确认',
+        es: 'Confirmar', fr: 'Confirmer', de: 'Bestätigen', pt: 'Confirmar',
+        ru: 'Подтвердить', vi: 'Xác nhận', id: 'Konfirmasi',
+    },
+    'common.delete': {
+        en: 'Delete', ko: '삭제', ja: '削除', zh: '删除',
+        es: 'Eliminar', fr: 'Supprimer', de: 'Löschen', pt: 'Excluir',
+        ru: 'Удалить', vi: 'Xoá', id: 'Hapus',
+    },
+
+    'workspace.empty.title': {
+        en: 'Bring me something to read 🍌',
+        ko: '읽을 거 하나 주세요 🍌',
+        ja: '何か読ませてください 🍌',
+        zh: '给我点东西读读吧 🍌',
+        es: 'Tráeme algo para leer 🍌',
+        fr: 'Apportez-moi quelque chose à lire 🍌',
+        de: 'Gib mir etwas zu lesen 🍌',
+        pt: 'Me traga algo para ler 🍌',
+        ru: 'Принесите мне что-нибудь почитать 🍌',
+        vi: 'Cho mình thứ gì đó để đọc nhé 🍌',
+        id: 'Beri saya sesuatu untuk dibaca 🍌',
+    },
+    'workspace.empty.subtitle': {
+        en: 'Upload a PDF, a photo of your notes, or any text. I\'ll read it carefully and we can study together.',
+        ko: 'PDF, 노트 사진, 어떤 텍스트든 좋아요. 제가 꼼꼼히 읽고 같이 공부해드릴게요.',
+        ja: 'PDF・ノートの写真・テキスト、なんでもどうぞ。じっくり読んで一緒に勉強しましょう。',
+        zh: 'PDF、笔记照片或任何文本都可以。我会认真读，然后一起学习。',
+        es: 'Sube un PDF, una foto de tus apuntes o cualquier texto. Lo leeré con cuidado y estudiaremos juntos.',
+        fr: 'Téléverse un PDF, une photo de tes notes ou n\'importe quel texte. Je lirai attentivement et on étudiera ensemble.',
+        de: 'Lad eine PDF, ein Foto deiner Notizen oder einen Text hoch. Ich lese sorgfältig und wir lernen zusammen.',
+        pt: 'Envie um PDF, foto das suas anotações ou qualquer texto. Vou ler com atenção e estudaremos juntos.',
+        ru: 'Загрузите PDF, фото заметок или любой текст. Я внимательно прочитаю, и будем учиться вместе.',
+        vi: 'Tải lên PDF, ảnh ghi chú hay bất kỳ văn bản nào. Mình sẽ đọc kỹ và cùng học với bạn.',
+        id: 'Unggah PDF, foto catatan, atau teks apa pun. Saya akan baca dengan saksama dan kita belajar bareng.',
+    },
+    'workspace.empty.uploadHint': {
+        en: 'Drop a file here or use the upload button',
+        ko: '파일을 끌어다 놓거나 업로드 버튼을 눌러주세요',
+        ja: 'ファイルをドロップするか、アップロードボタンを押してください',
+        zh: '把文件拖到这里或点击上传按钮',
+        es: 'Arrastra un archivo aquí o usa el botón de subida',
+        fr: 'Glisse un fichier ici ou clique sur le bouton',
+        de: 'Datei hierher ziehen oder Upload-Button klicken',
+        pt: 'Arraste um arquivo aqui ou use o botão de envio',
+        ru: 'Перетащите файл сюда или нажмите кнопку загрузки',
+        vi: 'Kéo tệp vào đây hoặc dùng nút tải lên',
+        id: 'Letakkan berkas di sini atau pakai tombol unggah',
+    },
+
+    'workspace.selectDoc.title': {
+        en: 'Pick a document to dive in 🐒',
+        ko: '시작할 문서를 골라주세요 🐒',
+        ja: '読み始める文書を選んでください 🐒',
+        zh: '挑一个文档开始吧 🐒',
+        es: 'Elige un documento para empezar 🐒',
+        fr: 'Choisis un document pour commencer 🐒',
+        de: 'Wähle ein Dokument zum Eintauchen 🐒',
+        pt: 'Escolha um documento para começar 🐒',
+        ru: 'Выберите документ, чтобы начать 🐒',
+        vi: 'Chọn một tài liệu để bắt đầu 🐒',
+        id: 'Pilih dokumen untuk memulai 🐒',
+    },
+    'workspace.selectDoc.subtitle': {
+        en: 'Your library is on the left. Tap one and we\'ll keep going.',
+        ko: '왼쪽 목록에서 하나 골라주세요. 이어서 갈게요.',
+        ja: '左の一覧から選んでください。続きを始めましょう。',
+        zh: '在左侧列表里挑一个，我们接着学。',
+        es: 'Tu biblioteca está a la izquierda. Toca uno y seguimos.',
+        fr: 'Ta bibliothèque est à gauche. Touche un fichier et on continue.',
+        de: 'Deine Bibliothek ist links. Tipp eines an und wir machen weiter.',
+        pt: 'Sua biblioteca está à esquerda. Toque em um e continuamos.',
+        ru: 'Ваша библиотека слева. Нажмите на один — продолжим.',
+        vi: 'Thư viện ở bên trái. Chạm vào một mục và mình tiếp tục.',
+        id: 'Pustaka Anda ada di kiri. Pilih satu dan kita lanjut.',
+    },
+
+    'signout.title': {
+        en: 'See you next session?',
+        ko: '다음에 또 만나요?',
+        ja: 'また次回お会いしましょう？',
+        zh: '下次再见？',
+        es: '¿Hasta la próxima?',
+        fr: 'À la prochaine ?',
+        de: 'Bis zum nächsten Mal?',
+        pt: 'Até a próxima?',
+        ru: 'До следующей встречи?',
+        vi: 'Hẹn gặp lại lần sau?',
+        id: 'Sampai jumpa lagi?',
+    },
+    'signout.body': {
+        en: 'Your work is saved — sign back in anytime to pick up where you left off.',
+        ko: '작업은 모두 저장됐어요 — 언제든 다시 로그인해서 이어가실 수 있어요.',
+        ja: '作業はすべて保存されています — いつでも再ログインして続きから始められます。',
+        zh: '你的内容都保存好了 — 随时登录就能接着学。',
+        es: 'Tu trabajo está guardado — vuelve cuando quieras y sigue donde lo dejaste.',
+        fr: 'Ton travail est sauvegardé — reconnecte-toi quand tu veux pour reprendre.',
+        de: 'Deine Arbeit ist gespeichert — melde dich jederzeit wieder an und mach weiter.',
+        pt: 'Seu trabalho está salvo — volte quando quiser e continue de onde parou.',
+        ru: 'Работа сохранена — вернитесь в любой момент и продолжите с того же места.',
+        vi: 'Bài làm đã được lưu — đăng nhập lại bất cứ lúc nào để tiếp tục.',
+        id: 'Pekerjaan Anda tersimpan — masuk lagi kapan saja untuk lanjut.',
+    },
+    'signout.confirm': {
+        en: 'Sign out', ko: '로그아웃', ja: 'ログアウト', zh: '登出',
+        es: 'Cerrar sesión', fr: 'Se déconnecter', de: 'Abmelden', pt: 'Sair',
+        ru: 'Выйти', vi: 'Đăng xuất', id: 'Keluar',
+    },
+
+    'quiz.exitWarn': {
+        en: 'Quiz in progress — leave anyway?',
+        ko: '퀴즈가 진행 중이에요 — 정말 나가시겠어요?',
+        ja: 'クイズが進行中です — 本当に離れますか？',
+        zh: '测验进行中 — 确定要离开吗？',
+        es: 'Quiz en progreso — ¿salir igualmente?',
+        fr: 'Quiz en cours — sortir quand même ?',
+        de: 'Quiz läuft — trotzdem verlassen?',
+        pt: 'Quiz em andamento — sair mesmo assim?',
+        ru: 'Викторина не окончена — всё равно выйти?',
+        vi: 'Đang làm bài — vẫn rời đi?',
+        id: 'Kuis sedang berjalan — tetap keluar?',
+    },
+
+    'quiz.celebrate.perfect': {
+        en: 'Perfect score! 🎉',
+        ko: '만점이에요! 🎉',
+        ja: '満点です！🎉',
+        zh: '满分通过！🎉',
+        es: '¡Puntuación perfecta! 🎉',
+        fr: 'Score parfait ! 🎉',
+        de: 'Volle Punktzahl! 🎉',
+        pt: 'Pontuação perfeita! 🎉',
+        ru: 'Идеально! 🎉',
+        vi: 'Đạt điểm tuyệt đối! 🎉',
+        id: 'Skor sempurna! 🎉',
+    },
+    'quiz.celebrate.great': {
+        en: 'Strong run — keep it up!',
+        ko: '잘하고 있어요 — 계속 가요!',
+        ja: 'いい調子 — この勢いで！',
+        zh: '表现很棒 — 继续保持！',
+        es: 'Buen ritmo — ¡sigue así!',
+        fr: 'Belle performance — continue !',
+        de: 'Starker Lauf — weiter so!',
+        pt: 'Ótimo desempenho — continue!',
+        ru: 'Отличный результат — продолжайте!',
+        vi: 'Tốt lắm — giữ phong độ nhé!',
+        id: 'Lancar sekali — pertahankan!',
+    },
+    'quiz.celebrate.good': {
+        en: 'Nice work — one more round?',
+        ko: '잘하셨어요 — 한 번 더 갈래요?',
+        ja: 'よくできました — もう一回どうですか？',
+        zh: '不错哦 — 再来一轮？',
+        es: 'Buen trabajo — ¿otra ronda?',
+        fr: 'Bien joué — un autre tour ?',
+        de: 'Gut gemacht — noch eine Runde?',
+        pt: 'Bom trabalho — mais uma rodada?',
+        ru: 'Хорошо — ещё круг?',
+        vi: 'Làm tốt rồi — thêm vòng nữa nhé?',
+        id: 'Kerja bagus — satu ronde lagi?',
+    },
+
+    'account.delete.label': {
+        en: 'Delete account', ko: '계정 삭제', ja: 'アカウント削除', zh: '删除账户',
+        es: 'Eliminar cuenta', fr: 'Supprimer le compte', de: 'Konto löschen',
+        pt: 'Excluir conta', ru: 'Удалить аккаунт', vi: 'Xoá tài khoản', id: 'Hapus akun',
+    },
+    'account.delete.title': {
+        en: 'Are you sure you want to delete your account?',
+        ko: '정말 계정을 삭제하시겠어요?',
+        ja: '本当にアカウントを削除しますか？',
+        zh: '确定要删除账户吗？',
+        es: '¿Seguro que quieres eliminar tu cuenta?',
+        fr: 'Voulez-vous vraiment supprimer votre compte ?',
+        de: 'Möchtest du dein Konto wirklich löschen?',
+        pt: 'Tem certeza de que quer excluir sua conta?',
+        ru: 'Вы уверены, что хотите удалить аккаунт?',
+        vi: 'Bạn chắc chắn muốn xoá tài khoản?',
+        id: 'Yakin mau menghapus akun?',
+    },
+    'account.delete.body': {
+        en: 'This permanently removes your documents, quiz history, and profile. We\'ll process your request within 7 days and email you when it\'s done.',
+        ko: '문서, 퀴즈 이력, 프로필이 영구적으로 삭제돼요. 7일 이내에 처리하고 완료되면 이메일로 알려드릴게요.',
+        ja: '文書・クイズ履歴・プロフィールが完全に削除されます。7日以内に処理し、完了したらメールでお知らせします。',
+        zh: '将永久删除你的文档、测验记录和资料。我们会在 7 天内处理，完成后邮件告知你。',
+        es: 'Esto elimina tus documentos, historial y perfil de forma permanente. Procesaremos tu solicitud en 7 días y te avisaremos por email.',
+        fr: 'Cela supprime tes documents, historiques et profil pour de bon. Nous traiterons ta demande sous 7 jours et te préviendrons par email.',
+        de: 'Damit werden Dokumente, Quizverlauf und Profil dauerhaft entfernt. Wir bearbeiten deine Anfrage innerhalb von 7 Tagen und melden uns per E-Mail.',
+        pt: 'Isso remove permanentemente seus documentos, histórico de quizzes e perfil. Vamos processar em até 7 dias e avisar por email.',
+        ru: 'Это навсегда удалит документы, историю викторин и профиль. Обработаем запрос в течение 7 дней и сообщим по email.',
+        vi: 'Thao tác này xoá vĩnh viễn tài liệu, lịch sử kiểm tra và hồ sơ. Mình sẽ xử lý trong 7 ngày và gửi email khi xong.',
+        id: 'Ini menghapus dokumen, riwayat kuis, dan profil secara permanen. Kami akan memproses dalam 7 hari dan mengabari via email.',
+    },
+    'account.delete.requestSent': {
+        en: 'Request received. We\'ll email you when it\'s done.',
+        ko: '요청을 받았어요. 처리가 완료되면 이메일로 알려드릴게요.',
+        ja: 'リクエストを受け付けました。完了したらメールでお知らせします。',
+        zh: '已收到请求。完成后会发邮件通知你。',
+        es: 'Solicitud recibida. Te avisaremos por email cuando termine.',
+        fr: 'Demande reçue. Nous t\'enverrons un email à la fin.',
+        de: 'Anfrage erhalten. Wir melden uns per E-Mail, wenn alles fertig ist.',
+        pt: 'Pedido recebido. Avisaremos por email quando concluir.',
+        ru: 'Запрос принят. Сообщим по email после обработки.',
+        vi: 'Đã nhận yêu cầu. Mình sẽ gửi email khi hoàn tất.',
+        id: 'Permintaan diterima. Kami akan kirim email kalau sudah selesai.',
+    },
+
+    'notFound.title': {
+        en: 'Nothing here but bananas 🍌',
+        ko: '여긴 바나나뿐이네요 🍌',
+        ja: 'ここにはバナナしかありません 🍌',
+        zh: '这里只有香蕉 🍌',
+        es: 'Aquí solo hay plátanos 🍌',
+        fr: 'Il n\'y a que des bananes ici 🍌',
+        de: 'Hier gibt\'s nur Bananen 🍌',
+        pt: 'Só tem bananas por aqui 🍌',
+        ru: 'Тут только бананы 🍌',
+        vi: 'Ở đây chỉ có chuối 🍌',
+        id: 'Di sini cuma ada pisang 🍌',
+    },
+    'notFound.subtitle': {
+        en: 'The page you\'re looking for has wandered off into the jungle.',
+        ko: '찾으시는 페이지가 정글 속으로 사라졌어요.',
+        ja: 'お探しのページはジャングルに消えてしまいました。',
+        zh: '你想找的页面跑进丛林里了。',
+        es: 'La página que buscas se perdió en la jungla.',
+        fr: 'La page que vous cherchez s\'est perdue dans la jungle.',
+        de: 'Die gesuchte Seite hat sich in den Dschungel verirrt.',
+        pt: 'A página que você procura sumiu na selva.',
+        ru: 'Страница, которую вы ищете, ушла в джунгли.',
+        vi: 'Trang bạn tìm đã đi lạc vào rừng.',
+        id: 'Halaman yang Anda cari menghilang ke hutan.',
+    },
+    'notFound.cta': {
+        en: 'Take me home',
+        ko: '홈으로 돌아가기',
+        ja: 'ホームへ戻る',
+        zh: '返回首页',
+        es: 'Llévame al inicio',
+        fr: 'Retour à l\'accueil',
+        de: 'Zur Startseite',
+        pt: 'Voltar ao início',
+        ru: 'На главную',
+        vi: 'Đưa mình về trang chính',
+        id: 'Bawa saya pulang',
+    },
+
+    'legal.privacy': {
+        en: 'Privacy Policy', ko: '개인정보 처리방침', ja: 'プライバシーポリシー', zh: '隐私政策',
+        es: 'Privacidad', fr: 'Confidentialité', de: 'Datenschutz', pt: 'Privacidade',
+        ru: 'Конфиденциальность', vi: 'Quyền riêng tư', id: 'Privasi',
+    },
+    'legal.terms': {
+        en: 'Terms of Service', ko: '이용약관', ja: '利用規約', zh: '服务条款',
+        es: 'Términos', fr: 'Conditions', de: 'Nutzungsbedingungen', pt: 'Termos',
+        ru: 'Условия', vi: 'Điều khoản', id: 'Ketentuan',
     },
 };
 

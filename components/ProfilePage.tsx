@@ -11,6 +11,10 @@ import {
 } from '../services/languageService';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { ConfirmDialog } from './ConfirmDialog';
+import { useUser } from '../contexts/UserContext';
+import { t } from '../services/uiStrings';
+import { useToast } from './Toast';
 
 interface ProfilePageProps {
     userEmail: string | null;
@@ -40,11 +44,30 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const fallbackName = userEmail?.split('@')[0] || 'Guest';
     const shownName = displayName?.trim() || fallbackName;
     const isPro = planName === 'Pro';
+    const { userProfile } = useUser();
+    const langPref = userProfile?.language;
+    const { showToast } = useToast();
+    const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
 
     const [isEditing, setIsEditing] = React.useState(false);
     const [draftName, setDraftName] = React.useState(displayName ?? '');
     const [isSaving, setIsSaving] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+
+    const requestAccountDeletion = React.useCallback(async () => {
+        // Until the backend cascade-delete RPC ships, route the request
+        // through a mailto with a templated subject so the operations
+        // team can process it manually within the 7-day SLA we commit to
+        // in the legal page. Toast confirms reception to the user.
+        const subject = encodeURIComponent('[Clever Monkey] Account deletion request');
+        const body = encodeURIComponent(
+            `User email: ${userEmail ?? '(unknown)'}\n` +
+            'I would like to delete my account and all associated data.\n',
+        );
+        window.location.href = `mailto:support@clevermonkey.app?subject=${subject}&body=${body}`;
+        showToast(t('account.delete.requestSent', langPref), 'success');
+        setIsDeleteOpen(false);
+    }, [userEmail, langPref, showToast]);
 
     const currentLanguage = language ?? 'auto';
     const [isSavingLanguage, setIsSavingLanguage] = React.useState(false);
@@ -234,7 +257,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                         </div>
                     </div>
                 )}
+
+                {/* Danger zone — visually quiet, intentionally placed below
+                    the upgrade pitch so it never competes for attention.
+                    Surfacing the deletion path is the GDPR/PIPA minimum;
+                    the actual cascade-delete RPC lands in Phase 2. */}
+                {userEmail && (
+                    <div className="mt-10 pt-6 border-t border-ink-200">
+                        <button
+                            type="button"
+                            onClick={() => setIsDeleteOpen(true)}
+                            className="text-sm text-ink-500 hover:text-danger-600 transition-colors"
+                        >
+                            {t('account.delete.label', langPref)}
+                        </button>
+                    </div>
+                )}
             </div>
+            <ConfirmDialog
+                isOpen={isDeleteOpen}
+                onClose={() => setIsDeleteOpen(false)}
+                onConfirm={requestAccountDeletion}
+                title={t('account.delete.title', langPref)}
+                body={t('account.delete.body', langPref)}
+                confirmKey="common.delete"
+                destructive
+            />
         </div>
     );
 };
