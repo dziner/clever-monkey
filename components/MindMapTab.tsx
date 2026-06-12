@@ -7,10 +7,13 @@ import { useUser } from '../contexts/UserContext';
 import { AccountTreeIcon, AutoAwesomeIcon, ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import { Spinner } from './Spinner';
 import { t } from '../services/uiStrings';
+import { getPinchTransform, getZoomAtPointTransform, type PinchStart, type Point } from '../utils/panZoom';
 
 const ZOOM_MIN = 0.2;
 const ZOOM_MAX = 3.0;
 const ZOOM_STEP = 0.2;
+
+type InteractionMode = 'idle' | 'pan' | 'pinch';
 
 // Depth-based color ramp (root uses dark slate, deeper levels cycle).
 const COLORS = [
@@ -165,19 +168,102 @@ interface CanvasHandle {
   getZoom: () => number;
 }
 
-const PanZoomCanvas = React.forwardRef<CanvasHandle, { children: React.ReactNode; onZoomChange?: (z: number) => void }>(
-  ({ children, onZoomChange }, ref) => {
+const PanZoomCanvas = React.forwardRef<CanvasHandle, {
+  children: React.ReactNode;
+  onZoomChange?: (z: number) => void;
+  onTouchGestureSupportChange?: (supported: boolean) => void;
+}>(
+  ({ children, onZoomChange, onTouchGestureSupportChange }, ref) => {
     const viewportRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
     const [zoom, setZoom] = React.useState(1);
     const [pan, setPan] = React.useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = React.useState(false);
+    const [supportsTouchGestures, setSupportsTouchGestures] = React.useState(false);
 
     // Pan gesture bookkeeping
     const panStart = React.useRef({ x: 0, y: 0, panX: 0, panY: 0 });
     const movedRef = React.useRef(false);
+    const activePointersRef = React.useRef(new Map<number, Point>());
+    const interactionModeRef = React.useRef<InteractionMode>('idle');
+    const zoomRef = React.useRef(zoom);
+    const panRef = React.useRef(pan);
+    const pinchStartRef = React.useRef<PinchStart | null>(null);
 
     React.useEffect(() => { onZoomChange?.(zoom); }, [zoom, onZoomChange]);
+
+    React.useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+    React.useEffect(() => { panRef.current = pan; }, [pan]);
+
+    React.useEffect(() => {
+      const coarsePointerQuery = window.matchMedia?.('(pointer: coarse)');
+      const update = () => {
+        const supported = Boolean(
+          navigator.maxTouchPoints > 0 ||
+          coarsePointerQuery?.matches,
+        );
+        setSupportsTouchGestures(supported);
+        onTouchGestureSupportChange?.(supported);
+      };
+
+      update();
+      if (coarsePointerQuery?.addEventListener) {
+        coarsePointerQuery.addEventListener('change', update);
+        return () => coarsePointerQuery.removeEventListener('change', update);
+      }
+      coarsePointerQuery?.addListener?.(update);
+      return () => coarsePointerQuery?.removeListener?.(update);
+    }, [onTouchGestureSupportChange]);
+
+    const updateZoom = React.useCallback((nextZoom: number) => {
+      zoomRef.current = nextZoom;
+      setZoom(nextZoom);
+    }, []);
+
+    const updatePan = React.useCallback((nextPan: Point) => {
+      panRef.current = nextPan;
+      setPan(nextPan);
+    }, []);
+
+    const viewportPointFromEvent = React.useCallback((e: React.PointerEvent): Point => {
+      const vp = viewportRef.current;
+      if (!vp) return { x: e.clientX, y: e.clientY };
+      const rect = vp.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }, []);
+
+    const zoomAtPoint = React.useCallback((point: Point, nextZoomRaw: number) => {
+      const next = getZoomAtPointTransform(
+        { zoom: zoomRef.current, pan: panRef.current },
+        point,
+        nextZoomRaw,
+        ZOOM_MIN,
+        ZOOM_MAX,
+      );
+      updateZoom(next.zoom);
+      updatePan(next.pan);
+    }, [updatePan, updateZoom]);
+
+    const beginPinch = React.useCallback(() => {
+      const points = Array.from(activePointersRef.current.values());
+      if (points.length < 2) return;
+      const [a, b] = points;
+      const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      const currentZoom = zoomRef.current;
+      const currentPan = panRef.current;
+      pinchStartRef.current = {
+        startDistance: distance,
+        startZoom: currentZoom,
+        contentPoint: {
+          x: (center.x - currentPan.x) / currentZoom,
+          y: (center.y - currentPan.y) / currentZoom,
+        },
+      };
+      interactionModeRef.current = 'pinch';
+      movedRef.current = true;
+      setIsPanning(true);
+    }, []);
 
     // Fit the content into the viewport (centered).
     const fit = React.useCallback(() => {
@@ -194,29 +280,22 @@ const PanZoomCanvas = React.forwardRef<CanvasHandle, { children: React.ReactNode
         ZOOM_MAX,
       );
       const z = Math.min(scale, 1); // never upscale on fit
-      setZoom(z);
-      setPan({
+      updateZoom(z);
+      updatePan({
         x: (vp.clientWidth - cw * z) / 2,
         y: (vp.clientHeight - ch * z) / 2,
       });
-    }, []);
+    }, [updatePan, updateZoom]);
 
     // Zoom around the viewport center by a multiplicative factor (for buttons).
     const zoomBy = React.useCallback((factor: number) => {
       const vp = viewportRef.current;
       if (!vp) return;
-      const cx = vp.clientWidth / 2;
-      const cy = vp.clientHeight / 2;
-      setZoom(prevZoom => {
-        const next = clamp(prevZoom * factor, ZOOM_MIN, ZOOM_MAX);
-        setPan(prevPan => {
-          const wx = (cx - prevPan.x) / prevZoom;
-          const wy = (cy - prevPan.y) / prevZoom;
-          return { x: cx - wx * next, y: cy - wy * next };
-        });
-        return next;
-      });
-    }, []);
+      zoomAtPoint(
+        { x: vp.clientWidth / 2, y: vp.clientHeight / 2 },
+        zoomRef.current * factor,
+      );
+    }, [zoomAtPoint]);
 
     React.useImperativeHandle(ref, () => ({ zoomBy, fit, getZoom: () => zoom }), [zoomBy, fit, zoom]);
 
@@ -245,39 +324,86 @@ const PanZoomCanvas = React.forwardRef<CanvasHandle, { children: React.ReactNode
         const rect = vp.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-        setZoom(prevZoom => {
-          const factor = Math.exp(-e.deltaY * 0.0015); // smooth, trackpad-friendly
-          const next = clamp(prevZoom * factor, ZOOM_MIN, ZOOM_MAX);
-          setPan(prevPan => {
-            const wx = (mx - prevPan.x) / prevZoom;
-            const wy = (my - prevPan.y) / prevZoom;
-            return { x: mx - wx * next, y: my - wy * next };
-          });
-          return next;
-        });
+        const factor = Math.exp(-e.deltaY * 0.0015); // smooth, trackpad-friendly
+        zoomAtPoint({ x: mx, y: my }, zoomRef.current * factor);
       };
       vp.addEventListener('wheel', onWheel, { passive: false });
       return () => vp.removeEventListener('wheel', onWheel);
-    }, []);
+    }, [zoomAtPoint]);
 
-    // Pointer drag to pan.
+    // Pointer drag to pan; two active touch pointers pinch-zoom around their midpoint.
     const onPointerDown = (e: React.PointerEvent) => {
-      if (e.button !== 0) return;
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+      if (e.pointerType !== 'touch' && e.button !== 0) return;
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* pointer may already be captured */ }
       setIsPanning(true);
       movedRef.current = false;
-      panStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+
+      if (e.pointerType === 'touch') {
+        activePointersRef.current.set(e.pointerId, viewportPointFromEvent(e));
+        if (activePointersRef.current.size >= 2) {
+          beginPinch();
+          return;
+        }
+      }
+
+      interactionModeRef.current = 'pan';
+      panStart.current = {
+        ...viewportPointFromEvent(e),
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+      };
     };
     const onPointerMove = (e: React.PointerEvent) => {
-      if (!isPanning) return;
-      const dx = e.clientX - panStart.current.x;
-      const dy = e.clientY - panStart.current.y;
+      if (e.pointerType === 'touch' && activePointersRef.current.has(e.pointerId)) {
+        activePointersRef.current.set(e.pointerId, viewportPointFromEvent(e));
+      }
+
+      if (interactionModeRef.current === 'pinch') {
+        const points = Array.from(activePointersRef.current.values());
+        const pinchStart = pinchStartRef.current;
+        if (points.length < 2 || !pinchStart) return;
+        const [a, b] = points;
+        const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+        const next = getPinchTransform(pinchStart, center, distance, ZOOM_MIN, ZOOM_MAX);
+        updateZoom(next.zoom);
+        updatePan(next.pan);
+        return;
+      }
+
+      if (interactionModeRef.current !== 'pan') return;
+      const point = viewportPointFromEvent(e);
+      const dx = point.x - panStart.current.x;
+      const dy = point.y - panStart.current.y;
       if (Math.abs(dx) + Math.abs(dy) > 4) movedRef.current = true;
-      setPan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy });
+      updatePan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy });
     };
     const endPan = (e: React.PointerEvent) => {
-      if (!isPanning) return;
-      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* pointer may already be released */ }
+
+      if (e.pointerType === 'touch') {
+        activePointersRef.current.delete(e.pointerId);
+        if (activePointersRef.current.size >= 2) {
+          beginPinch();
+          return;
+        }
+        if (activePointersRef.current.size === 1) {
+          const remaining = Array.from(activePointersRef.current.values())[0];
+          interactionModeRef.current = 'pan';
+          pinchStartRef.current = null;
+          panStart.current = {
+            x: remaining.x,
+            y: remaining.y,
+            panX: panRef.current.x,
+            panY: panRef.current.y,
+          };
+          setIsPanning(true);
+          return;
+        }
+      }
+
+      interactionModeRef.current = 'idle';
+      pinchStartRef.current = null;
       setIsPanning(false);
     };
 
@@ -294,6 +420,7 @@ const PanZoomCanvas = React.forwardRef<CanvasHandle, { children: React.ReactNode
       <div
         ref={viewportRef}
         className={`relative w-full h-full overflow-hidden bg-ink-50 touch-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        data-touch-gestures={supportsTouchGestures ? 'true' : 'false'}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endPan}
@@ -327,6 +454,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   const language = userProfile?.language ?? null;
   const canvasRef = React.useRef<CanvasHandle>(null);
   const [zoomPct, setZoomPct] = React.useState(100);
+  const [touchGestureHint, setTouchGestureHint] = React.useState(false);
 
   const { data, loading, error, generate, cancel } = useAIGeneration<MindMapData>(
     React.useCallback(
@@ -425,7 +553,11 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
             <p className="text-sm">Click Generate to build an interactive mind map of key concepts.</p>
           </div>
         ) : (
-          <PanZoomCanvas ref={canvasRef} onZoomChange={(z) => setZoomPct(Math.round(z * 100))}>
+          <PanZoomCanvas
+            ref={canvasRef}
+            onZoomChange={(z) => setZoomPct(Math.round(z * 100))}
+            onTouchGestureSupportChange={setTouchGestureHint}
+          >
             <MindMapTree data={displayData} />
           </PanZoomCanvas>
         )}
@@ -436,7 +568,7 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
         <>
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
             <span className="text-[11px] text-ink-400 bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full border border-ink-200">
-              드래그로 이동 · 스크롤로 확대/축소
+              {touchGestureHint ? '한 손가락으로 이동 · 두 손가락으로 확대/축소' : '드래그로 이동 · 스크롤로 확대/축소'}
             </span>
           </div>
 
