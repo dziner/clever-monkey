@@ -17,60 +17,7 @@ const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
 // anymore, so the server appends this marker followed by the error message.
 const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
 
-const repairJSON = (text: string): string =>
-  text
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/,(\s*[}\]])/g, '$1');
-
-// Utility to safely parse JSON from LLM output which might contain Markdown code blocks or extra text
-const cleanAndParseJSON = (text: string) => {
-  const firstOpenBrace = text.indexOf('{');
-  const firstOpenBracket = text.indexOf('[');
-  let startIndex = -1;
-
-  if (firstOpenBrace !== -1 && firstOpenBracket !== -1) {
-    startIndex = Math.min(firstOpenBrace, firstOpenBracket);
-  } else if (firstOpenBrace !== -1) {
-    startIndex = firstOpenBrace;
-  } else if (firstOpenBracket !== -1) {
-    startIndex = firstOpenBracket;
-  }
-
-  if (startIndex !== -1) {
-    const lastCloseBrace = text.lastIndexOf('}');
-    const lastCloseBracket = text.lastIndexOf(']');
-    let endIndex = -1;
-
-    if (lastCloseBrace !== -1 && lastCloseBracket !== -1) {
-      endIndex = Math.max(lastCloseBrace, lastCloseBracket);
-    } else if (lastCloseBrace !== -1) {
-      endIndex = lastCloseBrace;
-    } else if (lastCloseBracket !== -1) {
-      endIndex = lastCloseBracket;
-    }
-
-    if (endIndex !== -1 && endIndex >= startIndex) {
-      const candidate = text.substring(startIndex, endIndex + 1);
-      try {
-        return JSON.parse(candidate);
-      } catch {
-        try {
-          return JSON.parse(repairJSON(candidate));
-        } catch {
-          // fall through
-        }
-      }
-    }
-  }
-
-  const stripped = text.replace(/^```json\s*/m, '').replace(/^```\s*/m, '').replace(/```$/m, '').trim();
-  try {
-    return JSON.parse(stripped);
-  } catch {
-    return JSON.parse(repairJSON(stripped));
-  }
-};
+import { cleanAndParseJSON } from '../utils/jsonRepair';
 
 // `task` (when set) routes the call through the multi-provider router
 // server-side (Gemini → Groq → Cerebras fallback per task type).
@@ -586,7 +533,7 @@ export async function evaluateFRQAnswer(
   const prompt = `A user was asked a question based on a document. Please evaluate their answer.\n\nQuestion: "${question}"\nIdeal Answer (for reference): "${referenceAnswer}"\nUser's Answer: "${userAnswer}"\n\nProvide a score from 0 to 100 and brief, constructive feedback. Respond ONLY with valid JSON: {"score": number, "feedback": string}.\n\n${languageDirective(language)}`;
 
   const text = await generateContent(model, prompt, { responseMimeType: 'application/json' }, undefined, 'evaluate');
-  return cleanAndParseJSON(text);
+  return cleanAndParseJSON(text) as { score: number; feedback: string };
 }
 
 export async function generateStudyTips(
@@ -705,26 +652,12 @@ ${sampleEvenly(documentContent, CONTENT_BUDGET.slides)}
   return cleanAndParseJSON(text) as SlideData;
 }
 
-// ── TTS helpers ───────────────────────────────────────────────────────────────
+// ── TTS ──────────────────────────────────────────────────────────────────────
+// Audio-format primitives live in services/ttsService — this function
+// owns only the network step (authenticated call to /api/gemini for
+// each chunk) and orchestrates concurrent synthesis with progress.
 
-function pcmToWavBlob(pcm: Uint8Array, sampleRate = 24000): Blob {
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const blockAlign = numChannels * (bitsPerSample / 8);
-  const byteRate = sampleRate * blockAlign;
-  const header = new ArrayBuffer(44);
-  const v = new DataView(header);
-  const s = (o: number, str: string) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
-  s(0, 'RIFF'); v.setUint32(4, 36 + pcm.length, true); s(8, 'WAVE');
-  s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
-  v.setUint16(22, numChannels, true); v.setUint32(24, sampleRate, true);
-  v.setUint32(28, byteRate, true); v.setUint16(32, blockAlign, true);
-  v.setUint16(34, bitsPerSample, true);
-  s(36, 'data'); v.setUint32(40, pcm.length, true);
-  const wav = new Uint8Array(44 + pcm.length);
-  wav.set(new Uint8Array(header)); wav.set(pcm, 44);
-  return new Blob([wav], { type: 'audio/wav' });
-}
+import { pcmToWavBlob, concatPcmBuffers, decodeAudioData } from './ttsService';
 
 export async function synthesizeSpeech(
   text: string,
@@ -741,6 +674,9 @@ export async function synthesizeSpeech(
   // chunk requests can make the same selected voice sound inconsistent across
   // segment boundaries, which feels like multiple speakers.
   let completed = 0;
+  // Sequential (not concurrent) on purpose: parallel chunk requests can
+  // make the same selected voice sound inconsistent across segment
+  // boundaries, which the user perceives as multiple speakers.
   const pcmBuffers: Uint8Array[] = [];
   for (const chunk of chunks) {
     const data = await callGemini<{ audioData: string; mimeType: string }>({
@@ -748,22 +684,11 @@ export async function synthesizeSpeech(
       text: chunk,
       voice,
     }, signal);
-    pcmBuffers.push(Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0)));
+    pcmBuffers.push(decodeAudioData(data.audioData));
     onProgress(++completed, chunks.length);
   }
 
-  // Concatenate PCM buffers, add 480-sample silence between chunks
-  const silence = new Uint8Array(480 * 2); // 20ms @ 24kHz, 16-bit
-  const parts: Uint8Array[] = [];
-  pcmBuffers.forEach((buf, i) => { parts.push(buf); if (i < pcmBuffers.length - 1) parts.push(silence); });
-  const total = parts.reduce((n, p) => n + p.length, 0);
-  const combined = new Uint8Array(total);
-  let off = 0;
-  for (const p of parts) { combined.set(p, off); off += p.length; }
-
-  // Extract sample rate from mimeType (e.g. "audio/pcm;rate=24000")
-  const sampleRate = 24000;
-  return pcmToWavBlob(combined, sampleRate);
+  return pcmToWavBlob(concatPcmBuffers(pcmBuffers), 24000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
