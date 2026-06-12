@@ -521,9 +521,16 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             }
         } catch (error) {
             console.error('Failed to process document:', error);
+            // FILE_TOO_LARGE sentinel: callGemini raises it on 413 or our
+            // own MAX_BODY_BYTES guard. Localize it like the password
+            // case so the user gets actionable copy instead of a raw HTTP
+            // status.
+            const raw = error instanceof Error ? error.message : '';
             const errorMessage = isPasswordProtectedPdfError(error)
                 ? t('file.passwordProtectedPdf', language)
-                : getErrorMessage(error);
+                : raw === 'FILE_TOO_LARGE'
+                    ? t('file.tooLarge', language)
+                    : getErrorMessage(error);
             logUploadDiagnostic({
                 severity: 'error',
                 stage: `processing.${lastProcessingState}.failed`,

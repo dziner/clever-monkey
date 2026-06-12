@@ -90,7 +90,11 @@ async function uploadWithStandardRequest(bucketName: string, objectName: string,
         uploadError = error;
         const status = statusFromError(error);
         if (!RETRYABLE_UPLOAD_STATUSES.has(status) || attempt === 3) break;
-        await new Promise(resolve => setTimeout(resolve, 400 * attempt));
+        // Quadratic backoff (0.8s, 3.2s) so retries for large uploads
+        // don't all stampede before the network actually recovers. The
+        // earlier 400/800ms steps were quicker than a 30MB scan PDF
+        // could realistically finish on a flaky link.
+        await new Promise(resolve => setTimeout(resolve, 800 * attempt * attempt));
     }
     throw toStorageUploadError(uploadError, {
         method: 'standard',

@@ -39,6 +39,7 @@ export type UiKey =
     // File handler
     | 'file.unsupportedType'
     | 'file.passwordProtectedPdf'
+    | 'file.tooLarge'
     // Common actions
     | 'common.cancel'
     | 'common.close'
@@ -363,6 +364,19 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         ru: 'PDF с паролем не поддерживаются. Удалите пароль и загрузите PDF снова.',
         vi: 'Không hỗ trợ PDF có mật khẩu. Hãy bỏ mật khẩu rồi tải PDF lên lại.',
         id: 'PDF yang dilindungi kata sandi tidak didukung. Hapus kata sandi lalu unggah PDF lagi.',
+    },
+    'file.tooLarge': {
+        en: "That file is too large for one request. PDFs above 2-3 MB get processed via secure upload; if you're seeing this on a single image, please compress it to under 5 MB.",
+        ko: '이 파일은 한 번에 보내기엔 너무 커요. 2~3MB가 넘는 PDF는 업로드 후 안전 경로로 처리되니 다시 시도해 주시고, 단일 이미지라면 5MB 이하로 압축 후 올려주세요.',
+        ja: 'このファイルは1回のリクエストには大きすぎます。2〜3MB を超える PDF はアップロード後の安全経路で処理されるのでもう一度試してください。1枚の画像なら 5MB 以下に圧縮してからアップロードしてください。',
+        zh: '该文件一次性请求过大。超过 2~3MB 的 PDF 会通过安全上传通道处理,请再试一次;如果是单张图片,请压缩到 5MB 以下再上传。',
+        es: 'Ese archivo es demasiado grande para una sola solicitud. Los PDF de más de 2-3 MB se procesan tras la subida segura; si es una imagen, comprímela a menos de 5 MB.',
+        fr: 'Ce fichier est trop volumineux pour une seule requête. Les PDF de plus de 2-3 Mo sont traités après un téléversement sécurisé ; si c\'est une image, compresse-la sous 5 Mo.',
+        de: 'Diese Datei ist zu groß für eine einzelne Anfrage. PDFs über 2-3 MB werden nach sicherem Upload verarbeitet — bitte erneut versuchen. Bei einem einzelnen Bild auf unter 5 MB komprimieren.',
+        pt: 'Esse arquivo é grande demais para uma única requisição. PDFs acima de 2-3 MB são processados via upload seguro; se for uma imagem, comprima para menos de 5 MB.',
+        ru: 'Файл слишком большой для одного запроса. PDF свыше 2–3 МБ обрабатываются после безопасной загрузки — попробуйте снова. Одиночное изображение сожмите до 5 МБ.',
+        vi: 'Tệp này quá lớn cho một yêu cầu. PDF trên 2–3 MB được xử lý qua đường tải lên an toàn — hãy thử lại. Nếu là ảnh đơn lẻ, hãy nén xuống dưới 5 MB.',
+        id: 'Berkas ini terlalu besar untuk satu permintaan. PDF di atas 2-3 MB diproses lewat unggahan aman — coba lagi. Untuk satu gambar, perkecil ke bawah 5 MB.',
     },
     'common.cancel': {
         en: 'Cancel', ko: '취소', ja: 'キャンセル', zh: '取消',

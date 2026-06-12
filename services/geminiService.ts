@@ -169,17 +169,26 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
 
   const data = await res.json().catch(() => ({})) as { error?: string };
   if (!res.ok) {
-    const msg = data?.error || `Gemini request failed (${res.status})`;
+    const rawMsg = data?.error || `Gemini request failed (${res.status})`;
     void logDiagnosticEvent({
       severity: 'error',
       stage: `api.gemini.${payload.action}.failed`,
       message: 'Gemini proxy request failed',
       model: modelForPayload(payload),
       storagePath: storagePathForPayload(payload),
-      error: { message: msg, status: res.status },
+      error: { message: rawMsg, status: res.status },
       context: summarizeGeminiPayload(payload),
     });
-    throw new Error(msg);
+    // 413 / "Request too large" / "Prompt too large" all mean the body
+    // hit our function cap. PDFs route around it via the storage path,
+    // but a single big raw image (HEIC photo, screenshot) can still
+    // land here. Surface a sentinel so the upload hooks can swap in a
+    // localized 'compress to under 5 MB' message rather than leaking
+    // the raw HTTP code.
+    if (res.status === 413 || /too large/i.test(rawMsg)) {
+      throw new Error('FILE_TOO_LARGE');
+    }
+    throw new Error(rawMsg);
   }
   return data as T;
 }

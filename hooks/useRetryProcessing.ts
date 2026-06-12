@@ -84,9 +84,15 @@ export const useRetryProcessing = () => {
                 }).eq('id', docId).eq('user_id', user.id);
             }
         } catch (err) {
+            // FILE_TOO_LARGE sentinel: callGemini raises it when our 4MB
+            // body cap kicked in (e.g. a single big raw image). Swap in
+            // localized guidance instead of leaking the raw HTTP code.
+            const raw = err instanceof Error ? err.message : '';
             const msg = isPasswordProtectedPdfError(err)
                 ? t('file.passwordProtectedPdf', language)
-                : getErrorMessage(err);
+                : raw === 'FILE_TOO_LARGE'
+                    ? t('file.tooLarge', language)
+                    : getErrorMessage(err);
             dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'error', errorMessage: msg } } });
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {

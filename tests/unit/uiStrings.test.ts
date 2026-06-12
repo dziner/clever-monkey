@@ -32,6 +32,7 @@ const ALL_KEYS: UiKey[] = [
     'quiz.docMissing',
     'file.unsupportedType',
     'file.passwordProtectedPdf',
+    'file.tooLarge',
     'common.cancel',
     'common.close',
     'common.back',
