@@ -70,13 +70,14 @@ interface PdfContentPanelProps {
     isProcessing: boolean;
     processingState: DocumentProcessingState;
     errorMessage?: string | null;
+    canRetryProcessing: boolean;
     onDeleteDocument: () => void;
     onRetryProcessing: () => void;
 }
 
 const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
     file, imageUrl, docId, currentPage, onPageChange,
-    isProcessing, processingState, errorMessage, onDeleteDocument, onRetryProcessing,
+    isProcessing, processingState, errorMessage, canRetryProcessing, onDeleteDocument, onRetryProcessing,
 }) => (
     <React.Fragment>
         {isProcessing && (
@@ -89,13 +90,15 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                 <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
                 <p className="text-red-600 mt-2 max-w-xs">{errorMessage}</p>
                 <div className="mt-5 flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={onRetryProcessing}
-                        className="flex items-center px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 shadow-brand"
-                    >
-                        Retry
-                    </button>
+                    {canRetryProcessing && (
+                        <button
+                            type="button"
+                            onClick={onRetryProcessing}
+                            className="flex items-center px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 shadow-brand"
+                        >
+                            Retry
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={onDeleteDocument}
@@ -231,6 +234,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
 
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
+    const canRetryProcessing = !!activeDocument?.file || !!activeDocument?.storagePath;
 
     useKeyboardShortcuts(
         TAB_ORDER.map((tab, i) => ({
@@ -297,6 +301,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                         isProcessing={isProcessing}
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
+                        canRetryProcessing={canRetryProcessing}
                         onDeleteDocument={handleDeleteDocument}
                         onRetryProcessing={handleRetryProcessing}
                     />
@@ -425,6 +430,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                         isProcessing={isProcessing}
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
+                        canRetryProcessing={canRetryProcessing}
                         onDeleteDocument={handleDeleteDocument}
                         onRetryProcessing={handleRetryProcessing}
                     />

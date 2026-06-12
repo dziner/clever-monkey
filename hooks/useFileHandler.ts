@@ -3,8 +3,16 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
-import { uploadFileToStorage } from '../services/storageUpload';
+import { StorageUploadError, uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
+import { assertPdfCanOpenWithoutPassword, isPasswordProtectedPdfError } from '../utils/pdfPassword';
+import {
+    createDiagnosticErrorInfo,
+    createFileDiagnosticInfo,
+    type DiagnosticEvent,
+    type DiagnosticFileInfo,
+} from '../utils/diagnostics';
+import { logDiagnosticEvent } from '../services/diagnostics';
 import { buildInitialBotMessage } from '../constants';
 import { t } from '../services/uiStrings';
 import { GUEST_LIMITS } from '../types';
@@ -86,15 +94,63 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         const safeBaseName = safeExtensionMatch ? safeFileName.slice(0, -safeExtension.length) : safeFileName;
         const storageName = `${safeBaseName}-${Date.now()}${safeExtension}`;
         const docId = storageName;
+        const storagePath = isGuest ? '' : `${user.id}/${storageName}`;
 
         let targetFolderId: string | null = state.activeFolderId;
         if (!targetFolderId && state.folders.length > 0) {
             targetFolderId = state.folders[0].id;
         }
 
+        const logUploadDiagnostic = (
+            event: Omit<DiagnosticEvent, 'documentId' | 'file' | 'isGuest' | 'storagePath'> & {
+                fileType?: DiagnosticFileInfo['fileType'];
+                storagePath?: string;
+            },
+        ) => {
+            const { fileType: diagnosticFileType, context, ...rest } = event;
+            void logDiagnosticEvent({
+                ...rest,
+                documentId: docId,
+                file: createFileDiagnosticInfo(file, diagnosticFileType),
+                storagePath: (event.storagePath ?? storagePath) || undefined,
+                isGuest,
+                context: {
+                    safeFileName,
+                    storageName,
+                    targetFolderId,
+                    activeFolderId: state.activeFolderId,
+                    ...context,
+                },
+            });
+        };
+
+        logUploadDiagnostic({
+            severity: 'info',
+            stage: 'upload.selected',
+            message: 'File selected for upload',
+        });
+
+        if (userError) {
+            logUploadDiagnostic({
+                severity: 'warn',
+                stage: 'auth.user_lookup_failed',
+                message: 'Supabase user lookup failed before upload',
+                error: createDiagnosticErrorInfo(userError),
+            });
+        }
+
         // ── Guest-specific gating ─────────────────────────────────────────────
         if (isGuest) {
             if (state.documents.length >= GUEST_LIMITS.maxDocuments) {
+                logUploadDiagnostic({
+                    severity: 'warn',
+                    stage: 'upload.rejected.guest_document_limit',
+                    message: 'Guest document count limit reached',
+                    context: {
+                        currentDocumentCount: state.documents.length,
+                        maxDocuments: GUEST_LIMITS.maxDocuments,
+                    },
+                });
                 const errorDoc: DocumentData = {
                     id: docId,
                     file: null,
@@ -116,6 +172,14 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                 return;
             }
             if (file.size > GUEST_LIMITS.maxFileSizeBytes) {
+                logUploadDiagnostic({
+                    severity: 'warn',
+                    stage: 'upload.rejected.guest_file_size',
+                    message: 'Guest file size limit reached',
+                    context: {
+                        maxFileSizeBytes: GUEST_LIMITS.maxFileSizeBytes,
+                    },
+                });
                 const mb = (GUEST_LIMITS.maxFileSizeBytes / (1024 * 1024)).toFixed(0);
                 const errorDoc: DocumentData = {
                     id: docId,
@@ -140,6 +204,11 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         }
 
         if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
+            logUploadDiagnostic({
+                severity: 'warn',
+                stage: 'upload.rejected.unsupported_type',
+                message: 'Unsupported file type rejected',
+            });
             const errorDoc: DocumentData = {
                 id: docId,
                 file: null,
@@ -162,8 +231,53 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         }
 
         const fileType = getFileType(file);
+        logUploadDiagnostic({
+            severity: 'info',
+            stage: 'upload.accepted',
+            message: 'File passed upload validation',
+            fileType,
+        });
+
+        if (fileType === 'pdf') {
+            try {
+                await assertPdfCanOpenWithoutPassword(file);
+            } catch (error) {
+                logUploadDiagnostic({
+                    severity: isPasswordProtectedPdfError(error) ? 'warn' : 'error',
+                    stage: isPasswordProtectedPdfError(error)
+                        ? 'upload.rejected.password_protected_pdf'
+                        : 'upload.pdf_probe_failed',
+                    message: isPasswordProtectedPdfError(error)
+                        ? 'Password-protected PDF rejected by policy'
+                        : 'PDF openability probe failed',
+                    fileType,
+                    error: createDiagnosticErrorInfo(error),
+                });
+                const errorDoc: DocumentData = {
+                    id: docId,
+                    file: null,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType,
+                    summary: '',
+                    chat: null,
+                    chatHistory: [],
+                    processingState: 'error',
+                    errorMessage: isPasswordProtectedPdfError(error)
+                        ? t('file.passwordProtectedPdf', language)
+                        : getErrorMessage(error),
+                    model: 'gemini-2.5-flash',
+                    answerScope: 'document',
+                    monkeyMode: false,
+                    folderId: targetFolderId,
+                    currentPage: 1,
+                };
+                dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                return;
+            }
+        }
+
         const uploadFile = file;
-        const storagePath = isGuest ? '' : `${user.id}/${storageName}`;
 
         const newDoc: DocumentData = {
             id: docId,
@@ -186,6 +300,13 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         };
 
         dispatch({ type: 'ADD_DOCUMENT', payload: newDoc });
+        logUploadDiagnostic({
+            severity: 'info',
+            stage: 'upload.document_created',
+            message: 'Document added to client state',
+            fileType,
+            storagePath,
+        });
 
         // Guests skip the Supabase storage upload + metadata insert entirely.
         // Their document lives in memory only and is processed via the
@@ -193,9 +314,27 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         if (!isGuest) try {
             try {
                 await uploadFileToStorage('docs', storagePath, uploadFile);
+                logUploadDiagnostic({
+                    severity: 'info',
+                    stage: 'upload.storage_completed',
+                    message: 'File uploaded to storage',
+                    fileType,
+                    storagePath,
+                });
             } catch (uploadError) {
                 const errorInfo = uploadError as { status?: number; message?: string };
                 console.error('업로드 실패:', uploadError);
+                logUploadDiagnostic({
+                    severity: 'error',
+                    stage: 'upload.storage_failed',
+                    message: 'Storage upload failed',
+                    fileType,
+                    storagePath,
+                    error: createDiagnosticErrorInfo(uploadError),
+                    context: uploadError instanceof StorageUploadError
+                        ? { storageUpload: uploadError.details }
+                        : undefined,
+                });
                 dispatch({
                     type: 'UPDATE_DOCUMENT',
                     payload: {
@@ -231,6 +370,14 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
 
             if (insertError) {
                 console.error('문서 메타데이터 저장에 실패했습니다:', insertError);
+                logUploadDiagnostic({
+                    severity: 'error',
+                    stage: 'upload.metadata_failed',
+                    message: 'Document metadata insert failed',
+                    fileType,
+                    storagePath,
+                    error: createDiagnosticErrorInfo(insertError),
+                });
                 dispatch({
                     type: 'UPDATE_DOCUMENT',
                     payload: {
@@ -243,8 +390,23 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                 });
                 return;
             }
+            logUploadDiagnostic({
+                severity: 'info',
+                stage: 'upload.metadata_created',
+                message: 'Document metadata inserted',
+                fileType,
+                storagePath,
+            });
         } catch (error) {
             console.error('업로드 처리 중 오류가 발생했습니다:', error);
+            logUploadDiagnostic({
+                severity: 'error',
+                stage: 'upload.pipeline_failed',
+                message: 'Unexpected upload pipeline failure',
+                fileType,
+                storagePath,
+                error: createDiagnosticErrorInfo(error),
+            });
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {
@@ -258,7 +420,9 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             return;
         }
 
+        let lastProcessingState: DocumentProcessingState = 'reading';
         const onProgress = (state: DocumentProcessingState) => {
+            lastProcessingState = state;
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: { docId, updates: { processingState: state } }
@@ -277,6 +441,14 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
 
         try {
             const modelForProcessing: ProcessingModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
+            logUploadDiagnostic({
+                severity: 'info',
+                stage: 'processing.started',
+                message: 'Document processing started',
+                fileType,
+                storagePath,
+                model: modelForProcessing,
+            });
             const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(
                 uploadFile,
                 modelForProcessing,
@@ -299,6 +471,20 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     }
                 }
             });
+            logUploadDiagnostic({
+                severity: 'info',
+                stage: 'processing.completed',
+                message: 'Document processing completed',
+                fileType,
+                storagePath,
+                model: modelForProcessing,
+                context: {
+                    tokenCount,
+                    summaryLength: summary.length,
+                    documentContentLength: documentContent.length,
+                    presetQuestionCount: presetQuestions?.length ?? 0,
+                },
+            });
 
             if (!isGuest) {
                 const { error: updateError } = await supabase
@@ -317,17 +503,39 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
 
                 if (updateError) {
                     console.error('문서 처리 결과 저장에 실패했습니다:', updateError);
+                    logUploadDiagnostic({
+                        severity: 'error',
+                        stage: 'processing.result_update_failed',
+                        message: 'Processed document update failed',
+                        fileType,
+                        storagePath,
+                        model: modelForProcessing,
+                        error: createDiagnosticErrorInfo(updateError),
+                    });
                 }
             }
         } catch (error) {
             console.error('Failed to process document:', error);
+            const errorMessage = isPasswordProtectedPdfError(error)
+                ? t('file.passwordProtectedPdf', language)
+                : getErrorMessage(error);
+            logUploadDiagnostic({
+                severity: 'error',
+                stage: `processing.${lastProcessingState}.failed`,
+                message: 'Document processing failed',
+                fileType,
+                storagePath,
+                model: fileType === 'image' ? 'gemini-flash-latest' : newDoc.model,
+                processingState: lastProcessingState,
+                error: createDiagnosticErrorInfo(error),
+            });
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {
                     docId,
                     updates: {
                         processingState: 'error',
-                        errorMessage: getErrorMessage(error)
+                        errorMessage,
                     }
                 }
             });
@@ -337,7 +545,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     .from('documents')
                     .update({
                         processing_state: 'error',
-                        error_message: getErrorMessage(error),
+                        error_message: errorMessage,
                     })
                     .eq('id', docId)
                     .eq('user_id', user!.id);

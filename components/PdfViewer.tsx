@@ -2,6 +2,8 @@ import * as React from 'react';
 import { Spinner } from './Spinner';
 import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import type { PDFDocumentProxy, PDFPageViewport } from '../types';
+import { isPasswordProtectedPdfError } from '../utils/pdfPassword';
+import { t } from '../services/uiStrings';
 
 interface PdfViewerProps {
     file: File;
@@ -233,7 +235,9 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
                 pageRefs.current = Array(doc.numPages).fill(null);
             } catch (err: unknown) {
                 console.error('Error loading PDF:', err);
-                setError((err as { message?: string }).message || 'Failed to load PDF.');
+                setError(isPasswordProtectedPdfError(err)
+                    ? t('file.passwordProtectedPdf', null)
+                    : (err as { message?: string }).message || 'Failed to load PDF.');
             } finally {
                 setIsLoading(false);
             }

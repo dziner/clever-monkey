@@ -3,7 +3,10 @@ import { getSystemInstruction, buildInitialBotMessage } from '../constants';
 import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 import { languageDirective, allCorrectMessage } from './languageService';
 import { extractPdfTextLocally } from '../utils/pdfText';
+import { isPasswordProtectedPdfError, PasswordProtectedPdfError } from '../utils/pdfPassword';
 import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBudget';
+import { createDiagnosticErrorInfo } from '../utils/diagnostics';
+import { logDiagnosticEvent } from './diagnostics';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
@@ -80,6 +83,58 @@ type GeminiPayload =
 
 import { supabase } from './supabaseClient';
 
+function summarizeGeminiPayload(payload: GeminiPayload): Record<string, unknown> {
+  switch (payload.action) {
+    case 'countTokens':
+      return { action: payload.action, model: payload.model, textLength: payload.text.length };
+    case 'generateContent':
+      return {
+        action: payload.action,
+        model: payload.model,
+        task: payload.task,
+        contentsKind: typeof payload.contents,
+        contentsLength: typeof payload.contents === 'string' ? payload.contents.length : undefined,
+        responseMimeType: (payload.config as { responseMimeType?: string } | undefined)?.responseMimeType,
+      };
+    case 'chat':
+      return {
+        action: payload.action,
+        model: payload.model,
+        historyLength: Array.isArray(payload.history) ? payload.history.length : undefined,
+        messageLength: payload.message.length,
+        hasSystemInstruction: Boolean(payload.systemInstruction),
+      };
+    case 'extractText':
+      {
+        const inlineData = payload.inlineData as { data?: unknown; mimeType?: unknown };
+        return {
+          action: payload.action,
+          model: payload.model,
+          mimeType: typeof inlineData.mimeType === 'string' ? inlineData.mimeType : undefined,
+          inlineDataLength: typeof inlineData.data === 'string' ? inlineData.data.length : undefined,
+        };
+      }
+    case 'extractTextFromStorage':
+      return {
+        action: payload.action,
+        model: payload.model,
+        storagePath: payload.storagePath,
+        mimeType: payload.mimeType,
+        fileName: payload.fileName,
+      };
+    case 'tts':
+      return { action: payload.action, textLength: payload.text.length, voice: payload.voice };
+  }
+}
+
+function modelForPayload(payload: GeminiPayload): string | undefined {
+  return payload.action === 'tts' ? undefined : payload.model;
+}
+
+function storagePathForPayload(payload: GeminiPayload): string | undefined {
+  return payload.action === 'extractTextFromStorage' ? payload.storagePath : undefined;
+}
+
 async function getAuthHeader(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -91,16 +146,39 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (authHeader) headers['authorization'] = authHeader;
 
-  const res = await fetch(GEMINI_PROXY_ENDPOINT, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-    signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch(GEMINI_PROXY_ENDPOINT, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal,
+    });
+  } catch (error) {
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: `api.gemini.${payload.action}.network_failed`,
+      message: 'Gemini proxy network request failed',
+      model: modelForPayload(payload),
+      storagePath: storagePathForPayload(payload),
+      error: createDiagnosticErrorInfo(error),
+      context: summarizeGeminiPayload(payload),
+    });
+    throw error;
+  }
 
   const data = await res.json().catch(() => ({})) as { error?: string };
   if (!res.ok) {
     const msg = data?.error || `Gemini request failed (${res.status})`;
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: `api.gemini.${payload.action}.failed`,
+      message: 'Gemini proxy request failed',
+      model: modelForPayload(payload),
+      storagePath: storagePathForPayload(payload),
+      error: { message: msg, status: res.status },
+      context: summarizeGeminiPayload(payload),
+    });
     throw new Error(msg);
   }
   return data as T;
@@ -136,16 +214,46 @@ async function generateContentStreaming(
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (authHeader) headers['authorization'] = authHeader;
 
-  const res = await fetch(GEMINI_STREAM_ENDPOINT, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ model, contents, config, task }),
-    signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch(GEMINI_STREAM_ENDPOINT, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model, contents, config, task }),
+      signal,
+    });
+  } catch (error) {
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream.network_failed',
+      message: 'Gemini stream network request failed',
+      model,
+      error: createDiagnosticErrorInfo(error),
+      context: {
+        task,
+        contentsKind: typeof contents,
+        contentsLength: typeof contents === 'string' ? contents.length : undefined,
+      },
+    });
+    throw error;
+  }
 
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(data?.error || `Gemini request failed (${res.status})`);
+    const error = new Error(data?.error || `Gemini request failed (${res.status})`);
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream.failed',
+      message: 'Gemini stream request failed before body',
+      model,
+      error: { ...createDiagnosticErrorInfo(error), status: res.status },
+      context: {
+        task,
+        contentsKind: typeof contents,
+        contentsLength: typeof contents === 'string' ? contents.length : undefined,
+      },
+    });
+    throw error;
   }
 
   const reader = res.body.getReader();
@@ -158,14 +266,32 @@ async function generateContentStreaming(
     // Hold back the tail in case the sentinel arrives split across chunks
     const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
     if (errAt >= 0) {
-      throw new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream failed');
+      const error = new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream failed');
+      void logDiagnosticEvent({
+        severity: 'error',
+        stage: 'api.gemini_stream.midstream_failed',
+        message: 'Gemini stream returned an error sentinel',
+        model,
+        error: createDiagnosticErrorInfo(error),
+        context: { task, textReceivedLength: errAt },
+      });
+      throw error;
     }
     onChunk?.(full);
   }
   full += decoder.decode();
   const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
   if (errAt >= 0) {
-    throw new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream failed');
+    const error = new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream failed');
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream.completed_with_error',
+      message: 'Gemini stream completed with an error sentinel',
+      model,
+      error: createDiagnosticErrorInfo(error),
+      context: { task, textReceivedLength: errAt },
+    });
+    throw error;
   }
   return full;
 }
@@ -268,6 +394,7 @@ async function extractTextFromDocument(file: File, model: ProcessingModel, stora
       const localText = await extractPdfTextLocally(file);
       if (localText.trim().length >= 100) return localText;
     } catch (err) {
+      if (isPasswordProtectedPdfError(err)) throw new PasswordProtectedPdfError();
       console.warn('Local PDF text extraction failed; falling back to Gemini OCR', err);
     }
   }

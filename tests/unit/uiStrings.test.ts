@@ -31,6 +31,7 @@ const ALL_KEYS: UiKey[] = [
     'podcast.cancel',
     'quiz.docMissing',
     'file.unsupportedType',
+    'file.passwordProtectedPdf',
     'common.cancel',
     'common.close',
     'common.back',

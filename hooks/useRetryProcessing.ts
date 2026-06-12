@@ -4,6 +4,8 @@ import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { getErrorMessage } from '../utils/errors';
+import { isPasswordProtectedPdfError } from '../utils/pdfPassword';
+import { t } from '../services/uiStrings';
 import type { DocumentProcessingState, ProcessingModel } from '../types';
 
 export const useRetryProcessing = () => {
@@ -82,7 +84,9 @@ export const useRetryProcessing = () => {
                 }).eq('id', docId).eq('user_id', user.id);
             }
         } catch (err) {
-            const msg = getErrorMessage(err);
+            const msg = isPasswordProtectedPdfError(err)
+                ? t('file.passwordProtectedPdf', language)
+                : getErrorMessage(err);
             dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'error', errorMessage: msg } } });
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {

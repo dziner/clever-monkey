@@ -9,13 +9,25 @@ import {
 const RETRYABLE_UPLOAD_STATUSES = new Set([0, 408, 409, 429, 500, 502, 503, 504]);
 const TUS_RETRY_DELAYS_MS = [0, 3000, 5000, 10000, 20000];
 
+export interface StorageUploadErrorDetails {
+    method?: 'standard' | 'tus';
+    phase?: string;
+    attempt?: number;
+    offset?: number;
+    chunkSize?: number;
+    fileSize?: number;
+    endpoint?: string;
+}
+
 export class StorageUploadError extends Error {
     status?: number;
+    details?: StorageUploadErrorDetails;
 
-    constructor(message: string, status?: number) {
+    constructor(message: string, status?: number, details?: StorageUploadErrorDetails) {
         super(message);
         this.name = 'StorageUploadError';
         this.status = status;
+        this.details = details;
     }
 }
 
@@ -32,12 +44,18 @@ function messageFromError(error: unknown): string {
     return candidate?.message ?? candidate?.error ?? 'Storage upload failed';
 }
 
-function toStorageUploadError(error: unknown): StorageUploadError {
-    if (error instanceof StorageUploadError) return error;
-    return new StorageUploadError(messageFromError(error), statusFromError(error));
+function toStorageUploadError(error: unknown, details?: StorageUploadErrorDetails): StorageUploadError {
+    if (error instanceof StorageUploadError) {
+        return new StorageUploadError(error.message, error.status, { ...details, ...error.details });
+    }
+    return new StorageUploadError(messageFromError(error), statusFromError(error), details);
 }
 
-async function responseToUploadError(response: Response, fallbackMessage: string): Promise<StorageUploadError> {
+async function responseToUploadError(
+    response: Response,
+    fallbackMessage: string,
+    details?: StorageUploadErrorDetails,
+): Promise<StorageUploadError> {
     const text = await response.text().catch(() => '');
     let message = text.trim();
     if (message.startsWith('{')) {
@@ -48,12 +66,12 @@ async function responseToUploadError(response: Response, fallbackMessage: string
             // Keep raw text.
         }
     }
-    return new StorageUploadError(message || fallbackMessage, response.status);
+    return new StorageUploadError(message || fallbackMessage, response.status, details);
 }
 
 async function getAccessToken(): Promise<string> {
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw new StorageUploadError(error.message, statusFromError(error));
+    if (error) throw new StorageUploadError(error.message, statusFromError(error), { phase: 'auth_session' });
     const token = data.session?.access_token;
     if (!token) throw new StorageUploadError('로그인이 필요합니다.', 401);
     return token;
@@ -61,7 +79,9 @@ async function getAccessToken(): Promise<string> {
 
 async function uploadWithStandardRequest(bucketName: string, objectName: string, file: File): Promise<void> {
     let uploadError: unknown = null;
+    let finalAttempt = 0;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
+        finalAttempt = attempt;
         const { error } = await supabase.storage
             .from(bucketName)
             .upload(objectName, file, { contentType: file.type || 'application/octet-stream' });
@@ -72,7 +92,12 @@ async function uploadWithStandardRequest(bucketName: string, objectName: string,
         if (!RETRYABLE_UPLOAD_STATUSES.has(status) || attempt === 3) break;
         await new Promise(resolve => setTimeout(resolve, 400 * attempt));
     }
-    throw toStorageUploadError(uploadError);
+    throw toStorageUploadError(uploadError, {
+        method: 'standard',
+        phase: 'standard_request',
+        attempt: finalAttempt,
+        fileSize: file.size,
+    });
 }
 
 async function createTusUpload(
@@ -98,12 +123,22 @@ async function createTusUpload(
     });
 
     if (!response.ok) {
-        throw await responseToUploadError(response, '대용량 업로드를 시작하지 못했습니다.');
+        throw await responseToUploadError(response, '대용량 업로드를 시작하지 못했습니다.', {
+            method: 'tus',
+            phase: 'create',
+            fileSize: file.size,
+            endpoint,
+        });
     }
 
     const location = response.headers.get('location');
     if (!location) {
-        throw new StorageUploadError('대용량 업로드 URL을 받지 못했습니다.', 0);
+        throw new StorageUploadError('대용량 업로드 URL을 받지 못했습니다.', 0, {
+            method: 'tus',
+            phase: 'create',
+            fileSize: file.size,
+            endpoint,
+        });
     }
 
     return new URL(location, endpoint).toString();
@@ -119,12 +154,18 @@ async function readTusOffset(uploadUrl: string, token: string): Promise<number> 
     });
 
     if (!response.ok) {
-        throw await responseToUploadError(response, '대용량 업로드 위치를 확인하지 못했습니다.');
+        throw await responseToUploadError(response, '대용량 업로드 위치를 확인하지 못했습니다.', {
+            method: 'tus',
+            phase: 'head_offset',
+        });
     }
 
     const offset = Number(response.headers.get('upload-offset') ?? 0);
     if (!Number.isFinite(offset) || offset < 0) {
-        throw new StorageUploadError('대용량 업로드 위치가 올바르지 않습니다.', 0);
+        throw new StorageUploadError('대용량 업로드 위치가 올바르지 않습니다.', 0, {
+            method: 'tus',
+            phase: 'head_offset',
+        });
     }
     return offset;
 }
@@ -147,12 +188,24 @@ async function patchTusChunk(uploadUrl: string, token: string, file: File, offse
     }
 
     if (!response.ok) {
-        throw await responseToUploadError(response, '대용량 파일 조각 업로드에 실패했습니다.');
+        throw await responseToUploadError(response, '대용량 파일 조각 업로드에 실패했습니다.', {
+            method: 'tus',
+            phase: 'patch_chunk',
+            offset,
+            chunkSize: chunk.size,
+            fileSize: file.size,
+        });
     }
 
     const nextOffset = Number(response.headers.get('upload-offset') ?? offset + chunk.size);
     if (!Number.isFinite(nextOffset) || nextOffset < offset) {
-        throw new StorageUploadError('대용량 업로드 진행 상태가 올바르지 않습니다.', 0);
+        throw new StorageUploadError('대용량 업로드 진행 상태가 올바르지 않습니다.', 0, {
+            method: 'tus',
+            phase: 'patch_offset',
+            offset,
+            chunkSize: chunk.size,
+            fileSize: file.size,
+        });
     }
     return nextOffset;
 }
@@ -184,7 +237,14 @@ async function uploadWithTus(bucketName: string, objectName: string, file: File)
             }
         }
 
-        if (!uploaded) throw toStorageUploadError(lastError);
+        if (!uploaded) {
+            throw toStorageUploadError(lastError, {
+                method: 'tus',
+                phase: 'chunk_retry_exhausted',
+                offset,
+                fileSize: file.size,
+            });
+        }
     }
 }
 

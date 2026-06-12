@@ -38,6 +38,7 @@ export type UiKey =
     | 'quiz.docMissing'
     // File handler
     | 'file.unsupportedType'
+    | 'file.passwordProtectedPdf'
     // Common actions
     | 'common.cancel'
     | 'common.close'
@@ -349,6 +350,19 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         ru: 'Неподдерживаемый тип файла. Загрузите PDF, изображение, текст или Markdown.',
         vi: 'Loại tệp không được hỗ trợ. Hãy tải lên PDF, hình ảnh, văn bản hoặc Markdown.',
         id: 'Tipe berkas tidak didukung. Unggah PDF, gambar, teks, atau Markdown.',
+    },
+    'file.passwordProtectedPdf': {
+        en: 'Password-protected PDFs are not supported. Remove the password and upload the PDF again.',
+        ko: '암호로 보호된 PDF는 지원하지 않아요. 암호를 제거한 PDF를 다시 업로드해 주세요.',
+        ja: 'パスワード付き PDF はサポートしていません。パスワードを解除してから再度アップロードしてください。',
+        zh: '不支持受密码保护的 PDF。请移除密码后重新上传。',
+        es: 'No se admiten PDF protegidos con contraseña. Quita la contraseña y vuelve a subir el PDF.',
+        fr: 'Les PDF protégés par mot de passe ne sont pas pris en charge. Retire le mot de passe puis téléverse à nouveau le PDF.',
+        de: 'Passwortgeschützte PDFs werden nicht unterstützt. Entferne das Passwort und lade die PDF erneut hoch.',
+        pt: 'PDFs protegidos por senha não são suportados. Remova a senha e envie o PDF novamente.',
+        ru: 'PDF с паролем не поддерживаются. Удалите пароль и загрузите PDF снова.',
+        vi: 'Không hỗ trợ PDF có mật khẩu. Hãy bỏ mật khẩu rồi tải PDF lên lại.',
+        id: 'PDF yang dilindungi kata sandi tidak didukung. Hapus kata sandi lalu unggah PDF lagi.',
     },
     'common.cancel': {
         en: 'Cancel', ko: '취소', ja: 'キャンセル', zh: '取消',

@@ -1,3 +1,5 @@
+import { isPasswordProtectedPdfError, PasswordProtectedPdfError } from './pdfPassword';
+
 // Extract a PDF's text layer entirely client-side using pdf.js (already
 // loaded as window.pdfjsLib for the viewer). Text-based PDFs — the common
 // case — extract instantly and locally, so we avoid shipping the whole
@@ -15,7 +17,13 @@ export async function extractPdfTextLocally(file: File): Promise<string> {
     if (!pdfjsLib?.getDocument) return '';
 
     const arrayBuffer = await file.arrayBuffer();
-    const doc = await pdfjsLib.getDocument(arrayBuffer).promise;
+    let doc: PdfDoc;
+    try {
+        doc = await pdfjsLib.getDocument(arrayBuffer).promise;
+    } catch (error) {
+        if (isPasswordProtectedPdfError(error)) throw new PasswordProtectedPdfError();
+        throw error;
+    }
     try {
         const pages: string[] = [];
         for (let i = 1; i <= doc.numPages; i++) {
