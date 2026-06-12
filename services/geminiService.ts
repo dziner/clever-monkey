@@ -7,6 +7,7 @@ import { isPasswordProtectedPdfError, PasswordProtectedPdfError } from '../utils
 import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBudget';
 import { createDiagnosticErrorInfo } from '../utils/diagnostics';
 import { logDiagnosticEvent } from './diagnostics';
+import { normalizePodcastScriptForSingleNarrator, splitTextForTts } from '../utils/podcastAudio';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
@@ -725,43 +726,31 @@ function pcmToWavBlob(pcm: Uint8Array, sampleRate = 24000): Blob {
   return new Blob([wav], { type: 'audio/wav' });
 }
 
-function splitIntoChunks(text: string): string[] {
-  // Split on blank lines first; fall back to sentence grouping
-  const byPara = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
-  if (byPara.length >= 2) return byPara;
-  const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
-  const size = Math.ceil(sentences.length / 4);
-  const chunks: string[] = [];
-  for (let i = 0; i < sentences.length; i += size) {
-    chunks.push(sentences.slice(i, i + size).join(' ').trim());
-  }
-  return chunks.filter(Boolean);
-}
-
 export async function synthesizeSpeech(
   text: string,
   voice: string,
   onProgress: (done: number, total: number) => void,
   signal?: AbortSignal
 ): Promise<Blob> {
-  const chunks = splitIntoChunks(text);
+  const chunks = splitTextForTts(normalizePodcastScriptForSingleNarrator(text));
+  if (chunks.length === 0) {
+    throw new Error('No text available for speech synthesis.');
+  }
 
-  // Chunks are independent, so synthesize them concurrently — with the
-  // server-side key pool they fan out across API keys, cutting podcast
-  // audio generation from sum-of-chunks to roughly the slowest chunk.
-  // Order is preserved by index; progress counts completions.
+  // Prefer one TTS request whenever the script fits the limit. Independent
+  // chunk requests can make the same selected voice sound inconsistent across
+  // segment boundaries, which feels like multiple speakers.
   let completed = 0;
-  const pcmBuffers = await Promise.all(
-    chunks.map(async (chunk) => {
-      const data = await callGemini<{ audioData: string; mimeType: string }>({
-        action: 'tts',
-        text: chunk,
-        voice,
-      }, signal);
-      onProgress(++completed, chunks.length);
-      return Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0));
-    }),
-  );
+  const pcmBuffers: Uint8Array[] = [];
+  for (const chunk of chunks) {
+    const data = await callGemini<{ audioData: string; mimeType: string }>({
+      action: 'tts',
+      text: chunk,
+      voice,
+    }, signal);
+    pcmBuffers.push(Uint8Array.from(atob(data.audioData), c => c.charCodeAt(0)));
+    onProgress(++completed, chunks.length);
+  }
 
   // Concatenate PCM buffers, add 480-sample silence between chunks
   const silence = new Uint8Array(480 * 2); // 20ms @ 24kHz, 16-bit
@@ -789,7 +778,7 @@ export async function generatePodcastScript(
 ): Promise<string> {
   const trimmedInstructions = instructions?.trim();
   const instructionBlock = trimmedInstructions
-    ? `\nUSER DIRECTION (follow this exactly — it OVERRIDES the default length):
+    ? `\nUSER DIRECTION (follow scope, tone, emphasis, and length requests; it must NOT override the one-narrator format):
 """
 ${trimmedInstructions}
 """\n`
@@ -809,7 +798,9 @@ Rules:
 - Explain concepts clearly — assume the listener hasn't read the document.
 - Close with a 2-sentence recap and sign-off.
 - Length: about 300 words by default. If the USER DIRECTION specifies a duration (e.g. "30 seconds") or word count, follow that instead — use ~100 words per 30 seconds of audio as a guide.
-- Plain prose only — absolutely no markdown, no headers, no bullet points.
+- One narrator only. Do not write host/guest dialogue, panel discussions, interviews, speaker labels, role names, stage directions, or back-and-forth turns.
+- If the USER DIRECTION asks for multiple speakers or a dialogue format, convert that request into a single-narrator explanation while preserving the requested topic, tone, and length.
+- Plain prose only — absolutely no markdown, no headers, no bullet points, no speaker labels.
 - ALWAYS finish the closing sentence with proper punctuation; never end mid-sentence.
 
 ${languageDirective(language)}

@@ -20,7 +20,7 @@ interface PodcastTabProps {
   document: DocumentData;
 }
 
-const DIRECTION_PLACEHOLDER = '예: 챕터 5~7의 범위만을 대상으로, 진행자와 패널의 대화 같은 형식으로 생성해 주세요.';
+const DIRECTION_PLACEHOLDER = '예: 챕터 5~7만 대상으로, 시험 전 복습용 2분 내레이션으로 차분하게 설명해 주세요.';
 
 export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
@@ -164,7 +164,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               className="w-full resize-none rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-700 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
             />
             <p className="mt-1.5 text-xs text-ink-400">
-              범위·형식·말투 등 원하는 방향을 적어주세요. 비워두면 기본 형식으로 생성됩니다.
+              범위·길이·말투 등 원하는 방향을 적어주세요. 오디오는 선택한 하나의 보이스로 낭독됩니다.
             </p>
           </div>
         )}
@@ -182,7 +182,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
           <div className="text-center text-ink-400 max-w-xs mx-auto mt-8">
             <HeadphonesIcon className="text-6xl mb-4 opacity-20" />
             <p className="font-semibold text-ink-700 mb-1">Generate a podcast</p>
-            <p className="text-sm">Generate a script, pick a voice, then synthesize real AI audio.</p>
+            <p className="text-sm">Generate a single-narrator script, pick a voice, then synthesize real AI audio.</p>
           </div>
         ) : (
           <>

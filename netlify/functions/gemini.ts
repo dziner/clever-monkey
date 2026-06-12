@@ -100,6 +100,17 @@ interface TtsGenerateContentResponse {
   }>;
 }
 
+function buildSingleNarratorTtsPrompt(text: string): string {
+  return `Read the script below as one consistent narrator using exactly one voice.
+Do not perform multiple speakers, character voices, interviews, panels, or dialogue voice-switching.
+Do not read speaker labels or stage directions.
+
+SCRIPT:
+"""
+${text}
+"""`;
+}
+
 async function wait(ms: number): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -342,7 +353,7 @@ export const handler: Handler = async (event) => {
       const res = await callWithKeyRotation(ai =>
         withRetry(() => ai.models.generateContent({
           model: 'gemini-2.5-flash-preview-tts',
-          contents: [{ parts: [{ text: parsed.text }] }],
+          contents: [{ parts: [{ text: buildSingleNarratorTtsPrompt(parsed.text) }] }],
           config: {
             responseModalities: ['AUDIO'],
             speechConfig: {
