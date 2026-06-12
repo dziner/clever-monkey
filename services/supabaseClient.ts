@@ -19,6 +19,7 @@ if (!hasSupabaseUrl || !hasSupabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabaseProjectUrl = supabaseUrl
 
 export const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({

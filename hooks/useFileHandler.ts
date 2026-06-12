@@ -3,10 +3,10 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
+import { uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
 import { buildInitialBotMessage } from '../constants';
 import { t } from '../services/uiStrings';
-import { maybeCompressPdf } from '../utils/pdfCompression';
 import { GUEST_LIMITS } from '../types';
 import type { DocumentData, DocumentProcessingState, ProcessingModel } from '../types';
 
@@ -20,8 +20,6 @@ const SUPPORTED_MIME_TYPES = [
     'text/plain',
     'text/markdown',
 ];
-
-const RETRYABLE_UPLOAD_STATUSES = new Set([0, 408, 409, 429, 500, 502, 503, 504]);
 
 const sanitizeFileName = (name: string) => {
     const extensionMatch = name.match(/\.([a-zA-Z0-9]+)$/);
@@ -164,9 +162,9 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         }
 
         const fileType = getFileType(file);
-        const { file: uploadFile } = await maybeCompressPdf(file);
+        const uploadFile = file;
         const storagePath = isGuest ? '' : `${user.id}/${storageName}`;
-        
+
         const newDoc: DocumentData = {
             id: docId,
             file: uploadFile,
@@ -193,24 +191,10 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         // Their document lives in memory only and is processed via the
         // unauthenticated Gemini path (IP-rate-limited by the Netlify proxy).
         if (!isGuest) try {
-            let uploadError: { status?: number; message?: string } | null = null;
-            for (let attempt = 1; attempt <= 3; attempt += 1) {
-                const { error } = await supabase.storage
-                    .from('docs')
-                    .upload(storagePath, uploadFile, { contentType: uploadFile.type });
-                if (!error) {
-                    uploadError = null;
-                    break;
-                }
-                uploadError = error;
-                const status = (error as { status?: number }).status ?? 0;
-                if (!RETRYABLE_UPLOAD_STATUSES.has(status) || attempt === 3) {
-                    break;
-                }
-                await new Promise(resolve => setTimeout(resolve, 400 * attempt));
-            }
-
-            if (uploadError) {
+            try {
+                await uploadFileToStorage('docs', storagePath, uploadFile);
+            } catch (uploadError) {
+                const errorInfo = uploadError as { status?: number; message?: string };
                 console.error('업로드 실패:', uploadError);
                 dispatch({
                     type: 'UPDATE_DOCUMENT',
@@ -218,7 +202,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                         docId,
                         updates: {
                             processingState: 'error',
-                            errorMessage: getUploadErrorMessage(uploadError)
+                            errorMessage: getUploadErrorMessage(errorInfo)
                         }
                     }
                 });
@@ -273,7 +257,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             });
             return;
         }
-        
+
         const onProgress = (state: DocumentProcessingState) => {
             dispatch({
                 type: 'UPDATE_DOCUMENT',
@@ -293,7 +277,14 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
 
         try {
             const modelForProcessing: ProcessingModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(uploadFile, modelForProcessing, onProgress, language, onSummaryChunk);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(
+                uploadFile,
+                modelForProcessing,
+                onProgress,
+                language,
+                onSummaryChunk,
+                storagePath || undefined,
+            );
             dispatch({
                 type: 'UPDATE_DOCUMENT',
                 payload: {

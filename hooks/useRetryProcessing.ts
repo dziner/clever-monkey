@@ -56,7 +56,14 @@ export const useRetryProcessing = () => {
 
         try {
             const model: ProcessingModel = doc.fileType === 'image' ? 'gemini-flash-latest' : doc.model as ProcessingModel;
-            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(file, model, onProgress, language, onSummaryChunk);
+            const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(
+                file,
+                model,
+                onProgress,
+                language,
+                onSummaryChunk,
+                doc.storagePath,
+            );
 
             dispatch({
                 type: 'UPDATE_DOCUMENT',

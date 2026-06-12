@@ -54,6 +54,7 @@ export function sampleEvenly(content: string, maxChars: number): string {
 // handful of preset questions gains nothing from 250k chars of input,
 // while quiz generation must still see enough to spread questions evenly.
 export const CONTENT_BUDGET = {
+    documentContent: 250_000, // persisted chat grounding; keeps API/DB payloads bounded
     summary: 200_000,        // full-document fidelity is the point
     presetQuestions: 20_000, // 3-4 questions; an even sample is plenty
     quiz: 120_000,

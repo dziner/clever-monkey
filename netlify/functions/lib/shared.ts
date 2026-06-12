@@ -264,7 +264,7 @@ export function tooManyRequestsByIp(ip: string): boolean {
 }
 
 // Actions that consume a daily AI credit (countTokens is free)
-export const COUNTED_ACTIONS = new Set(['generateContent', 'chat', 'extractText', 'tts']);
+export const COUNTED_ACTIONS = new Set(['generateContent', 'chat', 'extractText', 'extractTextFromStorage', 'tts']);
 
 export const ALLOWED_MODELS = new Set(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-flash-latest']);
 
@@ -303,6 +303,43 @@ export async function checkTierLimit(userId: string): Promise<{ allowed: boolean
   } catch {
     return { allowed: true }; // fail open on network errors
   }
+}
+
+export async function downloadStorageObjectForUser(
+  userId: string,
+  storagePath: string,
+  bucketName = 'docs',
+): Promise<{ blob: Blob; contentType: string; size: number }> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    throw Object.assign(new Error('Server missing Supabase service credentials'), { status: 500 });
+  }
+
+  if (!storagePath || !storagePath.startsWith(`${userId}/`)) {
+    throw Object.assign(new Error('Storage path is not owned by the authenticated user'), { status: 403 });
+  }
+
+  const encodedPath = storagePath.split('/').map(encodeURIComponent).join('/');
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucketName}/${encodedPath}`, {
+    headers: {
+      apikey: SUPABASE_SERVICE_KEY,
+      authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw Object.assign(
+      new Error(detail || `Storage download failed (${response.status})`),
+      { status: response.status },
+    );
+  }
+
+  const blob = await response.blob();
+  return {
+    blob,
+    contentType: response.headers.get('content-type') || 'application/octet-stream',
+    size: blob.size,
+  };
 }
 
 /**

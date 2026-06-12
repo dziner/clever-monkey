@@ -75,6 +75,7 @@ type GeminiPayload =
   | { action: 'generateContent'; model: string; contents: unknown; config?: unknown; task?: string }
   | { action: 'chat'; model: string; systemInstruction: string; history: unknown; message: string }
   | { action: 'extractText'; model: string; inlineData: unknown }
+  | { action: 'extractTextFromStorage'; model: string; storagePath: string; mimeType: string; fileName: string }
   | { action: 'tts'; text: string; voice: string };
 
 import { supabase } from './supabaseClient';
@@ -190,13 +191,14 @@ async function sendChatMessage(params: {
       role: msg.sender === 'user' ? ('user' as const) : ('model' as const),
       parts: [{ text: msg.text }],
     }));
+  const documentContentForChat = sampleEvenly(params.documentContent, CONTENT_BUDGET.documentContent);
 
   const history = [
     {
       role: 'user' as const,
       parts: [
         {
-          text: `Here is the document I've uploaded. All of your answers must be based on this content. DOCUMENT CONTENT:\n"""${params.documentContent}"""`,
+          text: `Here is the document I've uploaded. All of your answers must be based on this content. DOCUMENT CONTENT:\n"""${documentContentForChat}"""`,
         },
       ],
     },
@@ -226,6 +228,8 @@ interface InlineDataPart {
   };
 }
 
+const INLINE_TEXT_EXTRACTION_LIMIT_BYTES = 2.5 * 1024 * 1024;
+
 async function fileToGenerativePart(file: File): Promise<InlineDataPart> {
   const base64EncodedData = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -249,7 +253,7 @@ async function fileToGenerativePart(file: File): Promise<InlineDataPart> {
   };
 }
 
-async function extractTextFromDocument(file: File, model: ProcessingModel): Promise<string> {
+async function extractTextFromDocument(file: File, model: ProcessingModel, storagePath?: string): Promise<string> {
   if (file.type === 'text/plain' || file.type === 'text/markdown') {
     return await file.text();
   }
@@ -268,8 +272,22 @@ async function extractTextFromDocument(file: File, model: ProcessingModel): Prom
     }
   }
 
-  const documentPart = await fileToGenerativePart(file);
+  if (storagePath && file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {
+    const data = await callGemini<{ text: string }>({
+      action: 'extractTextFromStorage',
+      model,
+      storagePath,
+      mimeType: file.type || 'application/octet-stream',
+      fileName: file.name,
+    });
+    return data.text;
+  }
 
+  if (file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {
+    throw new Error('Large scanned PDFs and images require sign-in so the file can be processed securely after upload.');
+  }
+
+  const documentPart = await fileToGenerativePart(file);
   const data = await callGemini<{ text: string }>({
     action: 'extractText',
     model,
@@ -284,18 +302,20 @@ export async function processDocument(
   model: ProcessingModel,
   onProgress: (state: DocumentProcessingState) => void,
   language?: string | null,
-  onSummaryChunk?: (partialSummary: string) => void
+  onSummaryChunk?: (partialSummary: string) => void,
+  storagePath?: string,
 ): Promise<{ summary: string; presetQuestions: string[]; chat: null; documentContent: string; tokenCount: number }> {
   onProgress('reading');
-  const documentContent = await extractTextFromDocument(file, model);
+  const extractedContent = await extractTextFromDocument(file, model, storagePath);
 
-  if (!documentContent.trim()) {
+  if (!extractedContent.trim()) {
     throw new Error('Could not extract any text from the document. It might be empty, contain only images, or be unreadable.');
   }
 
   // Token count is a display-only number — estimate it locally instead of
   // spending an API round-trip on it.
-  const tokenCount = estimateTokens(documentContent);
+  const tokenCount = estimateTokens(extractedContent);
+  const documentContent = sampleEvenly(extractedContent, CONTENT_BUDGET.documentContent);
   const langDir = languageDirective(language);
 
   const summaryPrompt = `Based on the following document, provide a comprehensive, well-structured summary. Use Markdown for formatting (headings, lists, bold text) to make it clear and easy to read.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.summary)}\n"""`;

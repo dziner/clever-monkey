@@ -1,4 +1,5 @@
 import type { Handler } from '@netlify/functions';
+import { createPartFromUri } from '@google/genai';
 import {
   keyPool,
   callWithKeyRotation,
@@ -9,6 +10,7 @@ import {
   getUserIdFromToken,
   checkTierLimit,
   tooManyRequestsByIp,
+  downloadStorageObjectForUser,
   COUNTED_ACTIONS,
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
@@ -20,6 +22,9 @@ import { routedGenerate } from './lib/router';
 // (gemini-stream.ts) share one implementation.
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024; // 4MB
+const GEMINI_PDF_FILE_LIMIT_BYTES = 50 * 1024 * 1024;
+const FILE_PROCESSING_POLL_MS = 5000;
+const FILE_PROCESSING_MAX_POLLS = 24;
 
 function json(statusCode: number, body: any, extraHeaders?: Record<string, string>) {
   return {
@@ -60,10 +65,95 @@ type GeminiRequest =
       prompt?: string;
     }
   | {
+      action: 'extractTextFromStorage';
+      model: string;
+      storagePath: string;
+      mimeType: string;
+      fileName: string;
+      prompt?: string;
+    }
+  | {
       action: 'tts';
       text: string;
       voice?: string;
     };
+
+function errorStatus(err: unknown): number | null {
+  const status = (err as { status?: number; statusCode?: number } | null)?.status
+    ?? (err as { status?: number; statusCode?: number } | null)?.statusCode;
+  return typeof status === 'number' && status >= 400 && status <= 599 ? status : null;
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function extractTextViaFilesApi(params: {
+  userId: string;
+  storagePath: string;
+  model: string;
+  mimeType: string;
+  fileName: string;
+  prompt?: string;
+}): Promise<string> {
+  const storedFile = await downloadStorageObjectForUser(params.userId, params.storagePath);
+  const mimeType = params.mimeType && params.mimeType !== 'application/octet-stream'
+    ? params.mimeType
+    : storedFile.contentType || 'application/octet-stream';
+  const isPdf = mimeType === 'application/pdf' || params.fileName.toLowerCase().endsWith('.pdf');
+
+  if (isPdf && storedFile.size > GEMINI_PDF_FILE_LIMIT_BYTES) {
+    throw Object.assign(
+      new Error('Gemini can process scanned/image PDFs up to 50MB. For larger PDFs, use a text-based PDF or split the file.'),
+      { status: 413 },
+    );
+  }
+
+  const prompt = params.prompt ||
+    'Extract all text from this document. Respond with only the text content. If there is no text, return an empty string.';
+
+  return callWithKeyRotation(async ai => {
+    const uploadedFile = await ai.files.upload({
+      file: storedFile.blob,
+      config: {
+        mimeType,
+        displayName: params.fileName,
+      },
+    });
+    const uploadedFileName = uploadedFile.name;
+    if (!uploadedFileName) {
+      throw new Error('Gemini did not return an uploaded file name.');
+    }
+
+    try {
+      let currentFile = uploadedFile;
+      for (let i = 0; currentFile.state === 'PROCESSING' && i < FILE_PROCESSING_MAX_POLLS; i += 1) {
+        await wait(FILE_PROCESSING_POLL_MS);
+        currentFile = await ai.files.get({ name: uploadedFileName });
+      }
+
+      if (currentFile.state === 'PROCESSING') {
+        throw new Error('File processing is taking too long. Please try again shortly.');
+      }
+      if (currentFile.state === 'FAILED') {
+        throw new Error('Gemini failed to process this file.');
+      }
+      if (!currentFile.uri) {
+        throw new Error('Gemini did not return a processed file URI.');
+      }
+
+      const filePart = createPartFromUri(currentFile.uri, currentFile.mimeType || mimeType);
+      const res = await withRetry(() => ai.models.generateContent({
+        model: params.model,
+        contents: [filePart, { text: prompt }],
+      }));
+
+      return (res as { text?: string }).text ?? '';
+    } finally {
+      await ai.files.delete({ name: uploadedFileName }).catch(() => undefined);
+    }
+  });
+}
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -199,6 +289,30 @@ export const handler: Handler = async (event) => {
       return json(200, { text });
     }
 
+    if (parsed.action === 'extractTextFromStorage') {
+      if (!userId) {
+        return json(401, { error: 'Authentication required for large file processing' });
+      }
+      if (!parsed.storagePath || !parsed.mimeType || !parsed.fileName) {
+        return json(400, { error: 'Missing storage file metadata' });
+      }
+
+      const text = await extractTextViaFilesApi({
+        userId,
+        storagePath: parsed.storagePath,
+        model,
+        mimeType: parsed.mimeType,
+        fileName: parsed.fileName,
+        prompt: parsed.prompt,
+      });
+
+      if (text.length > MAX_TEXT_CHARS) {
+        return json(200, { text: text.slice(0, MAX_TEXT_CHARS) });
+      }
+
+      return json(200, { text });
+    }
+
     if (parsed.action === 'tts') {
       if (typeof parsed.text !== 'string' || parsed.text.length === 0 || parsed.text.length > 5000) {
         return json(400, { error: 'TTS text must be 1–5000 characters' });
@@ -242,7 +356,7 @@ export const handler: Handler = async (event) => {
     // If the upstream model returned 5xx after our retries, surface a
     // 503 so the client can show a friendlier "retry shortly" message
     // instead of treating it like a server bug on our side.
-    const status = isTransient(err) ? 503 : 500;
+    const status = errorStatus(err) ?? (isTransient(err) ? 503 : 500);
     return json(status, { error: message });
   }
 };
