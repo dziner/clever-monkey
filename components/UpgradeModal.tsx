@@ -32,14 +32,25 @@ const REASON_COPY = {
 
 export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, reason = 'generic' }) => {
     const copy = REASON_COPY[reason];
+
+    React.useEffect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => { document.body.style.overflow = previousOverflow; };
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-end justify-center p-3 sm:items-center sm:p-4">
+        <div
+            className="fixed inset-0 z-[300] flex items-end justify-center overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+            style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
             <div className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-            <div className="relative bg-white rounded-t-3xl sm:rounded-2xl shadow-sheet w-full max-w-md max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto animate-scale-in">
+            <div className="relative my-auto flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-sheet animate-scale-in max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl">
                 {/* Header */}
-                <div className="relative bg-ink-900 px-5 pt-6 pb-6 sm:px-7 sm:pt-8 sm:pb-7 text-white overflow-hidden">
+                <div className="relative flex-shrink-0 bg-ink-900 px-5 pb-6 pt-6 text-white overflow-hidden sm:px-7 sm:pb-7 sm:pt-8">
                     <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-500/30 rounded-full blur-3xl pointer-events-none" />
                     <button
                         type="button"
@@ -59,7 +70,10 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
                 </div>
 
                 {/* Features */}
-                <div className="px-5 py-5 sm:px-7 sm:py-6">
+                <div
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-7 sm:py-6"
+                    style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                >
                     <p className="text-[11px] font-bold text-ink-400 uppercase tracking-[0.14em] mb-3">Pro 플랜 혜택</p>
                     <ul className="space-y-2.5">
                         {PRO_FEATURES.map(f => (

@@ -41,10 +41,20 @@ export const Modal: React.FC<ModalProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, dismissible, onClose]);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-end justify-center p-3 sm:items-center sm:p-4" style={{ zIndex }}>
+    <div
+      className="fixed inset-0 flex items-end justify-center overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+      style={{ zIndex, WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+    >
       <div
         className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm animate-fade-in"
         onClick={dismissible ? onClose : undefined}
@@ -54,8 +64,8 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         className={[
-          'relative w-full bg-white rounded-t-3xl sm:rounded-2xl shadow-sheet',
-          'max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto animate-scale-in',
+          'relative my-auto flex min-h-0 w-full flex-col bg-white rounded-t-3xl sm:rounded-2xl shadow-sheet',
+          'max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh_-_2rem)] overflow-hidden animate-scale-in',
           SIZE_CLS[size],
         ].join(' ')}
       >
@@ -76,7 +86,12 @@ export const Modal: React.FC<ModalProps> = ({
             )}
           </div>
         )}
-        <div className="px-5 pb-5 pt-3 sm:px-7 sm:pb-7">{children}</div>
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-7"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
+          {children}
+        </div>
         {footer && <div className="px-5 pb-5 -mt-2 sm:px-7 sm:pb-7 sm:-mt-3">{footer}</div>}
       </div>
     </div>

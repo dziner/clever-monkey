@@ -143,8 +143,8 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ isOpen, onClose 
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="tour-title"
-                style={cardStyle}
-                className="bg-white rounded-2xl shadow-sheet p-4 sm:p-5 animate-scale-in overflow-y-auto"
+                style={{ ...cardStyle, WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+                className="overflow-y-auto overscroll-contain rounded-2xl bg-white p-4 shadow-sheet animate-scale-in sm:p-5"
             >
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-600 mb-1">{progress}</p>
                 <h3 id="tour-title" className="text-base font-bold text-ink-900 mb-1.5 break-keep">

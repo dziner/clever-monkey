@@ -45,8 +45,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="md" zIndex={100}>
-            <div className="-mx-7 -mt-3 px-7 pb-2 text-center">
-                <div className="mx-auto w-20 h-20 mb-4">
+            <div className="-mx-5 -mt-2 px-5 pb-1 text-center sm:-mx-7 sm:-mt-3 sm:px-7 sm:pb-2">
+                <div className="mx-auto mb-3 h-16 w-16 sm:mb-4 sm:h-20 sm:w-20">
                     <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
                 <h2 className="text-display-lg">
@@ -57,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                 </p>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-3 sm:mt-4">
                 <Button
                     type="button"
                     variant="outline"
@@ -69,7 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                     Google로 계속하기
                 </Button>
 
-                <div className="relative my-5">
+                <div className="relative my-4 sm:my-5">
                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-ink-200" /></div>
                     <div className="relative flex justify-center text-[10px] uppercase tracking-[0.16em]">
                         <span className="bg-white px-3 text-ink-400 font-bold">or with email</span>
@@ -112,7 +112,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
                     </Button>
                 </form>
 
-                <p className="mt-5 text-center text-sm text-ink-500">
+                <p className="mt-4 text-center text-sm text-ink-500 sm:mt-5">
                     {mode === 'login' ? '아직 계정이 없으신가요?' : '이미 계정이 있으신가요?'}{' '}
                     <button
                         type="button"

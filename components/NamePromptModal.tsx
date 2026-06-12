@@ -39,8 +39,8 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onSave
 
     return (
         <Modal isOpen={isOpen} onClose={() => { /* mandatory */ }} dismissible={false} size="md" zIndex={110}>
-            <div className="-mx-7 -mt-3 px-7 pb-2 text-center">
-                <div className="mx-auto w-20 h-20 mb-4">
+            <div className="-mx-5 -mt-2 px-5 pb-1 text-center sm:-mx-7 sm:-mt-3 sm:px-7 sm:pb-2">
+                <div className="mx-auto mb-3 h-16 w-16 sm:mb-4 sm:h-20 sm:w-20">
                     <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
                 <h2 className="text-display-lg">반갑습니다 👋</h2>

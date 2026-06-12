@@ -216,6 +216,12 @@ const GenerateModal: React.FC<{
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    const previousOverflow = window.document.body.style.overflow;
+    window.document.body.style.overflow = 'hidden';
+    return () => { window.document.body.style.overflow = previousOverflow; };
+  }, []);
+
   const handleGenerate = async () => {
     if (!document.documentContent) { setError('문서 내용을 불러올 수 없습니다.'); return; }
     setError(null);
@@ -234,15 +240,21 @@ const GenerateModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sheet w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-5 border-b border-ink-100 flex items-center justify-between">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+      style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+    >
+      <div className="my-auto flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-sheet max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-ink-100 p-5">
           <h2 className="text-h2 text-ink-900">새 플래시카드 덱 만들기</h2>
           <button type="button" onClick={onClose} className="p-2 text-ink-400 hover:text-ink-700 rounded-lg hover:bg-ink-100 transition-colors duration-200">
             <XIcon className="text-xl" />
           </button>
         </div>
-        <div className="p-5 space-y-6">
+        <div
+          className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
           {/* Document context */}
           <div className="p-3 bg-ink-50 rounded-lg text-sm text-ink-700">
             <span className="font-semibold text-ink-800">교재: </span>{document.fileName}
