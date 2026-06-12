@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { DocumentData, ChatMessage, QuizData, FRQData, MCQQuizState, FRQQuizState, QuizTabState } from '../types';
-import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, AccountTreeIcon, HeadphonesIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, SpaceDashboardIcon, TrashIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, BrainIcon, CleverMonkeyIcon } from './icons';
+import { ChatIcon, MenuIcon, PreviewIcon, AssignmentIcon, XIcon, PanelRightCloseIcon, DocumentIcon, SearchIcon, ErrorOutlineIcon, StyleIcon, TrashIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, BrainIcon, CleverMonkeyIcon } from './icons';
 import { OverviewTab } from './OverviewTab';
 import { MindMapTab } from './MindMapTab';
 import { FlashcardsTab } from './FlashcardsTab';
@@ -13,6 +13,7 @@ import { ChatBubble } from './ChatBubble';
 import { PresetQuestions } from './PresetQuestions';
 import { Quiz } from './Quiz';
 import { WrongAnswersPanel } from './WrongAnswersNote';
+import { InteractionTabs } from './InteractionTabs';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { Spinner } from './Spinner';
@@ -372,86 +373,15 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         </div>
     );
 
-    const studyTabs = [
-        { id: 'overview', icon: SpaceDashboardIcon, label: 'Overview' },
-        { id: 'chat', icon: ChatIcon, label: 'Chat' },
-        { id: 'quiz', icon: AssignmentIcon, label: 'Quiz' },
-    ] as const;
-
-    const createTabs = [
-        { id: 'mindmap', icon: AccountTreeIcon, label: 'Mind Map' },
-        { id: 'flashcards', icon: StyleIcon, label: 'Flashcards' },
-        { id: 'podcast', icon: HeadphonesIcon, label: 'Podcast' },
-    ] as const;
-
-    // Tabs that are unlocked for guests. Everything else shows a small lock badge
-    // and renders <LoginRequired/> when activated.
-    const isGuestLockedTab = (id: ActiveTab) =>
-        isGuest && id !== 'overview' && id !== 'chat';
-
-    const TabsComponent = () => (
-        <div className="flex bg-white w-full border-b border-ink-100">
-            {studyTabs.map(tab => {
-                const locked = isGuestLockedTab(tab.id as ActiveTab);
-                return (
-                <button
-                    key={tab.id}
-                    type="button"
-                    data-tour={`tab-${tab.id}`}
-                    title={locked ? `${tab.label} — 로그인 필요` : tab.label}
-                    onClick={() => onTabChange(tab.id as ActiveTab)}
-                    className={[
-                        'relative flex-1 flex items-center justify-center py-3 transition-colors',
-                        activeTab === tab.id ? 'text-brand-600' : locked ? 'text-ink-300 hover:text-ink-500' : 'text-ink-400 hover:text-ink-700',
-                    ].join(' ')}
-                >
-                    <span className="relative inline-flex">
-                        <tab.icon className="text-[18px]" />
-                        {locked && (
-                            <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-ink-300" aria-hidden="true" />
-                        )}
-                    </span>
-                    {activeTab === tab.id && (
-                        <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-brand-600" />
-                    )}
-                </button>
-                );
-            })}
-            <div className="w-px bg-ink-200 flex-shrink-0 my-2.5" />
-            {createTabs.map(tab => {
-                const locked = isGuestLockedTab(tab.id as ActiveTab);
-                return (
-                <button
-                    key={tab.id}
-                    type="button"
-                    data-tour={`tab-${tab.id}`}
-                    title={locked ? `${tab.label} — 로그인 필요` : tab.label}
-                    onClick={() => onTabChange(tab.id as ActiveTab)}
-                    className={[
-                        'relative flex-1 flex items-center justify-center py-3 transition-colors',
-                        activeTab === tab.id ? 'text-brand-600' : locked ? 'text-ink-300 hover:text-ink-500' : 'text-ink-400 hover:text-ink-700',
-                    ].join(' ')}
-                >
-                    <span className="relative inline-flex">
-                        <tab.icon className="text-[18px]" />
-                        {locked && (
-                            <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-ink-300" aria-hidden="true" />
-                        )}
-                    </span>
-                    {activeTab === tab.id && (
-                        <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-t-full bg-brand-600" />
-                    )}
-                </button>
-                );
-            })}
-        </div>
+    const tabBar = (
+        <InteractionTabs activeTab={activeTab} isGuest={isGuest} onTabChange={onTabChange} />
     );
 
     const MainContent = () => {
         return (
             <React.Fragment>
                 <div className="hidden md:flex flex-shrink-0">
-                    {TabsComponent()}
+                    {tabBar}
                 </div>
 
                 <div className={`flex-1 flex-col min-h-0 ${activeTab === 'overview' ? 'flex' : 'hidden'}`}>
@@ -785,7 +715,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                 </div>
                 {!isProcessing && (
                     <div className="md:hidden">
-                        {TabsComponent()}
+                        {tabBar}
                     </div>
                 )}
             </div>

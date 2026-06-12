@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { useTierLimits } from '../hooks/useTierLimits';
+import { useFileListFiltering } from '../hooks/useFileListFiltering';
 import {
     AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon,
     SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon,
@@ -201,25 +202,8 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
     };
     const handleDragLeave = () => setDropTargetId(null);
 
-    const docsByFolder = React.useMemo(() => {
-        const map = new Map<string, DocumentData[]>();
-        state.folders.forEach(f => map.set(f.id, []));
-        state.documents.forEach(doc => {
-            if (doc.folderId && map.has(doc.folderId)) map.get(doc.folderId)!.push(doc);
-        });
-        return map;
-    }, [state.documents, state.folders]);
-
-    const unfiledDocs = React.useMemo(
-        () => state.documents.filter(doc => !doc.folderId),
-        [state.documents]
-    );
-
-    const filteredDocs = React.useMemo(() => {
-        if (!searchQuery.trim()) return null;
-        const q = searchQuery.toLowerCase();
-        return state.documents.filter(doc => doc.fileName.toLowerCase().includes(q));
-    }, [state.documents, searchQuery]);
+    const { docsByFolder, unfiledDocs, filteredDocs } =
+        useFileListFiltering(state.documents, state.folders, searchQuery);
 
     const profileInitial = (userProfile?.displayName?.trim() || userEmail || '?')[0].toUpperCase();
     const profileShownName = userProfile?.displayName?.trim() || userEmail || '';

@@ -17,42 +17,12 @@ import { buildInitialBotMessage } from '../constants';
 import { t } from '../services/uiStrings';
 import { GUEST_LIMITS } from '../types';
 import type { DocumentData, DocumentProcessingState, ProcessingModel } from '../types';
-
-const SUPPORTED_MIME_TYPES = [
-    'application/pdf',
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/heic',
-    'image/heif',
-    'text/plain',
-    'text/markdown',
-];
-
-const sanitizeFileName = (name: string) => {
-    const extensionMatch = name.match(/\.([a-zA-Z0-9]+)$/);
-    const extension = extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : '';
-    const baseName = extensionMatch ? name.slice(0, -extension.length) : name;
-    const asciiOnly = baseName.normalize('NFKD').replace(/[^\x00-\x7F]/g, '');
-    const cleaned = asciiOnly.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
-    const finalBase = cleaned || 'file';
-    return `${finalBase}${extension}`;
-};
-
-const getUploadErrorMessage = (error: { status?: number; message?: string }) => {
-    const status = error.status ?? 0;
-    if (status === 413) return '파일이 너무 큽니다. 업로드 용량 제한을 확인해주세요.';
-    if (status === 401 || status === 403) return '업로드 권한이 없습니다. 로그인 상태와 권한을 확인해주세요.';
-    if (status === 409) return '같은 이름의 파일이 이미 있습니다. 이름을 변경하거나 잠시 후 다시 시도해주세요.';
-    if (status === 0) return '네트워크 오류가 발생했습니다. 다시 시도해주세요.';
-    return error.message || '업로드에 실패했습니다.';
-};
-
-const getFileType = (file: File): 'pdf' | 'image' | 'text' => {
-    if (file.type === 'application/pdf') return 'pdf';
-    if (file.type.startsWith('image/')) return 'image';
-    return 'text';
-};
+import {
+    isSupportedMimeType,
+    sanitizeFileName,
+    getUploadErrorMessage,
+    getFileType,
+} from '../utils/uploadValidation';
 
 /**
  * File upload handler.
@@ -203,7 +173,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             }
         }
 
-        if (!SUPPORTED_MIME_TYPES.includes(file.type)) {
+        if (!isSupportedMimeType(file.type)) {
             logUploadDiagnostic({
                 severity: 'warn',
                 stage: 'upload.rejected.unsupported_type',
