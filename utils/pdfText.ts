@@ -12,9 +12,23 @@ import { isPasswordProtectedPdfError, PasswordProtectedPdfError } from './pdfPas
 interface TextItem { str?: string }
 interface TextContent { items: TextItem[] }
 
-export async function extractPdfTextLocally(file: File): Promise<string> {
+export interface PdfTextExtractionOptions {
+    maxPages?: number;
+    stopAfterChars?: number;
+}
+
+export interface PdfTextExtractionResult {
+    text: string;
+    numPages: number;
+    pagesScanned: number;
+}
+
+export async function extractPdfTextDetailsLocally(
+    file: File,
+    options: PdfTextExtractionOptions = {},
+): Promise<PdfTextExtractionResult> {
     const pdfjsLib = (window as { pdfjsLib?: { getDocument?: (data: ArrayBuffer) => { promise: Promise<PdfDoc> } } }).pdfjsLib;
-    if (!pdfjsLib?.getDocument) return '';
+    if (!pdfjsLib?.getDocument) return { text: '', numPages: 0, pagesScanned: 0 };
 
     const arrayBuffer = await file.arrayBuffer();
     let doc: PdfDoc;
@@ -26,7 +40,9 @@ export async function extractPdfTextLocally(file: File): Promise<string> {
     }
     try {
         const pages: string[] = [];
-        for (let i = 1; i <= doc.numPages; i++) {
+        let pagesScanned = 0;
+        const pageLimit = Math.min(doc.numPages, options.maxPages ?? doc.numPages);
+        for (let i = 1; i <= pageLimit; i++) {
             const page = await doc.getPage(i);
             const content = (await page.getTextContent()) as TextContent;
             const pageText = content.items
@@ -35,11 +51,20 @@ export async function extractPdfTextLocally(file: File): Promise<string> {
                 .replace(/\s+/g, ' ')
                 .trim();
             if (pageText) pages.push(pageText);
+            pagesScanned = i;
+            if (options.stopAfterChars && pages.join('\n\n').length >= options.stopAfterChars) break;
         }
-        return pages.join('\n\n').trim();
+        return { text: pages.join('\n\n').trim(), numPages: doc.numPages, pagesScanned };
     } finally {
         doc.destroy?.();
     }
+}
+
+export async function extractPdfTextLocally(
+    file: File,
+    options?: PdfTextExtractionOptions,
+): Promise<string> {
+    return (await extractPdfTextDetailsLocally(file, options)).text;
 }
 
 interface PdfPage { getTextContent(): Promise<unknown> }

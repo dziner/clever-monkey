@@ -3,6 +3,7 @@ import { Spinner } from './Spinner';
 import { ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import type { PDFDocumentProxy, PDFPageViewport } from '../types';
 import { isPasswordProtectedPdfError } from '../utils/pdfPassword';
+import { getSafePdfRenderScale } from '../utils/pdfRender';
 import { t } from '../services/uiStrings';
 
 interface PdfViewerProps {
@@ -30,12 +31,15 @@ interface PdfJsGlobal {
 const getPdfJsLib = (): PdfJsGlobal | undefined =>
     (window as Window & { pdfjsLib?: PdfJsGlobal }).pdfjsLib;
 
+const PAGE_RENDER_NEIGHBOR_RADIUS = 1;
+
 const PdfPage: React.FC<{
     pdfDoc: PDFDocumentProxy | null;
     pageNum: number;
     renderScale: number;
     viewScale: number;
-}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale }) => {
+    baseViewport: PDFPageViewport;
+}> = React.memo(({ pdfDoc, pageNum, renderScale, viewScale, baseViewport }) => {
     const pdfCanvasRef = React.useRef<HTMLCanvasElement>(null);
     const renderTaskRef = React.useRef<RenderTask | null>(null);
     const textLayerRef = React.useRef<HTMLDivElement>(null);
@@ -56,24 +60,23 @@ const PdfPage: React.FC<{
                 const page = await pdfDoc.getPage(pageNum);
                 if (isCancelled) return;
 
-                const renderViewport = page.getViewport({ scale: renderScale });
-                const tempCanvas = document.createElement('canvas');
-                const tempContext = tempCanvas.getContext('2d');
-                if (!tempContext) return;
+                const safeRenderScale = getSafePdfRenderScale(baseViewport.width, baseViewport.height, renderScale);
+                const renderViewport = page.getViewport({ scale: safeRenderScale });
 
-                tempCanvas.height = renderViewport.height;
-                tempCanvas.width = renderViewport.width;
-
-                const task = page.render({ canvasContext: tempContext, viewport: renderViewport, background: 'white' });
-                renderTaskRef.current = task;
-                await task.promise;
-                if (isCancelled) return;
+                canvas.height = Math.max(1, Math.floor(renderViewport.height));
+                canvas.width = Math.max(1, Math.floor(renderViewport.width));
 
                 const context = canvas.getContext('2d');
                 if (!context) return;
-                canvas.height = renderViewport.height;
-                canvas.width = renderViewport.width;
-                context.drawImage(tempCanvas, 0, 0);
+                context.save();
+                context.fillStyle = 'white';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.restore();
+
+                const task = page.render({ canvasContext: context, viewport: renderViewport, background: 'white' });
+                renderTaskRef.current = task;
+                await task.promise;
+                if (!isCancelled) page.cleanup?.();
             } catch (err: unknown) {
                 const e = err as { name?: string };
                 if (e.name !== 'RenderingCancelledException') {
@@ -89,7 +92,7 @@ const PdfPage: React.FC<{
             isCancelled = true;
             try { renderTaskRef.current?.cancel(); } catch (_) {}
         };
-    }, [pdfDoc, pageNum, renderScale]);
+    }, [pdfDoc, pageNum, renderScale, baseViewport.width, baseViewport.height]);
 
     React.useEffect(() => {
         let isCancelled = false;
@@ -197,22 +200,38 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
     }, [externalCurrentPage]);
 
     React.useEffect(() => {
+        let isCancelled = false;
+        let loadedDoc: PDFDocumentProxy | null = null;
+
         setIsLoading(true);
+        setError(null);
+        setTextContent(null);
         setPdfDoc(null);
         setNumPages(0);
+        setPageViewports([]);
+        setVisiblePages([]);
         setInternalCurrentPage(1);
+        pageRefs.current = [];
 
         if (file.type.startsWith('image/')) {
             setIsLoading(false);
-            return;
+            return () => undefined;
         }
 
         if (file.type.startsWith('text/')) {
             const reader = new FileReader();
-            reader.onload = (e) => { setTextContent(e.target?.result as string); setIsLoading(false); };
-            reader.onerror = () => { setError('Failed to read the text file.'); setIsLoading(false); };
+            reader.onload = (e) => {
+                if (isCancelled) return;
+                setTextContent(e.target?.result as string);
+                setIsLoading(false);
+            };
+            reader.onerror = () => {
+                if (isCancelled) return;
+                setError('Failed to read the text file.');
+                setIsLoading(false);
+            };
             reader.readAsText(file);
-            return;
+            return () => { isCancelled = true; reader.abort(); };
         }
 
         const loadPdf = async () => {
@@ -222,28 +241,56 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
 
                 const arrayBuffer = await file.arrayBuffer();
                 const doc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                loadedDoc = doc;
+                if (isCancelled) return;
                 setPdfDoc(doc);
                 setNumPages(doc.numPages);
 
-                const viewports = await Promise.all(
-                    Array.from({ length: doc.numPages }, async (_, i) => {
-                        const page = await doc.getPage(i + 1);
-                        return page.getViewport({ scale: 1.0 });
-                    })
-                );
-                setPageViewports(viewports);
+                const firstPage = await doc.getPage(1);
+                const firstViewport = firstPage.getViewport({ scale: 1.0 });
+                firstPage.cleanup?.();
+                if (isCancelled) return;
                 pageRefs.current = Array(doc.numPages).fill(null);
+                const initialViewports = Array.from(
+                    { length: doc.numPages },
+                    () => ({ width: firstViewport.width, height: firstViewport.height }),
+                );
+                setPageViewports(initialViewports);
+                setIsLoading(false);
+
+                void (async () => {
+                    try {
+                        const refinedViewports = [...initialViewports];
+                        for (let i = 2; i <= doc.numPages; i += 1) {
+                            if (isCancelled) return;
+                            const page = await doc.getPage(i);
+                            const viewport = page.getViewport({ scale: 1.0 });
+                            page.cleanup?.();
+                            refinedViewports[i - 1] = { width: viewport.width, height: viewport.height };
+                            if (i <= 5 || i % 25 === 0 || i === doc.numPages) {
+                                setPageViewports([...refinedViewports]);
+                            }
+                        }
+                    } catch (viewportError) {
+                        if (!isCancelled) console.warn('Some PDF page dimensions could not be refined:', viewportError);
+                    }
+                })();
             } catch (err: unknown) {
+                if (isCancelled) return;
                 console.error('Error loading PDF:', err);
                 setError(isPasswordProtectedPdfError(err)
                     ? t('file.passwordProtectedPdf', null)
                     : (err as { message?: string }).message || 'Failed to load PDF.');
             } finally {
-                setIsLoading(false);
+                if (!isCancelled) setIsLoading(false);
             }
         };
 
         loadPdf();
+        return () => {
+            isCancelled = true;
+            loadedDoc?.destroy();
+        };
     }, [file]);
 
     React.useEffect(() => {
@@ -269,7 +316,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
 
     React.useEffect(() => {
         const container = containerRef.current;
-        if (!container || numPages === 0) return;
+        if (!container || numPages === 0 || pageViewports.length !== numPages) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
@@ -286,26 +333,31 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
             { root: container, rootMargin: '400px 0px', threshold: 0.1 }
         );
 
-        pageRefs.current.forEach((el, i) => {
-            if (!el) return;
-            el.dataset.page = String(i + 1);
-            observer.observe(el);
+        const frame = window.requestAnimationFrame(() => {
+            pageRefs.current.forEach((el, i) => {
+                if (!el) return;
+                el.dataset.page = String(i + 1);
+                observer.observe(el);
+            });
         });
 
-        return () => observer.disconnect();
-    }, [numPages]);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            observer.disconnect();
+        };
+    }, [numPages, pageViewports.length]);
 
     const pagesToRender = React.useMemo(() => {
         const set = new Set<number>();
         if (numPages === 0) return set;
-        const base = visiblePages.length > 0 ? visiblePages : [1];
+        const base = visiblePages.length > 0 ? visiblePages : [currentPage || 1];
         base.forEach(p => {
-            for (let i = p - 2; i <= p + 2; i++) {
+            for (let i = p - PAGE_RENDER_NEIGHBOR_RADIUS; i <= p + PAGE_RENDER_NEIGHBOR_RADIUS; i++) {
                 if (i >= 1 && i <= numPages) set.add(i);
             }
         });
         return set;
-    }, [visiblePages, numPages]);
+    }, [visiblePages, numPages, currentPage]);
 
     const clampScale = React.useCallback((v: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, v)), []);
 
@@ -478,6 +530,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
                                             pageNum={pageNum}
                                             renderScale={renderScale * window.devicePixelRatio}
                                             viewScale={effectiveScale}
+                                            baseViewport={viewport}
                                         />
                                     ) : (
                                         <div className="w-full h-full bg-white shadow-lg" />

@@ -242,38 +242,43 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             try {
                 await assertPdfCanOpenWithoutPassword(file);
             } catch (error) {
+                const isPasswordError = isPasswordProtectedPdfError(error);
                 logUploadDiagnostic({
-                    severity: isPasswordProtectedPdfError(error) ? 'warn' : 'error',
-                    stage: isPasswordProtectedPdfError(error)
+                    severity: 'warn',
+                    stage: isPasswordError
                         ? 'upload.rejected.password_protected_pdf'
-                        : 'upload.pdf_probe_failed',
-                    message: isPasswordProtectedPdfError(error)
+                        : 'upload.pdf_probe_failed.continuing',
+                    message: isPasswordError
                         ? 'Password-protected PDF rejected by policy'
-                        : 'PDF openability probe failed',
+                        : 'PDF openability probe failed before upload; continuing to storage and processing',
                     fileType,
                     error: createDiagnosticErrorInfo(error),
                 });
-                const errorDoc: DocumentData = {
-                    id: docId,
-                    file: null,
-                    fileName: file.name,
-                    fileSize: file.size,
-                    fileType,
-                    summary: '',
-                    chat: null,
-                    chatHistory: [],
-                    processingState: 'error',
-                    errorMessage: isPasswordProtectedPdfError(error)
-                        ? t('file.passwordProtectedPdf', language)
-                        : getErrorMessage(error),
-                    model: 'gemini-2.5-flash',
-                    answerScope: 'document',
-                    monkeyMode: false,
-                    folderId: targetFolderId,
-                    currentPage: 1,
-                };
-                dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
-                return;
+                if (!isPasswordError) {
+                    // Large or unusual PDFs can make the lightweight pdf.js probe fail.
+                    // Only password-protected PDFs are rejected at upload policy level.
+                    console.warn('PDF preflight probe failed; continuing upload:', error);
+                } else {
+                    const errorDoc: DocumentData = {
+                        id: docId,
+                        file: null,
+                        fileName: file.name,
+                        fileSize: file.size,
+                        fileType,
+                        summary: '',
+                        chat: null,
+                        chatHistory: [],
+                        processingState: 'error',
+                        errorMessage: t('file.passwordProtectedPdf', language),
+                        model: 'gemini-2.5-flash',
+                        answerScope: 'document',
+                        monkeyMode: false,
+                        folderId: targetFolderId,
+                        currentPage: 1,
+                    };
+                    dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                    return;
+                }
             }
         }
 

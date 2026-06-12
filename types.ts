@@ -23,6 +23,7 @@ export interface PDFPageProxy {
   getViewport(options: { scale: number }): PDFPageViewport;
   render(options: PDFRenderContext): PDFRenderTask;
   getTextContent(): Promise<unknown>;
+  cleanup?(): void;
 }
 
 export interface PDFDocumentProxy {

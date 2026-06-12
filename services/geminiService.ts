@@ -2,7 +2,7 @@ import type { Part } from '@google/genai';
 import { getSystemInstruction, buildInitialBotMessage } from '../constants';
 import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 import { languageDirective, allCorrectMessage } from './languageService';
-import { extractPdfTextLocally } from '../utils/pdfText';
+import { extractPdfTextDetailsLocally, extractPdfTextLocally } from '../utils/pdfText';
 import { isPasswordProtectedPdfError, PasswordProtectedPdfError } from '../utils/pdfPassword';
 import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBudget';
 import { createDiagnosticErrorInfo } from '../utils/diagnostics';
@@ -355,6 +355,10 @@ interface InlineDataPart {
 }
 
 const INLINE_TEXT_EXTRACTION_LIMIT_BYTES = 2.5 * 1024 * 1024;
+const GEMINI_PDF_OCR_LIMIT_BYTES = 50 * 1024 * 1024;
+const GEMINI_PDF_OCR_PAGE_LIMIT = 1000;
+const PDF_TEXT_PROBE_PAGES = 8;
+const MIN_LOCAL_PDF_TEXT_CHARS = 100;
 
 async function fileToGenerativePart(file: File): Promise<InlineDataPart> {
   const base64EncodedData = await new Promise<string>((resolve, reject) => {
@@ -390,11 +394,29 @@ async function extractTextFromDocument(file: File, model: ProcessingModel, stora
   // to Gemini OCR when the PDF has no usable text layer (scanned / image).
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
   if (isPdf) {
+    const shouldProbeBeforeOcr = Boolean(storagePath && file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES);
     try {
-      const localText = await extractPdfTextLocally(file);
-      if (localText.trim().length >= 100) return localText;
+      if (shouldProbeBeforeOcr) {
+        const probe = await extractPdfTextDetailsLocally(file, {
+          maxPages: PDF_TEXT_PROBE_PAGES,
+          stopAfterChars: MIN_LOCAL_PDF_TEXT_CHARS,
+        });
+        if (probe.text.trim().length >= MIN_LOCAL_PDF_TEXT_CHARS) {
+          return await extractPdfTextLocally(file);
+        }
+        if (probe.numPages > GEMINI_PDF_OCR_PAGE_LIMIT) {
+          throw new Error('Image-based PDFs over 1,000 pages are not supported. Use a text-based PDF or split the file.');
+        }
+        if (file.size > GEMINI_PDF_OCR_LIMIT_BYTES) {
+          throw new Error('Image-based PDFs over 50MB are not supported by OCR processing. Use a text-based PDF, split the file, or compress it below 50MB.');
+        }
+      } else {
+        const localText = await extractPdfTextLocally(file);
+        if (localText.trim().length >= MIN_LOCAL_PDF_TEXT_CHARS) return localText;
+      }
     } catch (err) {
       if (isPasswordProtectedPdfError(err)) throw new PasswordProtectedPdfError();
+      if (err instanceof Error && /image-based PDFs over/i.test(err.message)) throw err;
       console.warn('Local PDF text extraction failed; falling back to Gemini OCR', err);
     }
   }
