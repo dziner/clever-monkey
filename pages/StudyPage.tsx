@@ -61,6 +61,16 @@ const ViewerPlaceholder = () => (
     </div>
 );
 
+const StoredFileLoadingPlaceholder = () => (
+    <div className="flex flex-col items-center justify-center h-full bg-ink-100 p-8 text-center">
+        <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+        <h3 className="text-lg font-bold text-ink-700 mt-4">문서를 불러오는 중입니다</h3>
+        <p className="text-ink-500 mt-2 max-w-sm">
+            파일을 준비하고 있어요. 잠시만 기다려 주세요.
+        </p>
+    </div>
+);
+
 interface PdfContentPanelProps {
     file: File | null | undefined;
     imageUrl?: string;
@@ -68,6 +78,7 @@ interface PdfContentPanelProps {
     currentPage: number;
     onPageChange: (page: number) => void;
     isProcessing: boolean;
+    isLoadingStoredFile: boolean;
     processingState: DocumentProcessingState;
     errorMessage?: string | null;
     canRetryProcessing: boolean;
@@ -77,7 +88,7 @@ interface PdfContentPanelProps {
 
 const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
     file, imageUrl, docId, currentPage, onPageChange,
-    isProcessing, processingState, errorMessage, canRetryProcessing, onDeleteDocument, onRetryProcessing,
+    isProcessing, isLoadingStoredFile, processingState, errorMessage, canRetryProcessing, onDeleteDocument, onRetryProcessing,
 }) => (
     <React.Fragment>
         {isProcessing && (
@@ -118,7 +129,7 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                 onPageChange={onPageChange}
             />
         ) : (
-            !isProcessing && <ViewerPlaceholder />
+            !isProcessing && (isLoadingStoredFile ? <StoredFileLoadingPlaceholder /> : <ViewerPlaceholder />)
         )}
     </React.Fragment>
 ));
@@ -234,6 +245,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
 
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
+    const isLoadingStoredFile = Boolean(activeDocument?.storagePath && !activeDocument.file && activeDocument.processingState !== 'error');
     const canRetryProcessing = !!activeDocument?.file || !!activeDocument?.storagePath;
 
     useKeyboardShortcuts(
@@ -299,6 +311,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                         currentPage={activeDocument.currentPage ?? 1}
                         onPageChange={handlePageChange}
                         isProcessing={isProcessing}
+                        isLoadingStoredFile={isLoadingStoredFile}
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
                         canRetryProcessing={canRetryProcessing}
@@ -428,6 +441,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                         currentPage={activeDocument.currentPage ?? 1}
                         onPageChange={handlePageChange}
                         isProcessing={isProcessing}
+                        isLoadingStoredFile={isLoadingStoredFile}
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
                         canRetryProcessing={canRetryProcessing}
