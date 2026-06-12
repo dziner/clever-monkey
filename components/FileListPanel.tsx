@@ -5,9 +5,11 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { useTierLimits } from '../hooks/useTierLimits';
 import { useFileListFiltering } from '../hooks/useFileListFiltering';
+import { UsageBar } from './UsageBar';
+import { ProfileCard } from './ProfileCard';
 import {
-    AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon, LogOutIcon,
-    SearchIcon, TrashIcon, AdminPanelIcon, WorkspacePremiumIcon, HomeIcon,
+    AddIcon, FolderPlusIcon, CleverMonkeyIcon, PanelLeftCloseIcon, XIcon,
+    SearchIcon, TrashIcon, AdminPanelIcon, HomeIcon,
 } from './icons';
 import type { DocumentData } from '../types';
 import { supabase } from '../services/supabaseClient';
@@ -17,7 +19,6 @@ import { FolderItem } from './FolderItem';
 import { FileListItem } from './FileListItem';
 import { useToast } from './Toast';
 import { Button, IconButton } from './ui/Button';
-import { Badge } from './ui/Badge';
 
 const NAV_GROUPS = [
     { heading: null, items: [{ path: ROUTES.STUDY, label: 'Study', icon: HomeIcon }] },
@@ -423,49 +424,20 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
 
             {/* Footer: usage + profile */}
             <div className="flex-shrink-0 px-4 py-3 border-t border-ink-100 bg-ink-50/50 space-y-2.5">
-                {/* Document usage */}
-                <div>
-                    <div className="flex justify-between items-center mb-1">
-                        <span className="text-[11px] font-semibold text-ink-500">문서</span>
-                        <span className="text-[11px] font-mono font-medium text-ink-600">
-                            {state.documents.length}{tierLimits.maxDocuments !== Infinity ? ` / ${tierLimits.maxDocuments}` : ''}
-                        </span>
-                    </div>
-                    {tierLimits.maxDocuments !== Infinity && (
-                        <div className="w-full bg-ink-200/70 rounded-full h-1 overflow-hidden">
-                            <div
-                                className={[
-                                    'h-1 rounded-full transition-all',
-                                    tierLimits.isAtDocumentLimit(state.documents.length) ? 'bg-danger-500' : 'bg-brand-500',
-                                ].join(' ')}
-                                style={{ width: `${Math.min((state.documents.length / tierLimits.maxDocuments) * 100, 100)}%` }}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                {/* AI usage */}
+                <UsageBar
+                    label="문서"
+                    used={state.documents.length}
+                    limit={tierLimits.maxDocuments}
+                    atLimit={tierLimits.isAtDocumentLimit(state.documents.length)}
+                />
                 {!tierLimits.isPro && userProfile && (
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-[11px] font-semibold text-ink-500">AI 사용</span>
-                            <span className={[
-                                'text-[11px] font-mono font-medium',
-                                tierLimits.isAtAiLimit ? 'text-danger-600' : 'text-ink-600',
-                            ].join(' ')}>
-                                {tierLimits.aiActionsToday} / {tierLimits.maxAiActionsPerDay}
-                            </span>
-                        </div>
-                        <div className="w-full bg-ink-200/70 rounded-full h-1 overflow-hidden">
-                            <div
-                                className={[
-                                    'h-1 rounded-full transition-all',
-                                    tierLimits.isAtAiLimit ? 'bg-danger-500' : 'bg-success-500',
-                                ].join(' ')}
-                                style={{ width: `${Math.min((tierLimits.aiActionsToday / tierLimits.maxAiActionsPerDay) * 100, 100)}%` }}
-                            />
-                        </div>
-                        {tierLimits.isAtAiLimit && (
+                    <UsageBar
+                        label="AI 사용"
+                        used={tierLimits.aiActionsToday}
+                        limit={tierLimits.maxAiActionsPerDay}
+                        atLimit={tierLimits.isAtAiLimit}
+                        activeColor="bg-success-500"
+                        footer={tierLimits.isAtAiLimit ? (
                             <button
                                 type="button"
                                 onClick={() => onUpgradeClick?.('ai_actions')}
@@ -473,8 +445,8 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
                             >
                                 Pro로 업그레이드 →
                             </button>
-                        )}
-                    </div>
+                        ) : undefined}
+                    />
                 )}
 
                 {/* Admin quick-access */}
@@ -506,48 +478,16 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
                     </button>
                 )}
 
-                {/* Profile / logout */}
                 {userEmail && (
-                    <button
-                        type="button"
-                        onClick={onProfileClick}
-                        className="w-full flex items-center gap-3 p-2.5 bg-white border border-ink-200 rounded-xl hover:border-brand-200 hover:bg-brand-50/30 transition-colors group"
-                    >
-                        <div className={[
-                            'w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
-                            tierLimits.isPro
-                                ? 'bg-brand-500 text-white'
-                                : 'bg-brand-100 text-brand-700',
-                        ].join(' ')}>
-                            {profileInitial}
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                            <p className="text-xs font-bold text-ink-800 truncate" title={profileShownName}>{profileShownName}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                                <Badge tone={tierLimits.isPro ? 'brand' : 'neutral'} variant="soft" size="sm">
-                                    {planName}
-                                </Badge>
-                                {!tierLimits.isPro && onUpgradeClick && (
-                                    <button
-                                        type="button"
-                                        onClick={e => { e.stopPropagation(); onUpgradeClick('generic'); }}
-                                        className="text-[10px] text-ink-400 hover:text-brand-600 font-semibold flex items-center gap-0.5 transition-colors"
-                                    >
-                                        <WorkspacePremiumIcon className="text-xs" /> 업그레이드
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <IconButton
-                            variant="ghost"
-                            size="sm"
-                            aria-label="Log out"
-                            title="Log out"
-                            onClick={e => { e.stopPropagation(); onSignOut(); }}
-                        >
-                            <LogOutIcon className="text-base" />
-                        </IconButton>
-                    </button>
+                    <ProfileCard
+                        displayName={profileShownName}
+                        initial={profileInitial}
+                        planName={planName}
+                        isPro={tierLimits.isPro}
+                        onProfileClick={onProfileClick}
+                        onSignOut={onSignOut}
+                        onUpgradeClick={onUpgradeClick}
+                    />
                 )}
             </div>
 
