@@ -1,22 +1,3 @@
-
-import React from 'react';
-
-// Fix: Add lottie-player global type declaration to resolve JSX intrinsic element error.
-// Update: Made property types more permissive to align with web component attribute behavior.
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'lottie-player': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        src?: string;
-        background?: string;
-        speed?: string | number;
-        loop?: boolean | string;
-        autoplay?: boolean | string;
-      };
-    }
-  }
-}
-
 export interface Folder {
   id: string;
   name: string;

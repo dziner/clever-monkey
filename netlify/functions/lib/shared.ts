@@ -6,6 +6,7 @@
 // auth, tier limits and retry logic live in exactly one place.
 
 import { GoogleGenAI } from '@google/genai';
+import type { ContentListUnion, GenerateContentConfig, GenerateContentResponse } from '@google/genai';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -81,9 +82,16 @@ class KeyPool {
   }
 }
 
+type ServerCache = typeof globalThis & {
+  __cmGeminiKeyPool?: KeyPool;
+  __cmRateState?: Map<string, number[]>;
+};
+
+const serverCache = globalThis as ServerCache;
+
 const keyPoolSingleton =
-  (globalThis as any).__cmGeminiKeyPool ??
-  ((globalThis as any).__cmGeminiKeyPool = new KeyPool(parseKeys()));
+  serverCache.__cmGeminiKeyPool ??
+  (serverCache.__cmGeminiKeyPool = new KeyPool(parseKeys()));
 export const keyPool: KeyPool = keyPoolSingleton;
 
 type ExhaustionKind = 'rate' | 'quota' | 'invalid' | 'none';
@@ -133,8 +141,8 @@ export const OVERLOAD_FALLBACK_MODEL: Record<string, string> = {
  */
 export async function generateContentResilient(
   model: string,
-  params: { contents: any; config?: any },
-): Promise<{ text?: string } & Record<string, any>> {
+  params: { contents: ContentListUnion; config?: GenerateContentConfig },
+): Promise<GenerateContentResponse> {
   try {
     return await callWithKeyRotation(ai =>
       withRetry(() => ai.models.generateContent({ model, contents: params.contents, config: params.config })),
@@ -160,7 +168,7 @@ export async function generateContentResilient(
  */
 export async function streamGeneratedText(
   model: string,
-  params: { contents: any; config?: any },
+  params: { contents: ContentListUnion; config?: GenerateContentConfig },
   onText: (chunk: string) => void | Promise<void>,
 ): Promise<void> {
   if (keyPool.size() === 0) throw new Error('Server missing GEMINI_API_KEY');
@@ -244,7 +252,7 @@ export const MAX_TEXT_CHARS = 250_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
 const rateState: Map<string, number[]> =
-  (globalThis as any).__cmRateState ?? ((globalThis as any).__cmRateState = new Map());
+  serverCache.__cmRateState ?? (serverCache.__cmRateState = new Map());
 
 export function tooManyRequestsByIp(ip: string): boolean {
   const now = Date.now();

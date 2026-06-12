@@ -7,10 +7,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 const hasSupabaseUrl = Boolean(supabaseUrl)
 const hasSupabaseAnonKey = Boolean(supabaseAnonKey)
 
-console.info('[supabase] env presence', {
-    hasSupabaseUrl,
-    hasSupabaseAnonKey,
-})
+if (import.meta.env.DEV) {
+    console.info('[supabase] env presence', {
+        hasSupabaseUrl,
+        hasSupabaseAnonKey,
+    })
+}
 
 if (!hasSupabaseUrl || !hasSupabaseAnonKey) {
     throw new Error(

@@ -16,6 +16,18 @@ interface RenderTask {
     cancel(): void;
 }
 
+interface PdfJsGlobal {
+    getDocument(data: ArrayBuffer): { promise: Promise<PDFDocumentProxy> };
+    renderTextLayer?: (params: {
+        textContentSource: unknown;
+        container: HTMLElement;
+        viewport: PDFPageViewport;
+    }) => RenderTask;
+}
+
+const getPdfJsLib = (): PdfJsGlobal | undefined =>
+    (window as Window & { pdfjsLib?: PdfJsGlobal }).pdfjsLib;
+
 const PdfPage: React.FC<{
     pdfDoc: PDFDocumentProxy | null;
     pageNum: number;
@@ -83,7 +95,7 @@ const PdfPage: React.FC<{
             const layer = textLayerRef.current;
             if (!pdfDoc || !layer || viewScale <= 0) return;
 
-            const pdfjsLib = (window as any).pdfjsLib;
+            const pdfjsLib = getPdfJsLib();
             if (!pdfjsLib?.renderTextLayer) return;
 
             layer.innerHTML = '';
@@ -203,7 +215,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
 
         const loadPdf = async () => {
             try {
-                const pdfjsLib = (window as any).pdfjsLib;
+                const pdfjsLib = getPdfJsLib();
                 if (!pdfjsLib) throw new Error('PDF.js library is not loaded.');
 
                 const arrayBuffer = await file.arrayBuffer();

@@ -11,8 +11,17 @@ import { ToastProvider } from './components/Toast';
 import './styles/index.css';
 import './types';
 
-if ((window as any).pdfjsLib) {
-  (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+interface PdfJsWindow {
+  pdfjsLib?: {
+    GlobalWorkerOptions: {
+      workerSrc: string;
+    };
+  };
+}
+
+const pdfjsLib = (window as Window & PdfJsWindow).pdfjsLib;
+if (pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(

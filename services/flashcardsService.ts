@@ -23,6 +23,26 @@ export interface FlashcardDeck {
   dueCards: number;
 }
 
+interface FlashcardRow {
+  id: string;
+  deck_id: string;
+  front: string;
+  back: string;
+  easiness_factor: number;
+  interval_days: number;
+  repetitions: number;
+  due_date: string;
+  last_reviewed_at: string | null;
+}
+
+interface FlashcardDeckRow {
+  id: string;
+  document_id: string;
+  document_name: string;
+  title: string;
+  created_at: string;
+}
+
 // Quality ratings (Anki-style mapped to SM-2 0-5)
 export type ReviewQuality = 'again' | 'hard' | 'good' | 'easy';
 const QUALITY_MAP: Record<ReviewQuality, number> = {
@@ -84,7 +104,7 @@ export function previewIntervalLabel(card: Flashcard, quality: ReviewQuality): s
   return `${Math.round(days / 365)}년 뒤`;
 }
 
-function toCard(row: any): Flashcard {
+function toCard(row: FlashcardRow): Flashcard {
   return {
     id: row.id,
     deckId: row.deck_id,
@@ -163,7 +183,8 @@ export async function fetchDecks(): Promise<FlashcardDeck[]> {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const decksWithCounts = await Promise.all(decks.map(async deck => {
+  const deckRows = (decks ?? []) as FlashcardDeckRow[];
+  const decksWithCounts = await Promise.all(deckRows.map(async deck => {
     const { count: total } = await supabase
       .from('flashcards')
       .select('*', { count: 'exact', head: true })
@@ -199,7 +220,7 @@ export async function fetchDueCards(deckId: string): Promise<Flashcard[]> {
     .order('due_date', { ascending: true });
 
   if (error) { console.error('Failed to fetch due cards:', error); return []; }
-  return (data ?? []).map(toCard);
+  return ((data ?? []) as FlashcardRow[]).map(toCard);
 }
 
 export async function fetchAllCards(deckId: string): Promise<Flashcard[]> {
@@ -209,7 +230,7 @@ export async function fetchAllCards(deckId: string): Promise<Flashcard[]> {
     .eq('deck_id', deckId);
 
   if (error) { console.error('Failed to fetch cards:', error); return []; }
-  return (data ?? []).map(toCard);
+  return ((data ?? []) as FlashcardRow[]).map(toCard);
 }
 
 export async function reviewCard(cardId: string, card: Flashcard, quality: ReviewQuality): Promise<void> {

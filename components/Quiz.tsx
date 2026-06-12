@@ -9,6 +9,8 @@ import { t } from '../services/uiStrings';
 import { Spinner } from './Spinner';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
+type LegacyQuizState = MCQQuizState & { showResults?: boolean };
+
 interface QuizProps {
     data: QuizData;
     onCreateAnotherQuiz: () => void;
@@ -25,7 +27,7 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
     const language = userProfile?.language ?? null;
     const { userAnswers, currentQuestionIndex } = quizState;
     // Handle legacy state from chat history which might use `showResults`.
-    const isFinished = (quizState as any).isFinished ?? (quizState as any).showResults ?? false;
+    const isFinished = quizState.isFinished ?? (quizState as LegacyQuizState).showResults ?? false;
 
     // Local state to manage interaction within a single question
     const [selectedOption, setSelectedOption] = React.useState<number | undefined>(undefined);

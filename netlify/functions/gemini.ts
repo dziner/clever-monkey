@@ -1,5 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import { createPartFromUri } from '@google/genai';
+import type { ContentListUnion, GenerateContentConfig } from '@google/genai';
 import {
   keyPool,
   callWithKeyRotation,
@@ -26,7 +27,7 @@ const GEMINI_PDF_FILE_LIMIT_BYTES = 50 * 1024 * 1024;
 const FILE_PROCESSING_POLL_MS = 5000;
 const FILE_PROCESSING_MAX_POLLS = 24;
 
-function json(statusCode: number, body: any, extraHeaders?: Record<string, string>) {
+function json(statusCode: number, body: unknown, extraHeaders?: Record<string, string>) {
   return {
     statusCode,
     headers: {
@@ -47,8 +48,8 @@ type GeminiRequest =
   | {
       action: 'generateContent';
       model: string;
-      contents: any;
-      config?: any;
+      contents: ContentListUnion;
+      config?: GenerateContentConfig;
       task?: string;
     }
   | {
@@ -82,6 +83,21 @@ function errorStatus(err: unknown): number | null {
   const status = (err as { status?: number; statusCode?: number } | null)?.status
     ?? (err as { status?: number; statusCode?: number } | null)?.statusCode;
   return typeof status === 'number' && status >= 400 && status <= 599 ? status : null;
+}
+
+interface TtsResponsePart {
+  inlineData?: {
+    data?: string;
+    mimeType?: string;
+  };
+}
+
+interface TtsGenerateContentResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: TtsResponsePart[];
+    };
+  }>;
 }
 
 async function wait(ms: number): Promise<void> {
@@ -203,19 +219,19 @@ export const handler: Handler = async (event) => {
     return json(400, { error: 'Invalid JSON' });
   }
 
-  if (!parsed || typeof (parsed as any).action !== 'string') {
+  if (!parsed || typeof parsed.action !== 'string') {
     return json(400, { error: 'Missing action' });
   }
 
   // TTS action uses a fixed internal model — skip model whitelist check
   if (parsed.action !== 'tts') {
-    const model = (parsed as any).model;
+    const model = parsed.model;
     if (!ALLOWED_MODELS.has(model)) {
       return json(400, { error: `Unsupported model: ${String(model)}` });
     }
   }
 
-  const model = (parsed as any).model as string;
+  const model = parsed.action === 'tts' ? '' : parsed.model;
 
   try {
     if (parsed.action === 'countTokens') {
@@ -334,11 +350,11 @@ export const handler: Handler = async (event) => {
                 prebuiltVoiceConfig: { voiceName: voice },
               },
             },
-          } as any,
+          } as unknown as GenerateContentConfig,
         })),
       );
 
-      const part = (res as any).candidates?.[0]?.content?.parts?.[0];
+      const part = (res as TtsGenerateContentResponse).candidates?.[0]?.content?.parts?.[0];
       if (!part?.inlineData?.data) {
         return json(500, { error: 'TTS returned no audio data' });
       }

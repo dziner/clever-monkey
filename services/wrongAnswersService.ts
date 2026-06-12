@@ -21,7 +21,35 @@ export interface WrongAnswerRecord {
   reviewedAt?: string | null;
 }
 
-function toRecord(row: any): WrongAnswerRecord {
+interface WrongAnswerRow {
+  id: string;
+  session_id: string;
+  document_id: string;
+  document_name: string;
+  question_text: string;
+  quiz_type: 'mcq' | 'frq';
+  options: string[] | null;
+  correct_answer_index: number | null;
+  user_answer_index: number | null;
+  user_answer_text: string | null;
+  score: number | null;
+  explanation: string;
+  created_at: string;
+  reviewed_at: string | null;
+}
+
+interface QuizSessionRow {
+  id: string;
+  document_id: string;
+  document_name: string;
+  quiz_type: 'mcq' | 'frq';
+  score: number;
+  total_questions: number;
+  correct_count: number;
+  created_at: string;
+}
+
+function toRecord(row: WrongAnswerRow): WrongAnswerRecord {
   return {
     id: row.id,
     sessionId: row.session_id,
@@ -142,7 +170,7 @@ export async function fetchWrongAnswers(): Promise<WrongAnswerRecord[]> {
     return [];
   }
 
-  return (data ?? []).map(toRecord);
+  return ((data ?? []) as WrongAnswerRow[]).map(toRecord);
 }
 
 export async function markReviewed(id: string): Promise<boolean> {
@@ -182,7 +210,7 @@ export async function fetchQuizSessions(limit = 30): Promise<QuizSession[]> {
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) { console.error('Failed to fetch quiz sessions:', error); return []; }
-  return (data ?? []).map(row => ({
+  return ((data ?? []) as QuizSessionRow[]).map(row => ({
     id: row.id,
     documentId: row.document_id,
     documentName: row.document_name,
