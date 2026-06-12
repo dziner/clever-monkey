@@ -44,7 +44,7 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ zIndex }}>
+    <div className="fixed inset-0 flex items-end justify-center p-3 sm:items-center sm:p-4" style={{ zIndex }}>
       <div
         className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm animate-fade-in"
         onClick={dismissible ? onClose : undefined}
@@ -54,16 +54,16 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         className={[
-          'relative w-full bg-white rounded-2xl shadow-sheet',
-          'overflow-hidden animate-scale-in',
+          'relative w-full bg-white rounded-t-3xl sm:rounded-2xl shadow-sheet',
+          'max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto animate-scale-in',
           SIZE_CLS[size],
         ].join(' ')}
       >
         {(title || dismissible) && (
-          <div className="flex items-start gap-3 px-7 pt-7 pb-2">
+          <div className="flex items-start gap-3 px-5 pt-5 pb-2 sm:px-7 sm:pt-7">
             <div className="flex-1 min-w-0">
               {title && (
-                <h2 className="text-xl font-bold text-ink-900 font-display tracking-tight">{title}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-ink-900 font-display tracking-tight">{title}</h2>
               )}
               {description && (
                 <p className="mt-1.5 text-sm text-ink-500">{description}</p>
@@ -76,8 +76,8 @@ export const Modal: React.FC<ModalProps> = ({
             )}
           </div>
         )}
-        <div className="px-7 pb-7 pt-3">{children}</div>
-        {footer && <div className="px-7 pb-7 -mt-3">{footer}</div>}
+        <div className="px-5 pb-5 pt-3 sm:px-7 sm:pb-7">{children}</div>
+        {footer && <div className="px-5 pb-5 -mt-2 sm:px-7 sm:pb-7 sm:-mt-3">{footer}</div>}
       </div>
     </div>
   );

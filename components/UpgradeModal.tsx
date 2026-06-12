@@ -35,11 +35,11 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[300] flex items-end justify-center p-3 sm:items-center sm:p-4">
             <div className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-            <div className="relative bg-white rounded-2xl shadow-sheet w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="relative bg-white rounded-t-3xl sm:rounded-2xl shadow-sheet w-full max-w-md max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] overflow-y-auto animate-scale-in">
                 {/* Header */}
-                <div className="relative bg-ink-900 px-7 pt-8 pb-7 text-white overflow-hidden">
+                <div className="relative bg-ink-900 px-5 pt-6 pb-6 sm:px-7 sm:pt-8 sm:pb-7 text-white overflow-hidden">
                     <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-500/30 rounded-full blur-3xl pointer-events-none" />
                     <button
                         type="button"
@@ -50,16 +50,16 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
                         <XIcon className="text-xl" />
                     </button>
                     <div className="relative">
-                        <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 ring-1 ring-white/20">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 ring-1 ring-white/20">
                             <WorkspacePremiumIcon className="text-2xl text-warning-100" />
                         </div>
-                        <h2 className="text-xl font-display font-bold tracking-tight">{copy.title}</h2>
+                        <h2 className="text-lg sm:text-xl font-display font-bold tracking-tight">{copy.title}</h2>
                         <p className="text-brand-100/90 text-sm mt-1.5 leading-relaxed">{copy.desc}</p>
                     </div>
                 </div>
 
                 {/* Features */}
-                <div className="px-7 py-6">
+                <div className="px-5 py-5 sm:px-7 sm:py-6">
                     <p className="text-[11px] font-bold text-ink-400 uppercase tracking-[0.14em] mb-3">Pro 플랜 혜택</p>
                     <ul className="space-y-2.5">
                         {PRO_FEATURES.map(f => (
