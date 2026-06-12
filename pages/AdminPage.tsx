@@ -79,18 +79,29 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
     const isAdmin = isAdminUser(userProfile?.role, userEmail);
 
+    // Re-entry guard: prevents the refresh button from firing concurrent
+    // batches if the user mashes it. Plain isLoading state would lag a
+    // render behind clicks (React state update -> re-render -> button
+    // re-disabled), so a ref reads the latest synchronously.
+    const loadingRef = React.useRef(false);
     const loadAll = React.useCallback(async () => {
+        if (loadingRef.current) return;
+        loadingRef.current = true;
         setIsLoading(true);
-        const [usersResult, apiData, dbData] = await Promise.all([
-            adminGetUserStats(),
-            adminGetApiStats(),
-            adminGetDbStats(),
-        ]);
-        setUsers(usersResult.rows);
-        setApiStats(apiData);
-        setDbStats(dbData);
-        setServerError(usersResult.error);
-        setIsLoading(false);
+        try {
+            const [usersResult, apiData, dbData] = await Promise.all([
+                adminGetUserStats(),
+                adminGetApiStats(),
+                adminGetDbStats(),
+            ]);
+            setUsers(usersResult.rows);
+            setApiStats(apiData);
+            setDbStats(dbData);
+            setServerError(usersResult.error);
+        } finally {
+            setIsLoading(false);
+            loadingRef.current = false;
+        }
     }, []);
 
     // Always re-fetch the profile when entering /admin so a freshly-promoted
@@ -199,9 +210,15 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                         <h1 className="text-lg font-bold text-ink-800 leading-tight">Admin Panel</h1>
                         <p className="text-xs text-ink-400">Clever Monkey 관리자 대시보드</p>
                     </div>
-                    <button type="button" onClick={loadAll}
-                        className="ml-auto p-2 text-ink-400 hover:text-ink-700 hover:bg-ink-100 rounded-lg transition-colors" title="새로고침">
-                        <RefreshIcon className="text-xl" />
+                    <button
+                        type="button"
+                        onClick={loadAll}
+                        disabled={isLoading}
+                        className="ml-auto p-2 text-ink-400 hover:text-ink-700 hover:bg-ink-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="새로고침"
+                        aria-busy={isLoading}
+                    >
+                        <RefreshIcon className={`text-xl ${isLoading ? 'animate-spin' : ''}`} />
                     </button>
                 </div>
 

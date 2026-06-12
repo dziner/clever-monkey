@@ -149,30 +149,34 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
     };
 
     const handleAddNewFolder = async () => {
+        // Re-entry guard; the try/finally below makes sure we never leave
+        // it set on an error path, which used to require resetting the
+        // ref by hand at every early return.
         if (isCreatingFolderRef.current) return;
         isCreatingFolderRef.current = true;
-        let newName = 'New Folder';
-        let counter = 1;
-        const existingNames = new Set(state.folders.map(f => f.name));
-        while (existingNames.has(newName)) newName = `New Folder (${counter++})`;
+        try {
+            let newName = 'New Folder';
+            let counter = 1;
+            const existingNames = new Set(state.folders.map(f => f.name));
+            while (existingNames.has(newName)) newName = `New Folder (${counter++})`;
 
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) console.error('사용자 정보를 불러오지 못했습니다:', userError);
-        if (!user) { console.error('로그인이 필요합니다.'); isCreatingFolderRef.current = false; return; }
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError) console.error('사용자 정보를 불러오지 못했습니다:', userError);
+            if (!user) { console.error('로그인이 필요합니다.'); return; }
 
-        const newFolder = { id: `folder-${Date.now()}`, name: newName };
-        const { error: insertError } = await supabase
-            .from('folders')
-            .insert({ id: newFolder.id, name: newFolder.name, user_id: user.id });
+            const newFolder = { id: `folder-${Date.now()}`, name: newName };
+            const { error: insertError } = await supabase
+                .from('folders')
+                .insert({ id: newFolder.id, name: newFolder.name, user_id: user.id });
 
-        if (insertError) {
-            console.error('폴더 생성에 실패했습니다:', insertError);
+            if (insertError) {
+                console.error('폴더 생성에 실패했습니다:', insertError);
+                return;
+            }
+            dispatch({ type: 'ADD_FOLDER', payload: newFolder });
+        } finally {
             isCreatingFolderRef.current = false;
-            return;
         }
-
-        dispatch({ type: 'ADD_FOLDER', payload: newFolder });
-        isCreatingFolderRef.current = false;
     };
 
     const handleDragStart = (e: React.DragEvent, docId: string) => {
