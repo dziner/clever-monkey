@@ -66,6 +66,7 @@ export interface ChatMessage {
 }
 
 export type DocumentProcessingState = 'reading' | 'summarizing' | 'generating_questions' | 'error' | 'done';
+export type DocumentUploadState = 'pending' | 'uploaded' | 'failed' | 'metadata_failed';
 
 export const AVAILABLE_MODEL_IDS = ['gemini-2.5-flash', 'gemini-2.5-pro'] as const;
 export type Model = typeof AVAILABLE_MODEL_IDS[number];
@@ -86,6 +87,7 @@ export interface DocumentData {
   tokenCount?: number;
   fileType: 'pdf' | 'image' | 'text';
   storagePath?: string;
+  uploadState?: DocumentUploadState;
   pdfDoc?: PDFDocumentProxy;
   imageUrl?: string; // for images
   summary: string;

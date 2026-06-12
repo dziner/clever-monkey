@@ -226,6 +226,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             fileMime: doc.file_mime ?? undefined,
             fileType: doc.file_type,
             storagePath: doc.storage_path ?? undefined,
+            uploadState: doc.storage_path ? 'uploaded' : undefined,
             summary: doc.summary ?? '',
             chat: null,
             chatHistory,

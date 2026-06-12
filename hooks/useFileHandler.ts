@@ -292,6 +292,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             fileMime: uploadFile.type,
             fileType,
             storagePath,
+            uploadState: isGuest ? 'uploaded' : 'pending',
             imageUrl: fileType === 'image' ? URL.createObjectURL(uploadFile) : undefined,
             summary: '',
             chat: null,
@@ -319,6 +320,10 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
         if (!isGuest) try {
             try {
                 await uploadFileToStorage('docs', storagePath, uploadFile);
+                dispatch({
+                    type: 'UPDATE_DOCUMENT',
+                    payload: { docId, updates: { uploadState: 'uploaded' } },
+                });
                 logUploadDiagnostic({
                     severity: 'info',
                     stage: 'upload.storage_completed',
@@ -346,6 +351,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                         docId,
                         updates: {
                             processingState: 'error',
+                            uploadState: 'failed',
                             errorMessage: getUploadErrorMessage(errorInfo)
                         }
                     }
@@ -389,6 +395,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                         docId,
                         updates: {
                             processingState: 'error',
+                            uploadState: 'metadata_failed',
                             errorMessage: '문서 메타데이터 저장에 실패했습니다.'
                         }
                     }
@@ -418,6 +425,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     docId,
                     updates: {
                         processingState: 'error',
+                        uploadState: 'failed',
                         errorMessage: '업로드 처리 중 오류가 발생했습니다.'
                     }
                 }

@@ -3,10 +3,49 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { processDocument } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
+import { uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
 import { isPasswordProtectedPdfError } from '../utils/pdfPassword';
 import { t } from '../services/uiStrings';
-import type { DocumentProcessingState, ProcessingModel } from '../types';
+import type { DocumentData, DocumentProcessingState, ProcessingModel } from '../types';
+
+async function ensureStoredDocumentForRetry(doc: DocumentData, file: File): Promise<void> {
+    if (!doc.storagePath || doc.uploadState === 'uploaded') return;
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error('로그인이 필요합니다.');
+
+    if (doc.uploadState === 'failed' || doc.uploadState === 'pending') {
+        await supabase.storage.from('docs').remove([doc.storagePath]).catch(() => undefined);
+        await uploadFileToStorage('docs', doc.storagePath, file);
+    }
+
+    const { error: upsertError } = await supabase
+        .from('documents')
+        .upsert({
+            id: doc.id,
+            user_id: user.id,
+            folder_id: doc.folderId,
+            file_name: doc.fileName,
+            file_size: file.size,
+            file_mime: doc.fileMime ?? file.type,
+            file_type: doc.fileType,
+            storage_path: doc.storagePath,
+            summary: doc.summary ?? '',
+            chat_history: doc.chatHistory,
+            preset_questions: doc.presetQuestions ?? null,
+            token_count: doc.tokenCount ?? null,
+            processing_state: 'reading',
+            error_message: null,
+            model: doc.model,
+            answer_scope: doc.answerScope,
+            monkey_mode: doc.monkeyMode,
+            document_content: doc.documentContent ?? null,
+        }, { onConflict: 'id' });
+
+    if (upsertError) throw upsertError;
+}
 
 export const useRetryProcessing = () => {
     const { state, dispatch } = useDocuments();
@@ -19,11 +58,14 @@ export const useRetryProcessing = () => {
         if (!doc || retryingIds.has(docId)) return;
 
         setRetryingIds(prev => new Set(prev).add(docId));
+        dispatch({
+            type: 'UPDATE_DOCUMENT',
+            payload: { docId, updates: { processingState: 'reading', errorMessage: undefined } },
+        });
 
         let file = doc.file;
 
         if (!file && doc.storagePath) {
-            dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'reading' } } });
             const { data, error } = await supabase.storage.from('docs').download(doc.storagePath);
             if (error || !data) {
                 dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'error', errorMessage: 'Could not download file. Please re-upload.' } } });
@@ -40,8 +82,6 @@ export const useRetryProcessing = () => {
             return;
         }
 
-        dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'reading', errorMessage: undefined } } });
-
         const onProgress = (progressState: DocumentProcessingState) => {
             dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: progressState } } });
         };
@@ -57,6 +97,9 @@ export const useRetryProcessing = () => {
         };
 
         try {
+            await ensureStoredDocumentForRetry(doc, file);
+            dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { uploadState: 'uploaded' } } });
+
             const model: ProcessingModel = doc.fileType === 'image' ? 'gemini-flash-latest' : doc.model as ProcessingModel;
             const { summary, presetQuestions, chat, tokenCount, documentContent } = await processDocument(
                 file,

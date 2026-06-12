@@ -10,6 +10,7 @@ import { useRetryProcessing } from '../hooks/useRetryProcessing';
 import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 import type { DocumentProcessingState } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 const TAB_ORDER: ActiveTab[] = ['overview', 'chat', 'quiz', 'mindmap', 'flashcards', 'podcast'];
 
@@ -82,13 +83,14 @@ interface PdfContentPanelProps {
     processingState: DocumentProcessingState;
     errorMessage?: string | null;
     canRetryProcessing: boolean;
+    isRetrying: boolean;
     onDeleteDocument: () => void;
     onRetryProcessing: () => void;
 }
 
 const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
     file, imageUrl, docId, currentPage, onPageChange,
-    isProcessing, isLoadingStoredFile, processingState, errorMessage, canRetryProcessing, onDeleteDocument, onRetryProcessing,
+    isProcessing, isLoadingStoredFile, processingState, errorMessage, canRetryProcessing, isRetrying, onDeleteDocument, onRetryProcessing,
 }) => (
     <React.Fragment>
         {isProcessing && (
@@ -105,9 +107,10 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                         <button
                             type="button"
                             onClick={onRetryProcessing}
-                            className="flex items-center px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 shadow-brand"
+                            disabled={isRetrying}
+                            className="flex items-center px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-brand"
                         >
-                            Retry
+                            {isRetrying ? 'Retrying…' : 'Retry'}
                         </button>
                     )}
                     <button
@@ -242,11 +245,14 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
     const [sheetTranslateY, setSheetTranslateY] = React.useState(0);
     const [isDragging, setIsDragging] = React.useState(false);
     const dragStartY = React.useRef(0);
+    const closingDocumentIdsRef = React.useRef<Set<string>>(new Set());
 
     const activeDocument = state.documents.find(d => d.id === state.activeDocumentId);
     const isProcessing = activeDocument?.processingState !== 'done' && activeDocument?.processingState !== 'error';
     const isLoadingStoredFile = Boolean(activeDocument?.storagePath && !activeDocument.file && activeDocument.processingState !== 'error');
     const canRetryProcessing = !!activeDocument?.file || !!activeDocument?.storagePath;
+    const { retry: retryProcessing, retryingIds } = useRetryProcessing();
+    const isRetrying = Boolean(activeDocument && retryingIds.has(activeDocument.id));
 
     useKeyboardShortcuts(
         TAB_ORDER.map((tab, i) => ({
@@ -260,12 +266,36 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: activeDocument.id, updates: { currentPage: page } } });
     }, [activeDocument?.id, dispatch]);
 
-    const handleDeleteDocument = React.useCallback(() => {
+    const handleDeleteDocument = React.useCallback(async () => {
         if (!activeDocument) return;
-        dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: activeDocument.id } });
-    }, [activeDocument?.id, dispatch]);
+        const doc = activeDocument;
+        if (closingDocumentIdsRef.current.has(doc.id)) return;
+        closingDocumentIdsRef.current.add(doc.id);
+        dispatch({ type: 'DELETE_DOCUMENT', payload: { docId: doc.id } });
 
-    const { retry: retryProcessing } = useRetryProcessing();
+        try {
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError) console.error('사용자 정보를 불러오지 못했습니다:', userError);
+            if (!user) return;
+
+            if (doc.storagePath) {
+                const { error: storageError } = await supabase.storage.from('docs').remove([doc.storagePath]);
+                if (storageError) console.error('스토리지 파일 삭제에 실패했습니다:', storageError);
+            }
+
+            const { error: deleteError } = await supabase
+                .from('documents')
+                .delete()
+                .eq('id', doc.id)
+                .eq('user_id', user.id);
+            if (deleteError) console.error('문서 메타데이터 삭제에 실패했습니다:', deleteError);
+        } catch (error) {
+            console.error('문서 닫기 중 오류가 발생했습니다:', error);
+        } finally {
+            closingDocumentIdsRef.current.delete(doc.id);
+        }
+    }, [activeDocument, dispatch]);
+
     const handleRetryProcessing = React.useCallback(() => {
         if (!activeDocument) return;
         retryProcessing(activeDocument.id);
@@ -315,6 +345,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
                         canRetryProcessing={canRetryProcessing}
+                        isRetrying={isRetrying}
                         onDeleteDocument={handleDeleteDocument}
                         onRetryProcessing={handleRetryProcessing}
                     />
@@ -445,6 +476,7 @@ export const StudyPage: React.FC<StudyPageProps> = ({ onMenuClick, isGuest, onSi
                         processingState={activeDocument.processingState}
                         errorMessage={activeDocument.errorMessage}
                         canRetryProcessing={canRetryProcessing}
+                        isRetrying={isRetrying}
                         onDeleteDocument={handleDeleteDocument}
                         onRetryProcessing={handleRetryProcessing}
                     />
