@@ -14,6 +14,7 @@ import {
 import { Spinner } from '../components/Spinner';
 import { UserRow, TierBadge } from '../components/AdminUserTable';
 import { MiniBarChart, StorageGauge } from '../components/AdminCharts';
+import { getUserStats } from '../utils/adminStats';
 import { isAdminUser } from '../services/adminConfig';
 import { ROUTES } from '../routes';
 import type { UserTier, UserRole } from '../types';
@@ -167,11 +168,10 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
         );
     }
 
-    // ── Derived stats ─────────────────────────────────────────────────────────
-    const totalUsers = users.length;
-    const freeUsers  = users.filter(u => u.tier === 'free').length;
-    const proUsers   = users.filter(u => u.tier === 'pro').length;
-    const adminUsers = users.filter(u => u.role === 'admin').length;
+    // Single-pass tier/role tally; see utils/adminStats. `admins` is the
+    // actual list so the JSX can render it without re-filtering.
+    const { totalUsers, freeUsers, proUsers, adminUsers, admins, freePct, proPct } =
+        React.useMemo(() => getUserStats(users), [users]);
 
     const filteredUsers = users.filter(u => {
         const matchSearch = !search || u.email.toLowerCase().includes(search.toLowerCase());
@@ -258,19 +258,19 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
                                             <span className="font-semibold text-ink-700">Free</span>
-                                            <span className="text-ink-500">{freeUsers}명 ({totalUsers > 0 ? Math.round(freeUsers / totalUsers * 100) : 0}%)</span>
+                                            <span className="text-ink-500">{freeUsers}명 ({Math.round(freePct)}%)</span>
                                         </div>
                                         <div className="w-full h-2 bg-ink-100 rounded-full overflow-hidden">
-                                            <div className="h-2 bg-ink-400 rounded-full" style={{ width: `${totalUsers > 0 ? (freeUsers / totalUsers) * 100 : 0}%` }} />
+                                            <div className="h-2 bg-ink-400 rounded-full" style={{ width: `${freePct}%` }} />
                                         </div>
                                     </div>
                                     <div>
                                         <div className="flex justify-between text-sm mb-1">
                                             <span className="font-semibold text-violet-700">Pro</span>
-                                            <span className="text-ink-500">{proUsers}명 ({totalUsers > 0 ? Math.round(proUsers / totalUsers * 100) : 0}%)</span>
+                                            <span className="text-ink-500">{proUsers}명 ({Math.round(proPct)}%)</span>
                                         </div>
                                         <div className="w-full h-2 bg-ink-100 rounded-full overflow-hidden">
-                                            <div className="h-2 bg-violet-500 rounded-full" style={{ width: `${totalUsers > 0 ? (proUsers / totalUsers) * 100 : 0}%` }} />
+                                            <div className="h-2 bg-violet-500 rounded-full" style={{ width: `${proPct}%` }} />
                                         </div>
                                     </div>
                                 </div>
@@ -302,7 +302,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                 <section>
                                     <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">관리자 ({adminUsers}명)</h2>
                                     <div className="bg-white rounded-xl border border-ink-200 divide-y divide-ink-100">
-                                        {users.filter(u => u.role === 'admin').map(u => (
+                                        {admins.map(u => (
                                             <div key={u.id} className="flex items-center gap-3 px-4 py-3">
                                                 <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center text-warning-700 font-bold text-sm">
                                                     {(u.email[0] ?? '?').toUpperCase()}

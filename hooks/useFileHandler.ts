@@ -23,6 +23,7 @@ import {
     getUploadErrorMessage,
     getFileType,
 } from '../utils/uploadValidation';
+import { buildErrorDoc } from '../utils/buildErrorDoc';
 
 /**
  * File upload handler.
@@ -121,24 +122,13 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                         maxDocuments: GUEST_LIMITS.maxDocuments,
                     },
                 });
-                const errorDoc: DocumentData = {
+                dispatch({ type: 'ADD_DOCUMENT', payload: buildErrorDoc({
                     id: docId,
-                    file: null,
                     fileName: file.name,
                     fileSize: file.size,
-                    fileType: 'pdf',
-                    summary: '',
-                    chat: null,
-                    chatHistory: [],
-                    processingState: 'error',
-                    errorMessage: `게스트는 최대 ${GUEST_LIMITS.maxDocuments}개의 파일만 업로드할 수 있어요. 로그인하면 더 많이 올릴 수 있습니다.`,
-                    model: 'gemini-2.5-flash',
-                    answerScope: 'document',
-                    monkeyMode: false,
                     folderId: null,
-                    currentPage: 1,
-                };
-                dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                    errorMessage: `게스트는 최대 ${GUEST_LIMITS.maxDocuments}개의 파일만 업로드할 수 있어요. 로그인하면 더 많이 올릴 수 있습니다.`,
+                }) });
                 return;
             }
             if (file.size > GUEST_LIMITS.maxFileSizeBytes) {
@@ -151,24 +141,13 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     },
                 });
                 const mb = (GUEST_LIMITS.maxFileSizeBytes / (1024 * 1024)).toFixed(0);
-                const errorDoc: DocumentData = {
+                dispatch({ type: 'ADD_DOCUMENT', payload: buildErrorDoc({
                     id: docId,
-                    file: null,
                     fileName: file.name,
                     fileSize: file.size,
-                    fileType: 'pdf',
-                    summary: '',
-                    chat: null,
-                    chatHistory: [],
-                    processingState: 'error',
-                    errorMessage: `게스트는 한 파일에 ${mb}MB까지 업로드할 수 있어요. 로그인하면 더 큰 파일도 가능합니다.`,
-                    model: 'gemini-2.5-flash',
-                    answerScope: 'document',
-                    monkeyMode: false,
                     folderId: null,
-                    currentPage: 1,
-                };
-                dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                    errorMessage: `게스트는 한 파일에 ${mb}MB까지 업로드할 수 있어요. 로그인하면 더 큰 파일도 가능합니다.`,
+                }) });
                 return;
             }
         }
@@ -179,24 +158,13 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                 stage: 'upload.rejected.unsupported_type',
                 message: 'Unsupported file type rejected',
             });
-            const errorDoc: DocumentData = {
+            dispatch({ type: 'ADD_DOCUMENT', payload: buildErrorDoc({
                 id: docId,
-                file: null,
                 fileName: file.name,
                 fileSize: file.size,
-                fileType: 'pdf', // Fallback type for error display
-                summary: '',
-                chat: null,
-                chatHistory: [],
-                processingState: 'error',
-                errorMessage: t('file.unsupportedType', language),
-                model: 'gemini-2.5-flash',
-                answerScope: 'document',
-                monkeyMode: false,
                 folderId: targetFolderId,
-                currentPage: 1,
-            };
-            dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                errorMessage: t('file.unsupportedType', language),
+            }) });
             return;
         }
 
@@ -229,24 +197,14 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     // Only password-protected PDFs are rejected at upload policy level.
                     console.warn('PDF preflight probe failed; continuing upload:', error);
                 } else {
-                    const errorDoc: DocumentData = {
+                    dispatch({ type: 'ADD_DOCUMENT', payload: buildErrorDoc({
                         id: docId,
-                        file: null,
                         fileName: file.name,
                         fileSize: file.size,
                         fileType,
-                        summary: '',
-                        chat: null,
-                        chatHistory: [],
-                        processingState: 'error',
-                        errorMessage: t('file.passwordProtectedPdf', language),
-                        model: 'gemini-2.5-flash',
-                        answerScope: 'document',
-                        monkeyMode: false,
                         folderId: targetFolderId,
-                        currentPage: 1,
-                    };
-                    dispatch({ type: 'ADD_DOCUMENT', payload: errorDoc });
+                        errorMessage: t('file.passwordProtectedPdf', language),
+                    }) });
                     return;
                 }
             }
