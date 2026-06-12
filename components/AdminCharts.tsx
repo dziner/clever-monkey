@@ -19,28 +19,47 @@ interface MiniBarChartProps {
 }
 
 /** Seven-day bar chart of daily AI calls. Empty days render as 0-height. */
+/** Seven-day bar chart of daily AI calls. Empty days render as a faint
+ * ghost tick so the axis isn't visually orphaned, and an "all zeros"
+ * window shows a quiet "no activity yet" line instead of seven invisible
+ * bars (which was the original symptom — the chart looked broken even
+ * when the underlying data was just legitimately empty for the period). */
 export const MiniBarChart: React.FC<MiniBarChartProps> = ({ data }) => {
     const max = Math.max(...data.map(d => d.totalActions), 1);
+    const allZero = data.every(d => d.totalActions === 0);
     return (
-        <div className="flex items-end gap-1.5 h-24 w-full">
-            {data.map(d => (
-                <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group relative">
-                    <div className="relative flex-1 w-full flex items-end">
-                        <div
-                            className="w-full bg-brand-500 rounded-t transition-all duration-500 hover:bg-brand-600"
-                            style={{ height: `${Math.max((d.totalActions / max) * 100, 4)}%`, minHeight: d.totalActions > 0 ? 4 : 0 }}
-                        />
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
-                            <div className="bg-ink-800 text-white text-[10px] rounded px-1.5 py-1 whitespace-nowrap">
-                                {d.totalActions}회 · {d.activeUsers}명
+        <div className="relative flex items-end gap-1.5 h-24 w-full">
+            {data.map(d => {
+                // Empty days get a 4px ghost tick in a neutral color so
+                // the axis is anchored — better than the bar disappearing
+                // entirely, which looked like a rendering bug.
+                const ratio = d.totalActions / max;
+                const height = d.totalActions === 0 ? 4 : Math.max(8, ratio * 100);
+                const color = d.totalActions === 0 ? 'bg-ink-200' : 'bg-brand-500 hover:bg-brand-600';
+                return (
+                    <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group relative">
+                        <div className="relative flex-1 w-full flex items-end">
+                            <div
+                                className={`w-full rounded-t transition-all duration-500 ${color}`}
+                                style={{ height: d.totalActions === 0 ? `${height}px` : `${height}%` }}
+                            />
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+                                <div className="bg-ink-800 text-white text-[10px] rounded px-1.5 py-1 whitespace-nowrap">
+                                    {d.totalActions}회 · {d.activeUsers}명
+                                </div>
+                                <div className="w-1.5 h-1.5 bg-ink-800 rotate-45 -mt-0.5" />
                             </div>
-                            <div className="w-1.5 h-1.5 bg-ink-800 rotate-45 -mt-0.5" />
                         </div>
+                        <span className="text-[9px] text-ink-400 leading-none">{d.date}</span>
                     </div>
-                    <span className="text-[9px] text-ink-400 leading-none">{d.date}</span>
+                );
+            })}
+            {allZero && (
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center pointer-events-none">
+                    <span className="text-xs text-ink-400 bg-white/80 px-2 py-0.5 rounded">아직 호출 기록이 없어요</span>
                 </div>
-            ))}
+            )}
         </div>
     );
 };
