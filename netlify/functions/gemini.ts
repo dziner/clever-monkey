@@ -7,6 +7,8 @@ import {
   generateContentResilient,
   withRetry,
   isTransient,
+  isOverloaded,
+  OVERLOAD_FALLBACK_MODEL,
   extractMessage,
   getUserIdFromToken,
   checkTierLimit,
@@ -170,12 +172,30 @@ async function extractTextViaFilesApi(params: {
       }
 
       const filePart = createPartFromUri(currentFile.uri, currentFile.mimeType || mimeType);
-      const res = await withRetry(() => ai.models.generateContent({
-        model: params.model,
+      // OCR of a large scanned PDF is a heavy multimodal request and the
+      // single most common failure here is the upstream model returning
+      // 503 "high demand". Mirror generateContentResilient: retry on a
+      // higher-availability model when the primary is overloaded. The
+      // uploaded file is tied to the project, so the same filePart works
+      // across models without re-uploading.
+      const runOcr = (model: string) => withRetry(() => ai.models.generateContent({
+        model,
         contents: [filePart, { text: prompt }],
       }));
+      let res: { text?: string };
+      try {
+        res = await runOcr(params.model);
+      } catch (err) {
+        const fallback = OVERLOAD_FALLBACK_MODEL[params.model];
+        if (fallback && isOverloaded(err)) {
+          console.warn(`[gemini] OCR ${params.model} overloaded — retrying on ${fallback}`);
+          res = await runOcr(fallback);
+        } else {
+          throw err;
+        }
+      }
 
-      return (res as { text?: string }).text ?? '';
+      return res.text ?? '';
     } finally {
       await ai.files.delete({ name: uploadedFileName }).catch(() => undefined);
     }
