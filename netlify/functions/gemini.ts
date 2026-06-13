@@ -1,5 +1,4 @@
 import type { Handler } from '@netlify/functions';
-import { createPartFromUri } from '@google/genai';
 import type { ContentListUnion, GenerateContentConfig } from '@google/genai';
 import {
   keyPool,
@@ -7,27 +6,22 @@ import {
   generateContentResilient,
   withRetry,
   isTransient,
-  isOverloaded,
-  OVERLOAD_FALLBACK_MODEL,
   extractMessage,
   getUserIdFromToken,
   checkTierLimit,
   tooManyRequestsByIp,
-  downloadStorageObjectForUser,
   COUNTED_ACTIONS,
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
 } from './lib/shared';
 import { routedGenerate } from './lib/router';
+import { extractTextViaFilesApi } from './lib/filesApiOcr';
 
 // Gemini proxy (buffered responses). Key pool, retries, auth and tier
 // limits live in ./lib/shared so this handler and the streaming variant
 // (gemini-stream.ts) share one implementation.
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024; // 4MB
-const GEMINI_PDF_FILE_LIMIT_BYTES = 50 * 1024 * 1024;
-const FILE_PROCESSING_POLL_MS = 5000;
-const FILE_PROCESSING_MAX_POLLS = 24;
 
 function json(statusCode: number, body: unknown, extraHeaders?: Record<string, string>) {
   return {
@@ -111,95 +105,6 @@ SCRIPT:
 """
 ${text}
 """`;
-}
-
-async function wait(ms: number): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function extractTextViaFilesApi(params: {
-  userId: string;
-  storagePath: string;
-  model: string;
-  mimeType: string;
-  fileName: string;
-  prompt?: string;
-}): Promise<string> {
-  const storedFile = await downloadStorageObjectForUser(params.userId, params.storagePath);
-  const mimeType = params.mimeType && params.mimeType !== 'application/octet-stream'
-    ? params.mimeType
-    : storedFile.contentType || 'application/octet-stream';
-  const isPdf = mimeType === 'application/pdf' || params.fileName.toLowerCase().endsWith('.pdf');
-
-  if (isPdf && storedFile.size > GEMINI_PDF_FILE_LIMIT_BYTES) {
-    throw Object.assign(
-      new Error('Gemini can process scanned/image PDFs up to 50MB. For larger PDFs, use a text-based PDF or split the file.'),
-      { status: 413 },
-    );
-  }
-
-  const prompt = params.prompt ||
-    'Extract all text from this document. Respond with only the text content. If there is no text, return an empty string.';
-
-  return callWithKeyRotation(async ai => {
-    const uploadedFile = await ai.files.upload({
-      file: storedFile.blob,
-      config: {
-        mimeType,
-        displayName: params.fileName,
-      },
-    });
-    const uploadedFileName = uploadedFile.name;
-    if (!uploadedFileName) {
-      throw new Error('Gemini did not return an uploaded file name.');
-    }
-
-    try {
-      let currentFile = uploadedFile;
-      for (let i = 0; currentFile.state === 'PROCESSING' && i < FILE_PROCESSING_MAX_POLLS; i += 1) {
-        await wait(FILE_PROCESSING_POLL_MS);
-        currentFile = await ai.files.get({ name: uploadedFileName });
-      }
-
-      if (currentFile.state === 'PROCESSING') {
-        throw new Error('File processing is taking too long. Please try again shortly.');
-      }
-      if (currentFile.state === 'FAILED') {
-        throw new Error('Gemini failed to process this file.');
-      }
-      if (!currentFile.uri) {
-        throw new Error('Gemini did not return a processed file URI.');
-      }
-
-      const filePart = createPartFromUri(currentFile.uri, currentFile.mimeType || mimeType);
-      // OCR of a large scanned PDF is a heavy multimodal request and the
-      // single most common failure here is the upstream model returning
-      // 503 "high demand". Mirror generateContentResilient: retry on a
-      // higher-availability model when the primary is overloaded. The
-      // uploaded file is tied to the project, so the same filePart works
-      // across models without re-uploading.
-      const runOcr = (model: string) => withRetry(() => ai.models.generateContent({
-        model,
-        contents: [filePart, { text: prompt }],
-      }));
-      let res: { text?: string };
-      try {
-        res = await runOcr(params.model);
-      } catch (err) {
-        const fallback = OVERLOAD_FALLBACK_MODEL[params.model];
-        if (fallback && isOverloaded(err)) {
-          console.warn(`[gemini] OCR ${params.model} overloaded — retrying on ${fallback}`);
-          res = await runOcr(fallback);
-        } else {
-          throw err;
-        }
-      }
-
-      return res.text ?? '';
-    } finally {
-      await ai.files.delete({ name: uploadedFileName }).catch(() => undefined);
-    }
-  });
 }
 
 export const handler: Handler = async (event) => {

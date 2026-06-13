@@ -8,8 +8,10 @@ import {
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
   STREAM_ERROR_SENTINEL,
+  STREAM_KEEPALIVE_BYTE,
 } from './lib/shared';
 import { routedStream } from './lib/router';
+import { extractTextViaFilesApi } from './lib/filesApiOcr';
 
 // Streaming Gemini proxy (Netlify Functions v2). Long generations — the
 // document summary above all — blow past the 10s buffered-response limit
@@ -23,9 +25,18 @@ import { routedStream } from './lib/router';
 
 interface StreamRequest {
   model: string;
-  contents: unknown;
+  contents?: unknown;
   config?: { temperature?: number; responseMimeType?: string };
   task?: string;
+  // Files-API OCR over a previously-uploaded Supabase Storage object.
+  // When `action === 'extractTextFromStorage'`, contents/config are
+  // ignored and the request is fulfilled by extractTextViaFilesApi with
+  // a heartbeat tick into the stream.
+  action?: 'extractTextFromStorage';
+  storagePath?: string;
+  mimeType?: string;
+  fileName?: string;
+  prompt?: string;
 }
 
 export default async (req: Request): Promise<Response> => {
@@ -60,13 +71,23 @@ export default async (req: Request): Promise<Response> => {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  // Model is only validated for the non-routed path; routed tasks pick
-  // their own (server-controlled) models from the route table.
-  if (!parsed.task && !ALLOWED_MODELS.has(parsed.model)) {
-    return Response.json({ error: `Unsupported model: ${String(parsed.model)}` }, { status: 400 });
-  }
-  if (typeof parsed.contents === 'string' && parsed.contents.length > MAX_TEXT_CHARS) {
-    return Response.json({ error: 'Prompt too large' }, { status: 400 });
+  const isOcrFromStorage = parsed.action === 'extractTextFromStorage';
+  if (isOcrFromStorage) {
+    if (!userId) {
+      return Response.json({ error: 'Authentication required for large file processing' }, { status: 401 });
+    }
+    if (!parsed.storagePath || !parsed.mimeType || !parsed.fileName) {
+      return Response.json({ error: 'Missing storage file metadata' }, { status: 400 });
+    }
+  } else {
+    // Model is only validated for the non-routed path; routed tasks pick
+    // their own (server-controlled) models from the route table.
+    if (!parsed.task && !ALLOWED_MODELS.has(parsed.model)) {
+      return Response.json({ error: `Unsupported model: ${String(parsed.model)}` }, { status: 400 });
+    }
+    if (typeof parsed.contents === 'string' && parsed.contents.length > MAX_TEXT_CHARS) {
+      return Response.json({ error: 'Prompt too large' }, { status: 400 });
+    }
   }
 
   const encoder = new TextEncoder();
@@ -74,7 +95,21 @@ export default async (req: Request): Promise<Response> => {
     async start(controller) {
       const emit = (chunk: string) => { controller.enqueue(encoder.encode(chunk)); };
       try {
-        if (parsed.task) {
+        if (isOcrFromStorage) {
+          // First byte right away so the gateway considers the stream
+          // live before extractTextViaFilesApi starts its slow work.
+          emit(STREAM_KEEPALIVE_BYTE);
+          const text = await extractTextViaFilesApi({
+            userId: userId!,
+            storagePath: parsed.storagePath!,
+            model: parsed.model,
+            mimeType: parsed.mimeType!,
+            fileName: parsed.fileName!,
+            prompt: parsed.prompt,
+            onTick: () => emit(STREAM_KEEPALIVE_BYTE),
+          });
+          emit(text.length > MAX_TEXT_CHARS ? text.slice(0, MAX_TEXT_CHARS) : text);
+        } else if (parsed.task) {
           // Multi-provider routing (Gemini → Groq → Cerebras) by task type.
           await routedStream(
             parsed.task,

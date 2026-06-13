@@ -16,6 +16,10 @@ const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
 // byte-identical) — a mid-stream failure can't change the HTTP status
 // anymore, so the server appends this marker followed by the error message.
 const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
+// Single keep-alive byte the streaming OCR endpoint emits during the
+// Files API polling loop so the Netlify gateway never times the
+// connection out. Stripped here before treating the body as text.
+const STREAM_KEEPALIVE_BYTE = '\x01';
 
 import { cleanAndParseJSON } from '../utils/jsonRepair';
 
@@ -253,6 +257,109 @@ async function generateContentStreaming(
   return full;
 }
 
+/**
+ * Run a Files-API OCR over a Supabase Storage object through the
+ * streaming endpoint. The server emits a 1-byte heartbeat
+ * (STREAM_KEEPALIVE_BYTE) during its Files API polling loop so the
+ * Netlify gateway never drops the connection at 26s; once OCR
+ * completes the extracted text follows. The client filters the
+ * heartbeat bytes out and returns the remainder as the OCR result.
+ */
+async function extractTextFromStorageStreaming(params: {
+  storagePath: string;
+  model: string;
+  mimeType: string;
+  fileName: string;
+  prompt?: string;
+}): Promise<string> {
+  const authHeader = await getAuthHeader();
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (authHeader) headers['authorization'] = authHeader;
+
+  let res: Response;
+  try {
+    res = await fetch(GEMINI_STREAM_ENDPOINT, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'extractTextFromStorage',
+        model: params.model,
+        storagePath: params.storagePath,
+        mimeType: params.mimeType,
+        fileName: params.fileName,
+        prompt: params.prompt,
+      }),
+    });
+  } catch (error) {
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream_ocr.network_failed',
+      message: 'Gemini stream OCR network request failed',
+      model: params.model,
+      storagePath: params.storagePath,
+      error: createDiagnosticErrorInfo(error),
+    });
+    throw error;
+  }
+
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    const error = new Error(data?.error || `Gemini OCR request failed (${res.status})`);
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream_ocr.failed',
+      message: 'Gemini stream OCR request failed before body',
+      model: params.model,
+      storagePath: params.storagePath,
+      error: { ...createDiagnosticErrorInfo(error), status: res.status },
+    });
+    throw error;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let full = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    full += decoder.decode(value, { stream: true });
+    const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
+    if (errAt >= 0) {
+      const errMsg = full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream OCR failed';
+      const error = new Error(errMsg);
+      void logDiagnosticEvent({
+        severity: 'error',
+        stage: 'api.gemini_stream_ocr.midstream_failed',
+        message: 'Gemini stream OCR returned an error sentinel',
+        model: params.model,
+        storagePath: params.storagePath,
+        error: createDiagnosticErrorInfo(error),
+      });
+      throw error;
+    }
+  }
+  full += decoder.decode();
+  const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
+  if (errAt >= 0) {
+    const error = new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream OCR failed');
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream_ocr.completed_with_error',
+      message: 'Gemini stream OCR completed with an error sentinel',
+      model: params.model,
+      storagePath: params.storagePath,
+      error: createDiagnosticErrorInfo(error),
+    });
+    throw error;
+  }
+  // Strip every keep-alive heartbeat; what's left is the OCR result.
+  const text = full.split(STREAM_KEEPALIVE_BYTE).join('');
+  if (text.length === 0) {
+    throw new Error('Gemini OCR returned no text');
+  }
+  return text;
+}
+
 async function sendChatMessage(params: {
   model: Model;
   systemInstruction: string;
@@ -379,14 +486,16 @@ async function extractTextFromDocument(file: File, model: ProcessingModel, stora
   }
 
   if (storagePath && file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {
-    const data = await callGemini<{ text: string }>({
-      action: 'extractTextFromStorage',
-      model,
+    // Routed through the STREAMING endpoint so a heartbeat keeps the
+    // gateway alive past 26s — large scanned PDFs need ~30-60s of
+    // Files API processing time and were dying at ~33s with a 502
+    // through the buffered endpoint. See netlify/functions/lib/filesApiOcr.ts.
+    return extractTextFromStorageStreaming({
       storagePath,
+      model,
       mimeType: file.type || 'application/octet-stream',
       fileName: file.name,
     });
-    return data.text;
   }
 
   if (file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {

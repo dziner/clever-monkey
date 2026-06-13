@@ -401,3 +401,11 @@ export function extractMessage(err: unknown): string {
 // throws. The bracketed marker is kept byte-identical to the client copy
 // in services/geminiService.ts.
 export const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
+
+// Single non-printing byte the streaming OCR endpoint emits as a
+// keep-alive heartbeat during the Files API polling loop. Sending
+// bytes keeps the Netlify gateway from killing the response at the
+// 26s mark (the underlying function timeout). \x01 never appears in
+// real OCR text output; client strips it before treating the body
+// as the extracted text.
+export const STREAM_KEEPALIVE_BYTE = '\x01';
