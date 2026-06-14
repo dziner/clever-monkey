@@ -15,27 +15,45 @@ import type { ApiCategoryStats, ApiCategoryUsage, KeyMeta } from '../services/pr
 interface ModelInfo {
     /** Free-tier requests-per-day for ONE key on this model. */
     rpd: number;
-    /** Short human label. */
-    label: string;
+    /** Vendor whose key this model bills against. Drives the colored
+     *  badge in the per-model breakdown so Gemini vs Groq vs Cerebras is
+     *  visually distinct at a glance (matches the routing chain in
+     *  netlify/functions/lib/router.ts). */
+    provider: ProviderName;
+    /** Model family — what the operator usually thinks of as "the model"
+     *  (Gemini 2.5, Llama 3.3, Qwen3, …). Version explicit so the
+     *  dashboard answers "Gemini 2.5 or 2.0?" without ambiguity. */
+    family: string;
+    /** Specific variant within the family (Flash Lite, 70B, TTS preview, …). */
+    variant: string;
 }
+
+type ProviderName = 'gemini' | 'groq' | 'cerebras' | 'unknown';
+
+const PROVIDER_STYLE: Record<ProviderName, { badge: string; label: string }> = {
+    gemini:   { badge: 'bg-blue-50 text-blue-700 border-blue-200',     label: 'Gemini' },
+    groq:     { badge: 'bg-orange-50 text-orange-700 border-orange-200', label: 'Groq' },
+    cerebras: { badge: 'bg-violet-50 text-violet-700 border-violet-200', label: 'Cerebras' },
+    unknown:  { badge: 'bg-ink-100 text-ink-600 border-ink-200',       label: '?' },
+};
 
 // Approximate free-tier RPD per single key. Sources: Google AI Studio
 // free tier (gemini-*), Groq free tier, Cerebras free tier. Numbers are
 // conservative — within ~10% of the published cap so the gauge nudges
 // toward action BEFORE the real cap is hit.
 const MODEL_QUOTAS: Record<string, ModelInfo> = {
-    'gemini-2.5-pro':              { rpd: 50,    label: 'Gemini 2.5 Pro' },
-    'gemini-2.5-flash':            { rpd: 250,   label: 'Gemini 2.5 Flash' },
-    'gemini-2.5-flash-lite':       { rpd: 1000,  label: 'Gemini Flash Lite' },
-    'gemini-flash-latest':         { rpd: 250,   label: 'Gemini Flash (latest)' },
-    'gemini-2.5-flash-preview-tts':{ rpd: 100,   label: 'Gemini TTS (preview)' },
-    'llama-3.3-70b-versatile':     { rpd: 1000,  label: 'Groq Llama 70B' },
-    'llama-3.1-8b-instant':        { rpd: 14400, label: 'Groq Llama 8B' },
-    'qwen/qwen3-32b':              { rpd: 1000,  label: 'Groq Qwen 32B' },
-    'llama-3.3-70b':               { rpd: 1000,  label: 'Cerebras Llama 70B' },
+    'gemini-2.5-pro':              { rpd: 50,    provider: 'gemini',   family: 'Gemini 2.5',   variant: 'Pro' },
+    'gemini-2.5-flash':            { rpd: 250,   provider: 'gemini',   family: 'Gemini 2.5',   variant: 'Flash' },
+    'gemini-2.5-flash-lite':       { rpd: 1000,  provider: 'gemini',   family: 'Gemini 2.5',   variant: 'Flash Lite' },
+    'gemini-flash-latest':         { rpd: 250,   provider: 'gemini',   family: 'Gemini',       variant: 'Flash (latest)' },
+    'gemini-2.5-flash-preview-tts':{ rpd: 100,   provider: 'gemini',   family: 'Gemini 2.5',   variant: 'Flash TTS (preview)' },
+    'llama-3.3-70b-versatile':     { rpd: 1000,  provider: 'groq',     family: 'Llama 3.3',    variant: '70B Versatile' },
+    'llama-3.1-8b-instant':        { rpd: 14400, provider: 'groq',     family: 'Llama 3.1',    variant: '8B Instant' },
+    'qwen/qwen3-32b':              { rpd: 1000,  provider: 'groq',     family: 'Qwen3',        variant: '32B' },
+    'llama-3.3-70b':               { rpd: 1000,  provider: 'cerebras', family: 'Llama 3.3',    variant: '70B' },
 };
 
-const FALLBACK_QUOTA: ModelInfo = { rpd: 1000, label: 'Unknown model' };
+const FALLBACK_QUOTA: ModelInfo = { rpd: 1000, provider: 'unknown', family: 'Unknown', variant: '' };
 
 const CATEGORY_LABELS: Record<string, { label: string; emoji: string; hint: string }> = {
     chat:              { label: '채팅',         emoji: '💬', hint: '문서 Q&A · 모키 모드' },
@@ -220,18 +238,40 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg, geminiKeys }
                     )}
                 </div>
             )}
-            {/* Per-model breakdown — only shown when ≥2 models served this category */}
-            {agg.models.size >= 2 && (
-                <div className="mt-2 space-y-1">
+            {/* Per-model breakdown — always shown so the operator can see
+                exactly which model(s) the feature is calling (e.g. Gemini
+                2.5 Flash Lite vs. Groq Qwen3 32B). When only one model has
+                served the category that single row is the answer to "what
+                is this feature using?"; when multiple, the volume split
+                shows how often a fallback actually took over. */}
+            {agg.models.size > 0 && (
+                <div className="mt-2 pt-2 border-t border-ink-100 space-y-1">
+                    <p className="text-[10px] font-bold text-ink-400 uppercase tracking-wider mb-1">사용 모델 (오늘)</p>
                     {Array.from(agg.models.entries())
                         .sort((a, b) => b[1].todayCount - a[1].todayCount)
                         .map(([model, m]) => {
                             const info = MODEL_QUOTAS[model] ?? FALLBACK_QUOTA;
+                            const isGemini = info.provider === 'gemini';
+                            // Per-row cap also scales with the rotating Gemini
+                            // key count, matching the category-level math
+                            // above so the row numbers reconcile cleanly.
+                            const rowCap = info.rpd * (isGemini ? geminiKeys : 1);
+                            const style = PROVIDER_STYLE[info.provider];
                             return (
-                                <div key={model} className="flex items-center justify-between text-[10px]">
-                                    <span className="text-ink-500 truncate">{info.label}</span>
+                                <div key={model} className="flex items-center justify-between gap-2 text-[10px]">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className={`flex-shrink-0 px-1.5 py-px rounded border text-[9px] font-bold uppercase tracking-wider ${style.badge}`}>
+                                            {style.label}
+                                        </span>
+                                        <span className="font-semibold text-ink-700 truncate" title={model}>
+                                            {info.family}
+                                        </span>
+                                        {info.variant && (
+                                            <span className="text-ink-500 truncate">{info.variant}</span>
+                                        )}
+                                    </div>
                                     <span className="text-ink-400 tabular-nums flex-shrink-0">
-                                        {m.todayCount} / {info.rpd.toLocaleString()}
+                                        {m.todayCount} / {rowCap.toLocaleString()}
                                     </span>
                                 </div>
                             );
