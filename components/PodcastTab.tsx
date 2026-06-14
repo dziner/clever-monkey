@@ -326,10 +326,10 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                   />
                   <a
                     href={audioUrl}
-                    download="podcast.wav"
+                    download="podcast.mp3"
                     className="text-center text-xs text-brand-600 hover:text-brand-700 font-medium py-0.5"
                   >
-                    ↓ Download WAV
+                    ↓ Download MP3
                   </a>
                 </div>
               )}

@@ -10,7 +10,7 @@ describe('buildPodcastAudioPath', () => {
     // the owner's id, otherwise the upload is rejected.
     expect(path.split('/')[0]).toBe('user-123');
     expect(path.split('/')[1]).toBe('podcasts');
-    expect(path.endsWith('.wav')).toBe(true);
+    expect(path.endsWith('.mp3')).toBe(true);
   });
 
   it('sanitizes unsafe characters in the document id', () => {

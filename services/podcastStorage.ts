@@ -16,9 +16,12 @@ const BUCKET = 'docs';
 /** Upload a synthesized WAV. Throws on failure so the caller can fall back
  *  to the in-memory copy for this session. */
 export async function uploadPodcastAudio(path: string, blob: Blob): Promise<void> {
+    // contentType comes from the blob itself (audio/mpeg for new MP3
+    // saves, audio/wav for any legacy re-upload). Letting Supabase infer
+    // from the blob keeps this resilient if we change codecs again.
     const { error } = await supabase.storage
         .from(BUCKET)
-        .upload(path, blob, { contentType: 'audio/wav', upsert: false });
+        .upload(path, blob, { contentType: blob.type || 'audio/mpeg', upsert: false });
     if (error) throw error;
 }
 

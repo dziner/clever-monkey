@@ -50,7 +50,11 @@ export function buildPodcastAudioPath(userId: string, docId: string, voice: stri
   const safeDoc = docId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
   const safeVoice = voice.replace(/[^a-zA-Z0-9]/g, '') || 'voice';
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  return `${userId}/podcasts/${safeDoc}-${safeVoice}-${unique}.wav`;
+  // .mp3 because synthesizeSpeech now produces lamejs-encoded MP3
+  // (≈8× smaller than the WAV we used to store). Old podcasts saved as
+  // .wav still play back fine — the stored audioPath drives extension,
+  // not this builder.
+  return `${userId}/podcasts/${safeDoc}-${safeVoice}-${unique}.mp3`;
 }
 
 export function splitTextForTts(text: string, maxChars = TTS_SAFE_CHUNK_CHARS): string[] {

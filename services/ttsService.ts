@@ -4,12 +4,21 @@
 // step itself stays in geminiService because it has to call the
 // authenticated Gemini proxy — only the parts that don't need network
 // access live here.
+//
+// MP3 encoding lives in ./mp3Encoder.ts and is dynamically imported by
+// synthesizeSpeech, so lamejs (~170 kB) only loads for users who
+// actually generate podcast audio rather than shipping in the main
+// bundle.
 
 /**
  * Wrap a raw PCM buffer (16-bit mono, default 24 kHz) in a WAV
  * container. The output is a Blob playable by the browser <audio>
  * element directly. Matches the format Gemini's TTS preview model
  * returns inside its audio inlineData.
+ *
+ * NOTE: WAV is uncompressed (≈2.88 MB/min at 24kHz mono). The persisted
+ * podcast audio path uses MP3 instead (see services/mp3Encoder); WAV is
+ * still useful for an intermediate diagnostic / one-shot download.
  */
 export function pcmToWavBlob(pcm: Uint8Array, sampleRate = 24000): Blob {
     const numChannels = 1;
