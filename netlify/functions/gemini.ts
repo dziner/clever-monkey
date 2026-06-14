@@ -11,6 +11,7 @@ import {
   checkTierLimit,
   tooManyRequestsByIp,
   COUNTED_ACTIONS,
+  categorizeUsage,
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
 } from './lib/shared';
@@ -127,12 +128,18 @@ export const handler: Handler = async (event) => {
 
   // Parse action early so we can decide if it needs a credit
   let parsedAction: string | undefined;
+  let parsedTask: string | undefined;
+  let parsedModel: string | undefined;
   try {
-    parsedAction = (JSON.parse(event.body || '{}') as { action?: string }).action;
+    const body = JSON.parse(event.body || '{}') as { action?: string; task?: string; model?: string };
+    parsedAction = body.action;
+    parsedTask = body.task;
+    parsedModel = body.model;
   } catch { /* handled below */ }
 
   if (userId && parsedAction && COUNTED_ACTIONS.has(parsedAction)) {
-    const { allowed, error } = await checkTierLimit(userId);
+    const category = categorizeUsage(parsedAction, parsedTask);
+    const { allowed, error } = await checkTierLimit(userId, category, parsedModel ?? '');
     if (!allowed) {
       return json(429, { error: error ?? 'Daily AI limit reached. Upgrade to Pro.' });
     }

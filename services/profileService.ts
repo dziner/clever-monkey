@@ -170,6 +170,42 @@ export interface DbStats {
     docsCreatedWeek: number;
 }
 
+export interface ApiCategoryUsage {
+    apiCategory: string;
+    model: string;
+    callCount: number;
+}
+
+export interface ApiCategoryStats {
+    today: ApiCategoryUsage[];
+    week: ApiCategoryUsage[];
+}
+
+/**
+ * Per-feature AI usage (chat / podcast_tts / extract_storage / quiz / …)
+ * for today and the rolling 7-day window. Used by the admin Capacity
+ * dashboard to decide whether to (a) buy a paid Gemini key, (b) add
+ * another rotating key, or (c) shift one of those feature lines to Groq.
+ */
+export async function adminGetApiCategoryStats(): Promise<ApiCategoryStats | null> {
+    const { data, error } = await supabase.rpc('admin_get_api_category_stats');
+    if (error) console.error('[admin] admin_get_api_category_stats failed:', error);
+    if (error || !data) return null;
+    const d = data as {
+        today: Array<{ api_category: string; model: string; call_count: number }>;
+        week:  Array<{ api_category: string; model: string; call_count: number }>;
+    };
+    const norm = (row: { api_category: string; model: string; call_count: number }): ApiCategoryUsage => ({
+        apiCategory: row.api_category ?? 'other',
+        model:       row.model ?? '',
+        callCount:   row.call_count ?? 0,
+    });
+    return {
+        today: (d.today ?? []).map(norm),
+        week:  (d.week  ?? []).map(norm),
+    };
+}
+
 export async function adminGetApiStats(): Promise<ApiStats | null> {
     const { data, error } = await supabase.rpc('admin_get_api_stats');
     if (error) console.error('[admin] admin_get_api_stats failed:', error);

@@ -293,7 +293,11 @@ export async function getUserIdFromToken(authHeader: string | undefined): Promis
   }
 }
 
-export async function checkTierLimit(userId: string): Promise<{ allowed: boolean; error?: string }> {
+export async function checkTierLimit(
+  userId: string,
+  category: string = 'other',
+  model: string = '',
+): Promise<{ allowed: boolean; error?: string }> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return { allowed: true };
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_ai_action`, {
@@ -303,7 +307,10 @@ export async function checkTierLimit(userId: string): Promise<{ allowed: boolean
         apikey: SUPABASE_SERVICE_KEY,
         Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
       },
-      body: JSON.stringify({ p_user_id: userId }),
+      // p_category / p_model are optional on the RPC (default 'other' / '');
+      // older RPC versions that don't know the args will throw, which we
+      // treat as fail-open below — same behaviour as the network-error case.
+      body: JSON.stringify({ p_user_id: userId, p_category: category, p_model: model }),
     });
     if (!res.ok) return { allowed: true }; // fail open
     const data = (await res.json()) as { allowed: boolean; error?: string };
@@ -311,6 +318,26 @@ export async function checkTierLimit(userId: string): Promise<{ allowed: boolean
   } catch {
     return { allowed: true }; // fail open on network errors
   }
+}
+
+/**
+ * Map a Gemini proxy action (+ optional routed task) to one of the
+ * categories surfaced in the admin dashboard. The category is stored in
+ * ai_usage_by_category_daily so the operator can see at a glance where
+ * the day's calls are going (TTS vs OCR vs quiz vs chat etc.).
+ */
+export function categorizeUsage(action: string, task?: string): string {
+  switch (action) {
+    case 'tts':                       return 'podcast_tts';
+    case 'extractText':               return 'extract_inline';
+    case 'extractTextFromStorage':    return 'extract_storage';
+    case 'chat':                      return 'chat';
+  }
+  if (task) {
+    if (task === 'podcast') return 'podcast_script';
+    return task; // summary / presetQuestions / quiz / flashcards / mindmap / slides / studyTips / evaluate
+  }
+  return 'other';
 }
 
 export async function downloadStorageObjectForUser(

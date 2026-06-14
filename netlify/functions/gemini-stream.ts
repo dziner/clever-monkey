@@ -4,6 +4,7 @@ import {
   extractMessage,
   getUserIdFromToken,
   checkTierLimit,
+  categorizeUsage,
   tooManyRequestsByIp,
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
@@ -52,23 +53,27 @@ export default async (req: Request): Promise<Response> => {
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     'unknown';
 
-  // Same auth + metering as the buffered proxy: a streamed generation is
-  // still one counted AI action.
-  const userId = await getUserIdFromToken(req.headers.get('authorization') ?? undefined);
-  if (userId) {
-    const { allowed, error } = await checkTierLimit(userId);
-    if (!allowed) {
-      return Response.json({ error: error ?? 'Daily AI limit reached. Upgrade to Pro.' }, { status: 429 });
-    }
-  } else if (tooManyRequestsByIp(ip)) {
-    return Response.json({ error: 'Rate limit exceeded. Please sign in or try again later.' }, { status: 429 });
-  }
-
+  // Parse the body first so we can categorize the call before metering;
+  // the per-category counter wants to know whether this is a podcast TTS
+  // request vs an OCR call vs a summary stream etc.
   let parsed: StreamRequest;
   try {
     parsed = (await req.json()) as StreamRequest;
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  // Same auth + metering as the buffered proxy: a streamed generation is
+  // still one counted AI action.
+  const userId = await getUserIdFromToken(req.headers.get('authorization') ?? undefined);
+  if (userId) {
+    const category = categorizeUsage(parsed.action ?? 'generateContent', parsed.task);
+    const { allowed, error } = await checkTierLimit(userId, category, parsed.model ?? '');
+    if (!allowed) {
+      return Response.json({ error: error ?? 'Daily AI limit reached. Upgrade to Pro.' }, { status: 429 });
+    }
+  } else if (tooManyRequestsByIp(ip)) {
+    return Response.json({ error: 'Rate limit exceeded. Please sign in or try again later.' }, { status: 429 });
   }
 
   const isOcrFromStorage = parsed.action === 'extractTextFromStorage';

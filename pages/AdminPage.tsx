@@ -2,8 +2,8 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import {
-    adminGetUserStats, adminUpdateProfile, adminGetApiStats, adminGetDbStats,
-    type AdminUserRow, type ApiStats, type DbStats,
+    adminGetUserStats, adminUpdateProfile, adminGetApiStats, adminGetApiCategoryStats, adminGetDbStats,
+    type AdminUserRow, type ApiStats, type ApiCategoryStats, type DbStats,
 } from '../services/profileService';
 import {
     AdminPanelIcon, PeopleIcon, WorkspacePremiumIcon, DocumentIcon, BoltIcon,
@@ -14,6 +14,7 @@ import {
 import { Spinner } from '../components/Spinner';
 import { UserRow, TierBadge } from '../components/AdminUserTable';
 import { MiniBarChart, StorageGauge } from '../components/AdminCharts';
+import { AdminCapacityPanel } from '../components/AdminCapacityPanel';
 import { getUserStats } from '../utils/adminStats';
 import { isAdminUser } from '../services/adminConfig';
 import { ROUTES } from '../routes';
@@ -69,6 +70,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
     const [users, setUsers] = React.useState<AdminUserRow[]>([]);
     const [apiStats, setApiStats] = React.useState<ApiStats | null>(null);
+    const [apiCategoryStats, setApiCategoryStats] = React.useState<ApiCategoryStats | null>(null);
     const [dbStats, setDbStats] = React.useState<DbStats | null>(null);
     const [serverError, setServerError] = React.useState<string | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -89,13 +91,15 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
         loadingRef.current = true;
         setIsLoading(true);
         try {
-            const [usersResult, apiData, dbData] = await Promise.all([
+            const [usersResult, apiData, apiCategoryData, dbData] = await Promise.all([
                 adminGetUserStats(),
                 adminGetApiStats(),
+                adminGetApiCategoryStats(),
                 adminGetDbStats(),
             ]);
             setUsers(usersResult.rows);
             setApiStats(apiData);
+            setApiCategoryStats(apiCategoryData);
             setDbStats(dbData);
             setServerError(usersResult.error);
         } finally {
@@ -370,6 +374,17 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                             데이터가 없습니다 (AI 기능 사용 후 로그가 쌓입니다)
                                         </div>
                                     )}
+                                </div>
+
+                                {/* Per-feature capacity dashboard — knowing which
+                                    feature is closest to its free-tier ceiling
+                                    drives the buy-key / add-key / fall-back-to-Groq
+                                    decision. Hidden until SQL migration runs. */}
+                                <div className="mt-4">
+                                    <h3 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        기능별 사용량 · 무료 한도 대비
+                                    </h3>
+                                    <AdminCapacityPanel stats={apiCategoryStats} />
                                 </div>
 
                                 {/* Top users today */}
