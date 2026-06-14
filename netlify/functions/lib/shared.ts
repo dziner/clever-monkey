@@ -355,7 +355,25 @@ export async function downloadStorageObjectForUser(
  * errors (5xx / UNAVAILABLE / INTERNAL / overload). Other errors surface
  * immediately.
  */
-export async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+interface RetryOptions {
+  /** How many total tries before giving up. Default 4. */
+  attempts?: number;
+  /** Base delay before the first retry, in ms. Default 600. */
+  baseMs?: number;
+  /** Hard cap on any single backoff delay, in ms. Default 2400. */
+  capMs?: number;
+}
+
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  attemptsOrOptions: number | RetryOptions = 4,
+): Promise<T> {
+  const opts = typeof attemptsOrOptions === 'number'
+    ? { attempts: attemptsOrOptions }
+    : attemptsOrOptions;
+  const attempts = opts.attempts ?? 4;
+  const baseMs = opts.baseMs ?? 600;
+  const capMs = opts.capMs ?? 2400;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
@@ -363,8 +381,11 @@ export async function withRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<
     } catch (err) {
       lastErr = err;
       if (!isTransient(err) || i === attempts - 1) throw err;
-      // 600ms, 1.2s, 2.4s — capped so we stay under the function timeout
-      await new Promise(r => setTimeout(r, Math.min(600 * Math.pow(2, i), 2400)));
+      // Exponential backoff with a hard ceiling so we stay under the
+      // function timeout. The defaults (600 / 1.2s / 2.4s) suit text
+      // generation; the TTS preview model needs longer pauses to let
+      // upstream recover, so callers tweak via the options form.
+      await new Promise(r => setTimeout(r, Math.min(baseMs * Math.pow(2, i), capMs)));
     }
   }
   throw lastErr;

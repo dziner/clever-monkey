@@ -787,13 +787,48 @@ export async function synthesizeSpeech(
   // make the same selected voice sound inconsistent across segment
   // boundaries, which the user perceives as multiple speakers.
   const pcmBuffers: Uint8Array[] = [];
-  for (const chunk of chunks) {
+
+  // Last-ditch fallback when the server's 6-try retry still couldn't get
+  // the preview TTS model to respond: split the chunk in half on a
+  // sentence boundary and try each half once. Smaller inputs are far
+  // more likely to succeed because the model is rate-limited per second
+  // of audio output, not per request.
+  const requestChunk = async (text: string): Promise<Uint8Array> => {
     const data = await callGemini<{ audioData: string; mimeType: string }>({
-      action: 'tts',
-      text: chunk,
-      voice,
+      action: 'tts', text, voice,
     }, signal);
-    pcmBuffers.push(decodeAudioData(data.audioData));
+    return decodeAudioData(data.audioData);
+  };
+  const splitHalfOnSentence = (text: string): [string, string] | null => {
+    const trimmed = text.trim();
+    if (trimmed.length < 80) return null; // too small to bother splitting
+    const sentences = trimmed.match(/[^.!?]+[.!?]+\s*/g) ?? [trimmed];
+    if (sentences.length < 2) {
+      // Fall back to mid-character split if there are no sentence ends.
+      const mid = Math.floor(trimmed.length / 2);
+      return [trimmed.slice(0, mid), trimmed.slice(mid)];
+    }
+    const mid = Math.floor(sentences.length / 2);
+    return [sentences.slice(0, mid).join('').trim(), sentences.slice(mid).join('').trim()];
+  };
+
+  for (const chunk of chunks) {
+    let pcm: Uint8Array;
+    try {
+      pcm = await requestChunk(chunk);
+    } catch (err) {
+      // Don't swallow abort/network-down — only the upstream-busy class
+      // benefits from a smaller-input retry.
+      const msg = err instanceof Error ? err.message : '';
+      const transient = /INTERNAL|UNAVAILABLE|5\d\d|internal error|overload|temporar/i.test(msg);
+      if (!transient) throw err;
+      const halves = splitHalfOnSentence(chunk);
+      if (!halves) throw err;
+      const [a, b] = halves;
+      const [pa, pb] = await Promise.all([requestChunk(a), requestChunk(b)]);
+      pcm = concatPcmBuffers([pa, pb]);
+    }
+    pcmBuffers.push(pcm);
     onProgress(++completed, chunks.length);
   }
 
