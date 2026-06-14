@@ -144,7 +144,14 @@ export const handler: Handler = async (event) => {
 
   if (userId && parsedAction && COUNTED_ACTIONS.has(parsedAction)) {
     const category = categorizeUsage(parsedAction, parsedTask);
-    const { allowed, error } = await checkTierLimit(userId, category, parsedModel ?? '');
+    // TTS doesn't take a model from the client (the server picks the
+    // fixed preview model below), so attribute the call to that fixed
+    // model rather than letting the counter row land with an empty
+    // model — empty rows render as "Unknown" on the capacity dashboard.
+    const effectiveModel = parsedAction === 'tts'
+      ? 'gemini-2.5-flash-preview-tts'
+      : (parsedModel ?? '');
+    const { allowed, error } = await checkTierLimit(userId, category, effectiveModel);
     if (!allowed) {
       return json(429, { error: error ?? 'Daily AI limit reached. Upgrade to Pro.' });
     }
