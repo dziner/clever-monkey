@@ -142,17 +142,21 @@ export const OVERLOAD_FALLBACK_MODEL: Record<string, string> = {
 export async function generateContentResilient(
   model: string,
   params: { contents: ContentListUnion; config?: GenerateContentConfig },
+  meta?: UsageMeta,
 ): Promise<GenerateContentResponse> {
   try {
     return await callWithKeyRotation(ai =>
       withRetry(() => ai.models.generateContent({ model, contents: params.contents, config: params.config })),
+      meta,
     );
   } catch (err) {
     const fallback = OVERLOAD_FALLBACK_MODEL[model];
     if (fallback && isOverloaded(err)) {
+      recordApiRejection(meta, 'overload');
       console.warn(`[gemini] ${model} overloaded — retrying on ${fallback}`);
       return await callWithKeyRotation(ai =>
         withRetry(() => ai.models.generateContent({ model: fallback, contents: params.contents, config: params.config })),
+        meta,
       );
     }
     throw err;
@@ -170,6 +174,7 @@ export async function streamGeneratedText(
   model: string,
   params: { contents: ContentListUnion; config?: GenerateContentConfig },
   onText: (chunk: string) => void | Promise<void>,
+  meta?: UsageMeta,
 ): Promise<void> {
   if (keyPool.size() === 0) throw new Error('Server missing GEMINI_API_KEY');
 
@@ -200,11 +205,13 @@ export async function streamGeneratedText(
       const kind = exhaustionKind(err);
       if (kind !== 'none') {
         keyPool.markExhausted(state, cooldownFor(kind), extractMessage(err));
+        if (kind === 'rate' || kind === 'quota') recordApiRejection(meta, kind);
         console.warn(`[gemini] key #${state.index + 1} ${kind}-limited, rotating to next key`);
         continue;                             // rotate to next key
       }
       const fallback = OVERLOAD_FALLBACK_MODEL[model];
       if (fallback && isOverloaded(err)) {
+        recordApiRejection(meta, 'overload');
         console.warn(`[gemini] ${model} overloaded — retrying stream on ${fallback}`);
         await runStream(fallback, ai);
         return;
@@ -222,7 +229,7 @@ export async function streamGeneratedText(
  * try the next one. Other errors propagate immediately (the inner caller
  * handles those via withRetry).
  */
-export async function callWithKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>): Promise<T> {
+export async function callWithKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>, meta?: UsageMeta): Promise<T> {
   if (keyPool.size() === 0) {
     throw new Error('Server missing GEMINI_API_KEY');
   }
@@ -238,6 +245,7 @@ export async function callWithKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>
       const kind = exhaustionKind(err);
       if (kind === 'none') throw err;
       keyPool.markExhausted(state, cooldownFor(kind), extractMessage(err));
+      if (kind === 'rate' || kind === 'quota') recordApiRejection(meta, kind);
       console.warn(`[gemini] key #${state.index + 1} ${kind}-limited, rotating to next key`);
       // continue: try next key
     }
@@ -247,6 +255,47 @@ export async function callWithKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>
 }
 
 export const MAX_TEXT_CHARS = 250_000;
+
+/** Context the key pool uses to attribute a rejection to a feature. */
+export interface UsageMeta {
+  category: string;
+  model: string;
+}
+
+/**
+ * Record a real upstream refusal (rate-limit / quota / overload) so the
+ * admin capacity dashboard can show ground-truth "how close to the
+ * ceiling" instead of guesses. Fire-and-forget; never throws. Mirrors
+ * what Google AI Studio's "Total API Errors" graph counts — including
+ * 429s we successfully retried past, which are the leading indicator we
+ * actually care about during load testing.
+ */
+export function recordApiRejection(meta: UsageMeta | undefined, kind: 'rate' | 'quota' | 'overload'): void {
+  if (!meta || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  void fetch(`${SUPABASE_URL}/rest/v1/rpc/record_api_rejection`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+    },
+    body: JSON.stringify({ p_category: meta.category, p_model: meta.model, p_kind: kind }),
+  }).catch(() => undefined);
+}
+
+/** Number of Gemini API keys currently in the rotation pool. */
+export function geminiKeyCount(): number {
+  return keyPool.size();
+}
+
+/** True if a GROQ_API_KEY / CEREBRAS_API_KEY is configured (value never exposed). */
+export function providerKeyPresence(): { groq: boolean; cerebras: boolean } {
+  return {
+    groq: Boolean(process.env.GROQ_API_KEY),
+    cerebras: Boolean(process.env.CEREBRAS_API_KEY),
+  };
+}
+
 
 // Fallback IP-based rate limiting (anonymous / unverified users)
 const RATE_LIMIT_WINDOW_MS = 60_000;

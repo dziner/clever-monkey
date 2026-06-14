@@ -12,6 +12,8 @@ import {
   tooManyRequestsByIp,
   COUNTED_ACTIONS,
   categorizeUsage,
+  geminiKeyCount,
+  providerKeyPresence,
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
 } from './lib/shared';
@@ -74,6 +76,9 @@ type GeminiRequest =
       action: 'tts';
       text: string;
       voice?: string;
+    }
+  | {
+      action: 'keyMeta';
     };
 
 function errorStatus(err: unknown): number | null {
@@ -166,6 +171,19 @@ export const handler: Handler = async (event) => {
     return json(400, { error: 'Missing action' });
   }
 
+  // Key/provider presence for the admin capacity dashboard. Returns
+  // COUNTS ONLY — never the key values. Auth-gated so anonymous callers
+  // can't probe the deployment's provider config.
+  if (parsed.action === 'keyMeta') {
+    if (!userId) return json(401, { error: 'Authentication required' });
+    const providers = providerKeyPresence();
+    return json(200, {
+      geminiKeyCount: geminiKeyCount(),
+      groqEnabled: providers.groq,
+      cerebrasEnabled: providers.cerebras,
+    });
+  }
+
   // TTS action uses a fixed internal model — skip model whitelist check
   if (parsed.action !== 'tts') {
     const model = parsed.model;
@@ -175,6 +193,13 @@ export const handler: Handler = async (event) => {
   }
 
   const model = parsed.action === 'tts' ? '' : parsed.model;
+
+  // Attribution for the capacity dashboard's real-rejection counters.
+  // The 'tts' model is fixed server-side; categorize from the action/task.
+  const usageMeta = {
+    category: categorizeUsage(parsed.action, (parsed as { task?: string }).task),
+    model: parsed.action === 'tts' ? 'gemini-2.5-flash-preview-tts' : model,
+  };
 
   try {
     if (parsed.action === 'countTokens') {
@@ -201,7 +226,7 @@ export const handler: Handler = async (event) => {
         });
         return json(200, { text }, { 'X-AI-Provider': `${provider}/${usedModel}` });
       }
-      const res = await generateContentResilient(model, { contents: parsed.contents, config: parsed.config });
+      const res = await generateContentResilient(model, { contents: parsed.contents, config: parsed.config }, usageMeta);
       return json(200, { text: res.text });
     }
 
@@ -238,7 +263,7 @@ export const handler: Handler = async (event) => {
             { text: prompt },
           ],
         },
-      });
+      }, usageMeta);
 
       const text = res.text ?? '';
       if (text.length > MAX_TEXT_CHARS) {
@@ -300,6 +325,7 @@ export const handler: Handler = async (event) => {
             },
           } as unknown as GenerateContentConfig,
         }), { attempts: 6, baseMs: 1000, capMs: 12000 }),
+        usageMeta,
       );
 
       const part = (res as TtsGenerateContentResponse).candidates?.[0]?.content?.parts?.[0];

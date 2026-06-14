@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { ApiCategoryStats, ApiCategoryUsage } from '../services/profileService';
+import type { ApiCategoryStats, ApiCategoryUsage, KeyMeta } from '../services/profileService';
 
 // Per-feature capacity dashboard. Aggregates per-category usage rows
 // returned by admin_get_api_category_stats() into one card per feature
@@ -56,11 +56,15 @@ const CATEGORY_LABELS: Record<string, { label: string; emoji: string; hint: stri
 
 interface AdminCapacityPanelProps {
     stats: ApiCategoryStats | null;
+    keyMeta: KeyMeta | null;
 }
 
 interface CategoryAggregate {
     todayCount: number;
     weekCount: number;
+    todayRejects: number;   // rate + quota refusals today
+    weekRejects: number;
+    todayOverload: number;  // 503 overloads today
     models: Map<string, { todayCount: number; weekCount: number }>;
 }
 
@@ -69,17 +73,23 @@ function aggregate(rows: ApiCategoryUsage[], target: 'today' | 'week', into: Map
         const cat = r.apiCategory || 'other';
         let agg = into.get(cat);
         if (!agg) {
-            agg = { todayCount: 0, weekCount: 0, models: new Map() };
+            agg = { todayCount: 0, weekCount: 0, todayRejects: 0, weekRejects: 0, todayOverload: 0, models: new Map() };
             into.set(cat, agg);
         }
         let m = agg.models.get(r.model);
         if (!m) { m = { todayCount: 0, weekCount: 0 }; agg.models.set(r.model, m); }
-        if (target === 'today') { agg.todayCount += r.callCount; m.todayCount += r.callCount; }
-        else                    { agg.weekCount  += r.callCount; m.weekCount  += r.callCount; }
+        const rejects = r.rateRejects + r.quotaRejects;
+        if (target === 'today') {
+            agg.todayCount += r.callCount; m.todayCount += r.callCount;
+            agg.todayRejects += rejects; agg.todayOverload += r.overloadCount;
+        } else {
+            agg.weekCount += r.callCount; m.weekCount += r.callCount;
+            agg.weekRejects += rejects;
+        }
     }
 }
 
-export const AdminCapacityPanel: React.FC<AdminCapacityPanelProps> = ({ stats }) => {
+export const AdminCapacityPanel: React.FC<AdminCapacityPanelProps> = ({ stats, keyMeta }) => {
     if (!stats) {
         return (
             <p className="text-sm text-ink-500">
@@ -105,29 +115,43 @@ export const AdminCapacityPanel: React.FC<AdminCapacityPanelProps> = ({ stats })
     const ordered = Array.from(byCategory.entries())
         .sort((a, b) => b[1].todayCount - a[1].todayCount);
 
+    // Gemini keys multiply the per-key RPD; default to 1 if we couldn't
+    // read the count. Groq/Cerebras free keys are single per provider.
+    const geminiKeys = keyMeta?.geminiKeyCount ?? 1;
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {ordered.map(([category, agg]) => (
-                <CategoryCard key={category} category={category} agg={agg} />
-            ))}
-        </div>
+        <>
+            <p className="text-[11px] text-ink-400 mb-2">
+                Gemini 키 {geminiKeys}개 회전 중
+                {keyMeta?.groqEnabled ? ' · Groq 연결됨' : ''}
+                {keyMeta?.cerebrasEnabled ? ' · Cerebras 연결됨' : ''}
+                {' '}· 한도는 무료 티어 공개값 × 키 개수 추정. 거부 횟수는 실측입니다.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ordered.map(([category, agg]) => (
+                    <CategoryCard key={category} category={category} agg={agg} geminiKeys={geminiKeys} />
+                ))}
+            </div>
+        </>
     );
 };
 
 interface CategoryCardProps {
     category: string;
     agg: CategoryAggregate;
+    geminiKeys: number;
 }
 
-const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg }) => {
+const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg, geminiKeys }) => {
     const meta = CATEGORY_LABELS[category] ?? { label: category, emoji: '·', hint: '' };
 
-    // Effective daily cap = sum of cap for each model we've seen this
-    // week. (Each rotating Gemini API key has its own quota; here we
-    // approximate by treating each distinct model as one key. The number
-    // is a guide rail, not an exact limit.)
+    // Effective daily cap = per-model RPD, multiplied by the number of
+    // rotating Gemini keys (each key has its own quota). Non-Gemini
+    // models (Groq/Cerebras) are one key per provider, so no multiplier.
     const todayQuota = Array.from(agg.models.keys()).reduce((sum, model) => {
-        return sum + (MODEL_QUOTAS[model] ?? FALLBACK_QUOTA).rpd;
+        const info = MODEL_QUOTAS[model] ?? FALLBACK_QUOTA;
+        const isGemini = model.startsWith('gemini');
+        return sum + info.rpd * (isGemini ? geminiKeys : 1);
     }, 0);
     const pct = todayQuota > 0 ? Math.min(100, (agg.todayCount / todayQuota) * 100) : 0;
     // Three bands matching the existing dashboard idiom.
@@ -169,6 +193,33 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg }) => {
                 <span>최근 7일</span>
                 <span className="tabular-nums font-semibold text-ink-700">{agg.weekCount}회</span>
             </div>
+            {/* Real upstream refusals — the ground-truth ceiling signal the
+                operator actually asked for. Unlike the quota bar (an estimate),
+                these are counts of 429/RESOURCE_EXHAUSTED/503 we genuinely got
+                back from the provider, recorded at the key-pool level so a
+                refusal that a second rotating key recovered is still visible. */}
+            {(agg.todayRejects > 0 || agg.todayOverload > 0 || agg.weekRejects > 0) && (
+                <div className="mt-2 pt-2 border-t border-ink-100 space-y-0.5">
+                    <div className="flex justify-between text-[10px]">
+                        <span className="text-ink-500">오늘 한도 거부 <span className="text-ink-400">(429)</span></span>
+                        <span className={`tabular-nums font-semibold ${agg.todayRejects > 0 ? 'text-red-600' : 'text-ink-400'}`}>
+                            {agg.todayRejects}회
+                        </span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                        <span className="text-ink-500">오늘 과부하 <span className="text-ink-400">(503)</span></span>
+                        <span className={`tabular-nums font-semibold ${agg.todayOverload > 0 ? 'text-orange-600' : 'text-ink-400'}`}>
+                            {agg.todayOverload}회
+                        </span>
+                    </div>
+                    {agg.weekRejects > 0 && (
+                        <div className="flex justify-between text-[10px]">
+                            <span className="text-ink-400">최근 7일 거부</span>
+                            <span className="tabular-nums text-ink-500">{agg.weekRejects}회</span>
+                        </div>
+                    )}
+                </div>
+            )}
             {/* Per-model breakdown — only shown when ≥2 models served this category */}
             {agg.models.size >= 2 && (
                 <div className="mt-2 space-y-1">
@@ -187,10 +238,15 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg }) => {
                         })}
                 </div>
             )}
-            {pct >= 70 && (
+            {/* Action hint. Real refusals outrank the estimated bar: if the
+                provider actually said no today, that's a definitive "add a key
+                or go paid" signal even when the estimate looks comfortable. */}
+            {(agg.todayRejects > 0 || pct >= 70) && (
                 <div className="mt-2 pt-2 border-t border-ink-100">
-                    <p className="text-[10px] font-semibold text-orange-600">
-                        {pct >= 90 ? '⚠️ 한도 임박 — 키 추가 또는 폴백 권장' : '↗ 한도 70% 초과 — 모니터링 권장'}
+                    <p className={`text-[10px] font-semibold ${agg.todayRejects > 0 || pct >= 90 ? 'text-red-600' : 'text-orange-600'}`}>
+                        {agg.todayRejects > 0
+                            ? '⚠️ 실제 한도 거부 발생 — 키 추가 또는 유료 전환 권장'
+                            : pct >= 90 ? '⚠️ 한도 임박 — 키 추가 또는 폴백 권장' : '↗ 한도 70% 초과 — 모니터링 권장'}
                     </p>
                 </div>
             )}

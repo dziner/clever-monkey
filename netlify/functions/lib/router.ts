@@ -123,6 +123,11 @@ function maxTokensFor(task: string, params: GenParams): number {
   return params.maxOutputTokens ?? TASK_MAX_TOKENS[task] ?? TASK_MAX_TOKENS.default;
 }
 
+/** Dashboard category for a routed task (matches shared.categorizeUsage). */
+function categoryForTask(task: string): string {
+  return task === 'podcast' ? 'podcast_script' : task;
+}
+
 export interface RouteResult { text: string; provider: ProviderName; model: string; }
 
 /**
@@ -136,6 +141,7 @@ export async function routedGenerate(task: string, params: GenParams): Promise<R
     throw new Error('No AI provider available — set GEMINI_API_KEY (and optionally GROQ_API_KEY).');
   }
   const maxOutputTokens = maxTokensFor(task, params);
+  const category = categoryForTask(task);
 
   let lastErr: unknown;
   let soft: RouteResult | null = null; // valid text that failed only the JSON check
@@ -143,7 +149,7 @@ export async function routedGenerate(task: string, params: GenParams): Promise<R
     const s = chain[i];
     const isLast = i === chain.length - 1;
     try {
-      const text = await PROVIDERS[s.provider].generate(s.model, { ...params, maxOutputTokens });
+      const text = await PROVIDERS[s.provider].generate(s.model, { ...params, maxOutputTokens, category });
       if (!text.trim()) throw new Error('empty output');
       if (params.json && !looksLikeJSON(text)) {
         soft = { text, provider: s.provider, model: s.model };
@@ -175,6 +181,7 @@ export async function routedStream(
     throw new Error('No AI provider available — set GEMINI_API_KEY (and optionally GROQ_API_KEY).');
   }
   const maxOutputTokens = maxTokensFor(task, params);
+  const category = categoryForTask(task);
 
   let emitted = false;
   const wrapped = async (t: string) => { emitted = true; await onText(t); };
@@ -182,7 +189,7 @@ export async function routedStream(
   let lastErr: unknown;
   for (const s of chain) {
     try {
-      await PROVIDERS[s.provider].stream(s.model, { ...params, maxOutputTokens }, wrapped);
+      await PROVIDERS[s.provider].stream(s.model, { ...params, maxOutputTokens, category }, wrapped);
       return { text: '', provider: s.provider, model: s.model };
     } catch (err) {
       lastErr = err;

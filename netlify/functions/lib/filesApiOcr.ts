@@ -117,5 +117,5 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
         } finally {
             await ai.files.delete({ name: uploadedFileName }).catch(() => undefined);
         }
-    });
+    }, { category: 'extract_storage', model: params.model });
 }

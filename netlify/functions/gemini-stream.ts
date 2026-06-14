@@ -130,6 +130,7 @@ export default async (req: Request): Promise<Response> => {
             parsed.model,
             { contents: parsed.contents, config: parsed.config },
             emit,
+            { category: categorizeUsage('generateContent', parsed.task), model: parsed.model },
           );
         }
       } catch (err) {

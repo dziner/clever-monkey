@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import {
     adminGetUserStats, adminUpdateProfile, adminGetApiStats, adminGetApiCategoryStats, adminGetDbStats,
-    type AdminUserRow, type ApiStats, type ApiCategoryStats, type DbStats,
+    fetchKeyMeta,
+    type AdminUserRow, type ApiStats, type ApiCategoryStats, type DbStats, type KeyMeta,
 } from '../services/profileService';
 import {
     AdminPanelIcon, PeopleIcon, WorkspacePremiumIcon, DocumentIcon, BoltIcon,
@@ -71,6 +72,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     const [users, setUsers] = React.useState<AdminUserRow[]>([]);
     const [apiStats, setApiStats] = React.useState<ApiStats | null>(null);
     const [apiCategoryStats, setApiCategoryStats] = React.useState<ApiCategoryStats | null>(null);
+    const [keyMeta, setKeyMeta] = React.useState<KeyMeta | null>(null);
     const [dbStats, setDbStats] = React.useState<DbStats | null>(null);
     const [serverError, setServerError] = React.useState<string | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
@@ -91,15 +93,17 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
         loadingRef.current = true;
         setIsLoading(true);
         try {
-            const [usersResult, apiData, apiCategoryData, dbData] = await Promise.all([
+            const [usersResult, apiData, apiCategoryData, keyMetaData, dbData] = await Promise.all([
                 adminGetUserStats(),
                 adminGetApiStats(),
                 adminGetApiCategoryStats(),
+                fetchKeyMeta(),
                 adminGetDbStats(),
             ]);
             setUsers(usersResult.rows);
             setApiStats(apiData);
             setApiCategoryStats(apiCategoryData);
+            setKeyMeta(keyMetaData);
             setDbStats(dbData);
             setServerError(usersResult.error);
         } finally {
@@ -384,7 +388,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     <h3 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                                         기능별 사용량 · 무료 한도 대비
                                     </h3>
-                                    <AdminCapacityPanel stats={apiCategoryStats} />
+                                    <AdminCapacityPanel stats={apiCategoryStats} keyMeta={keyMeta} />
                                 </div>
 
                                 {/* Top users today */}

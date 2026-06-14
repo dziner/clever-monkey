@@ -174,6 +174,44 @@ export interface ApiCategoryUsage {
     apiCategory: string;
     model: string;
     callCount: number;
+    /** Real upstream refusals — the ground-truth "near the ceiling" signal. */
+    rateRejects: number;
+    quotaRejects: number;
+    overloadCount: number;
+}
+
+export interface KeyMeta {
+    geminiKeyCount: number;
+    groqEnabled: boolean;
+    cerebrasEnabled: boolean;
+}
+
+/**
+ * How many Gemini keys are in the rotation pool + whether Groq/Cerebras
+ * are configured. Counts only — key values never leave the server. Lets
+ * the capacity dashboard compute the real effective quota
+ * (keys × per-key RPD) instead of assuming a single key.
+ */
+export async function fetchKeyMeta(): Promise<KeyMeta | null> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return null;
+        const res = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+            body: JSON.stringify({ action: 'keyMeta' }),
+        });
+        if (!res.ok) return null;
+        const d = await res.json() as { geminiKeyCount?: number; groqEnabled?: boolean; cerebrasEnabled?: boolean };
+        return {
+            geminiKeyCount: d.geminiKeyCount ?? 1,
+            groqEnabled: Boolean(d.groqEnabled),
+            cerebrasEnabled: Boolean(d.cerebrasEnabled),
+        };
+    } catch {
+        return null;
+    }
 }
 
 export interface ApiCategoryStats {
@@ -191,14 +229,18 @@ export async function adminGetApiCategoryStats(): Promise<ApiCategoryStats | nul
     const { data, error } = await supabase.rpc('admin_get_api_category_stats');
     if (error) console.error('[admin] admin_get_api_category_stats failed:', error);
     if (error || !data) return null;
-    const d = data as {
-        today: Array<{ api_category: string; model: string; call_count: number }>;
-        week:  Array<{ api_category: string; model: string; call_count: number }>;
+    type Row = {
+        api_category: string; model: string; call_count: number;
+        rate_rejects?: number; quota_rejects?: number; overload_count?: number;
     };
-    const norm = (row: { api_category: string; model: string; call_count: number }): ApiCategoryUsage => ({
-        apiCategory: row.api_category ?? 'other',
-        model:       row.model ?? '',
-        callCount:   row.call_count ?? 0,
+    const d = data as { today: Row[]; week: Row[] };
+    const norm = (row: Row): ApiCategoryUsage => ({
+        apiCategory:   row.api_category ?? 'other',
+        model:         row.model ?? '',
+        callCount:     row.call_count ?? 0,
+        rateRejects:   row.rate_rejects ?? 0,
+        quotaRejects:  row.quota_rejects ?? 0,
+        overloadCount: row.overload_count ?? 0,
     });
     return {
         today: (d.today ?? []).map(norm),

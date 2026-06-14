@@ -12,7 +12,7 @@
 //   GROQ_API_KEY                       (optional; route steps skip if absent)
 //   CEREBRAS_API_KEY                   (optional; route steps skip if absent)
 
-import { callWithKeyRotation, streamGeneratedText, keyPool } from './shared';
+import { callWithKeyRotation, streamGeneratedText, keyPool, type UsageMeta } from './shared';
 
 export type ProviderName = 'gemini' | 'groq' | 'cerebras';
 
@@ -22,6 +22,8 @@ export interface GenParams {
   json?: boolean;
   temperature?: number;
   maxOutputTokens?: number;
+  /** Usage category for the capacity dashboard's rejection counters. */
+  category?: string;
 }
 
 export interface Provider {
@@ -47,13 +49,16 @@ const gemini: Provider = {
   name: 'gemini',
   available: () => keyPool.size() > 0,
   async generate(model, p) {
+    const meta: UsageMeta = { category: p.category ?? 'other', model };
     const res = await callWithKeyRotation(ai =>
       ai.models.generateContent({ model, contents: p.prompt, config: geminiConfig(p) }),
+      meta,
     );
     return (res as { text?: string }).text ?? '';
   },
   async stream(model, p, onText) {
-    await streamGeneratedText(model, { contents: p.prompt, config: geminiConfig(p) }, onText);
+    const meta: UsageMeta = { category: p.category ?? 'other', model };
+    await streamGeneratedText(model, { contents: p.prompt, config: geminiConfig(p) }, onText, meta);
   },
 };
 
