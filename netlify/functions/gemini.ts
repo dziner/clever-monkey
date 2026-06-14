@@ -314,11 +314,18 @@ export const handler: Handler = async (event) => {
         ? parsed.voice
         : 'Puck';
 
-      // TTS uses a preview model that returns 5xx ('음성합성 서버가 응답하지
-      // 않습니다') noticeably more often than the GA text models. The
-      // default 4-try / 2.4s-cap backoff is too tight to let preview
-      // capacity recover — bump to 6 tries with 1s base and 12s cap so
-      // a transient spike doesn't surface to the user as a failure.
+      // TTS preview model is flaky, but the server retry budget MUST fit
+      // inside Netlify's ~26s wall-clock function limit — and one TTS
+      // call to a ~2200-char chunk already takes 3–8 s. The previous
+      // {6, 1s, 12s} config (cumulative wait alone = 39 s) guaranteed
+      // that retries past #1 never actually completed: Netlify killed
+      // the function first and the client saw a 504 with no chance for
+      // the upstream model to recover.
+      //
+      // Tightened so a single attempt + ONE quick retry fits with room
+      // to spare; the client owns longer-horizon retries (where it has
+      // no timeout) via same-chunk retry and split-half fallback in
+      // synthesizeSpeech.
       const res = await callWithKeyRotation(ai =>
         withRetry(() => ai.models.generateContent({
           model: 'gemini-2.5-flash-preview-tts',
@@ -331,7 +338,7 @@ export const handler: Handler = async (event) => {
               },
             },
           } as unknown as GenerateContentConfig,
-        }), { attempts: 6, baseMs: 1000, capMs: 12000 }),
+        }), { attempts: 2, baseMs: 500, capMs: 1500 }),
         usageMeta,
       );
 

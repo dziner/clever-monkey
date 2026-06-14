@@ -788,11 +788,18 @@ export async function synthesizeSpeech(
   // boundaries, which the user perceives as multiple speakers.
   const pcmBuffers: Uint8Array[] = [];
 
-  // Last-ditch fallback when the server's 6-try retry still couldn't get
-  // the preview TTS model to respond: split the chunk in half on a
-  // sentence boundary and try each half once. Smaller inputs are far
-  // more likely to succeed because the model is rate-limited per second
-  // of audio output, not per request.
+  // TTS preview model is unstable, and the server-side retry budget has
+  // to live inside a ~26 s function timeout — so the client owns the
+  // longer-horizon retries where it has no such limit:
+  //
+  //   1. Same-chunk retry: try the exact text once more after a short
+  //      backoff. Most transient failures (INTERNAL/UNAVAILABLE/504/timeout)
+  //      clear on the second attempt because they're upstream throttling,
+  //      not anything wrong with the input.
+  //   2. Split-half fallback: when the same chunk fails twice in a row,
+  //      split it on a sentence boundary and try each half once.
+  //      Smaller inputs are markedly more likely to succeed because the
+  //      model is rate-limited per second of audio output.
   const requestChunk = async (text: string): Promise<Uint8Array> => {
     const data = await callGemini<{ audioData: string; mimeType: string }>({
       action: 'tts', text, voice,
@@ -811,19 +818,33 @@ export async function synthesizeSpeech(
     const mid = Math.floor(sentences.length / 2);
     return [sentences.slice(0, mid).join('').trim(), sentences.slice(mid).join('').trim()];
   };
+  const isTransientTtsError = (err: unknown): boolean => {
+    const msg = err instanceof Error ? err.message : '';
+    return /INTERNAL|UNAVAILABLE|5\d\d|internal error|overload|temporar|timeout|timed out|fetch failed|network/i.test(msg);
+  };
 
   for (const chunk of chunks) {
-    let pcm: Uint8Array;
-    try {
-      pcm = await requestChunk(chunk);
-    } catch (err) {
-      // Don't swallow abort/network-down — only the upstream-busy class
-      // benefits from a smaller-input retry.
-      const msg = err instanceof Error ? err.message : '';
-      const transient = /INTERNAL|UNAVAILABLE|5\d\d|internal error|overload|temporar/i.test(msg);
-      if (!transient) throw err;
+    let pcm: Uint8Array | null = null;
+    let lastErr: unknown;
+    // Two same-chunk attempts before falling back to split-half. The
+    // 1.5 s pause lets upstream throttling clear without dragging the
+    // user-perceived wait too long (sequential across all chunks).
+    for (let attempt = 0; attempt < 2 && pcm === null; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+        pcm = await requestChunk(chunk);
+      } catch (err) {
+        lastErr = err;
+        // Abort/non-transient: bail immediately, don't waste a retry
+        // on something that won't recover (e.g. 400 invalid input).
+        if (err instanceof Error && err.name === 'AbortError') throw err;
+        if (!isTransientTtsError(err)) throw err;
+      }
+    }
+    if (pcm === null) {
+      // Same chunk failed twice — split and try each half once.
       const halves = splitHalfOnSentence(chunk);
-      if (!halves) throw err;
+      if (!halves) throw lastErr ?? new Error('TTS failed');
       const [a, b] = halves;
       const [pa, pb] = await Promise.all([requestChunk(a), requestChunk(b)]);
       pcm = concatPcmBuffers([pa, pb]);

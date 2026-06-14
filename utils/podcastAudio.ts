@@ -1,4 +1,11 @@
-export const TTS_SAFE_CHUNK_CHARS = 4400;
+// Per-request char cap for TTS. Sized so a single Gemini TTS preview
+// call comfortably finishes inside Netlify's ~26 s function wall-clock
+// even when the upstream is slow — at 4400 chars a single call already
+// burned 10–15 s, leaving zero budget for the server retry. 2200 keeps
+// each call at ~3–8 s so a quick server retry + same-chunk client retry
+// both fit within their respective timeouts. Two halves of a longer
+// script also have less voice drift than four+ tiny segments would.
+export const TTS_SAFE_CHUNK_CHARS = 2200;
 
 const SPEAKER_LABEL_PATTERN =
   /^\s*(?:(?:host|guest|co-?host|narrator|speaker\s*\d+|panelist|expert|student|teacher|professor|interviewer|interviewee)|(?:진행자|사회자|게스트|패널|패널리스트|내레이터|나레이터|화자\s*\d+|전문가|학생|선생님|교수|인터뷰어|인터뷰이)|[A-Z])\s*[:：\-]\s*/i;
