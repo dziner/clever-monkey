@@ -110,7 +110,14 @@ export interface DocumentData {
   } | null;
   mindMapData?: MindMapData | null;
   slidesData?: SlideData | null;
-  podcastData?: { script: string } | null;
+  podcastData?: {
+    script: string;
+    /** Supabase Storage path of the synthesized WAV, so audio survives a
+     *  refresh instead of living only in an in-memory object URL. */
+    audioPath?: string;
+    /** Voice the saved audio was synthesized with (restores the picker). */
+    voice?: string;
+  } | null;
 }
 
 /**

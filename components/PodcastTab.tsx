@@ -1,6 +1,12 @@
 import * as React from 'react';
 import type { DocumentData } from '../types';
 import { generatePodcastScript, synthesizeSpeech } from '../services/geminiService';
+import {
+  buildPodcastAudioPath,
+  uploadPodcastAudio,
+  downloadPodcastAudio,
+  removePodcastAudio,
+} from '../services/podcastStorage';
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
@@ -24,7 +30,7 @@ const DIRECTION_PLACEHOLDER = '예: 챕터 5~7만 대상으로, 시험 전 복�
 
 export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
-  const { userProfile } = useUser();
+  const { userProfile, userId } = useUser();
   const language = userProfile?.language ?? null;
 
   const [instructions, setInstructions] = React.useState('');
@@ -44,31 +50,64 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
     )
   );
 
-  React.useEffect(() => {
-    if (data) {
-      dispatch({
-        type: 'UPDATE_DOCUMENT',
-        payload: { docId: document.id, updates: { podcastData: { script: data } } },
-      });
-    }
-  }, [data, document.id, dispatch]);
-
-  const displayScript = data ?? document.podcastData?.script ?? null;
-
   const [voice, setVoice] = React.useState<string>('Puck');
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [audioLoading, setAudioLoading] = React.useState(false);
+  const [audioRestoring, setAudioRestoring] = React.useState(false);
   const [audioProgress, setAudioProgress] = React.useState<{ done: number; total: number } | null>(null);
   const [audioError, setAudioError] = React.useState<string | null>(null);
   const audioAbortRef = React.useRef<AbortController | null>(null);
+  // The storage path currently represented by `audioUrl`, so the restore
+  // effect doesn't re-download audio we already have in memory.
+  const loadedAudioPathRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!data) return;
+    // A freshly generated script makes any previously synthesized audio
+    // stale — drop the saved pointer, clear the player, and clean up the
+    // now-orphaned file so storage doesn't accumulate dead audio.
+    const stalePath = document.podcastData?.audioPath ?? null;
+    dispatch({
+      type: 'UPDATE_DOCUMENT',
+      payload: { docId: document.id, updates: { podcastData: { script: data } } },
+    });
+    setAudioUrl(null);
+    setAudioError(null);
+    loadedAudioPathRef.current = null;
+    if (stalePath) void removePodcastAudio(stalePath);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, document.id, dispatch]);
+
+  const displayScript = data ?? document.podcastData?.script ?? null;
 
   React.useEffect(() => {
     return () => { if (audioUrl) URL.revokeObjectURL(audioUrl); };
   }, [audioUrl]);
 
+  // Restore saved audio on mount (or when a different saved file appears),
+  // so a refresh brings the podcast back instead of losing it.
+  const savedAudioPath = document.podcastData?.audioPath;
+  const savedVoice = document.podcastData?.voice;
+  React.useEffect(() => {
+    if (!savedAudioPath || loadedAudioPathRef.current === savedAudioPath) return;
+    let cancelled = false;
+    setAudioRestoring(true);
+    (async () => {
+      const blob = await downloadPodcastAudio(savedAudioPath);
+      if (cancelled) return;
+      if (blob) {
+        loadedAudioPathRef.current = savedAudioPath;
+        setAudioUrl(URL.createObjectURL(blob));
+        if (savedVoice) setVoice(savedVoice);
+      }
+      setAudioRestoring(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedAudioPath]);
+
   const handleGenerateAudio = React.useCallback(async () => {
     if (!displayScript) return;
-    if (audioUrl) { URL.revokeObjectURL(audioUrl); setAudioUrl(null); }
     audioAbortRef.current?.abort();
     audioAbortRef.current = new AbortController();
     setAudioLoading(true);
@@ -78,7 +117,28 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
       const blob = await synthesizeSpeech(displayScript, voice, (done, total) => {
         setAudioProgress({ done, total });
       }, audioAbortRef.current.signal);
+      // Play immediately from memory; the previous object URL is revoked by
+      // the cleanup effect when this replaces it.
       setAudioUrl(URL.createObjectURL(blob));
+
+      // Persist so it survives a refresh. Guests have no per-user storage
+      // prefix, so they keep only the in-memory copy for this session.
+      if (userId) {
+        const prevPath = document.podcastData?.audioPath ?? null;
+        try {
+          const path = buildPodcastAudioPath(userId, document.id, voice);
+          await uploadPodcastAudio(path, blob);
+          loadedAudioPathRef.current = path;
+          dispatch({
+            type: 'UPDATE_DOCUMENT',
+            payload: { docId: document.id, updates: { podcastData: { script: displayScript, audioPath: path, voice } } },
+          });
+          if (prevPath && prevPath !== path) void removePodcastAudio(prevPath);
+        } catch (saveErr) {
+          // Non-fatal: audio still plays this session, just not persisted.
+          console.error('[podcast] failed to save audio:', saveErr);
+        }
+      }
     } catch (e: unknown) {
       if (e instanceof Error && e.name === 'AbortError') return;
       const raw = e instanceof Error ? e.message : '';
@@ -92,7 +152,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
       setAudioLoading(false);
       setAudioProgress(null);
     }
-  }, [displayScript, voice, audioUrl]);
+  }, [displayScript, voice, userId, document.id, document.podcastData?.audioPath, dispatch]);
 
   if (!document.documentContent) {
     return (
@@ -205,7 +265,12 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                 ))}
               </select>
 
-              {audioLoading ? (
+              {audioRestoring ? (
+                <div className="flex items-center justify-center gap-2 py-2 text-xs text-ink-500">
+                  <Spinner />
+                  <span>저장된 음성을 불러오는 중…</span>
+                </div>
+              ) : audioLoading ? (
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-xs text-ink-500">
                     <span>Synthesizing…</span>

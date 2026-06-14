@@ -37,6 +37,22 @@ export function normalizePodcastScriptForSingleNarrator(script: string): string 
     .join('\n\n');
 }
 
+/**
+ * Build the Supabase Storage key for a synthesized podcast WAV. Pure (no
+ * network) so it lives here; the upload/download live in
+ * services/podcastStorage.ts. Kept under `{userId}/podcasts/` so the
+ * docs-bucket RLS — which keys on the FIRST path segment — treats it as
+ * the user's own object. A timestamp + random suffix makes every render a
+ * distinct object, so a fresh upload never collides (the bucket grants no
+ * UPDATE policy); regeneration uploads fresh and removes the old file.
+ */
+export function buildPodcastAudioPath(userId: string, docId: string, voice: string): string {
+  const safeDoc = docId.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+  const safeVoice = voice.replace(/[^a-zA-Z0-9]/g, '') || 'voice';
+  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${userId}/podcasts/${safeDoc}-${safeVoice}-${unique}.wav`;
+}
+
 export function splitTextForTts(text: string, maxChars = TTS_SAFE_CHUNK_CHARS): string[] {
   const normalized = text.trim();
   if (!normalized) return [];
