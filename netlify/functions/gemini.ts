@@ -88,6 +88,7 @@ function errorStatus(err: unknown): number | null {
 }
 
 interface TtsResponsePart {
+  text?: string;
   inlineData?: {
     data?: string;
     mimeType?: string;
@@ -95,11 +96,39 @@ interface TtsResponsePart {
 }
 
 interface TtsGenerateContentResponse {
+  promptFeedback?: { blockReason?: string };
   candidates?: Array<{
+    finishReason?: string;
     content?: {
       parts?: TtsResponsePart[];
     };
   }>;
+}
+
+/** Find the first audio part anywhere in the response (it isn't always
+ *  parts[0] — the model can emit a text part first). Returns null when
+ *  no part carries inline audio. */
+function findAudioPart(res: TtsGenerateContentResponse): { data: string; mimeType?: string } | null {
+  for (const cand of res.candidates ?? []) {
+    for (const part of cand.content?.parts ?? []) {
+      if (part.inlineData?.data) {
+        return { data: part.inlineData.data, mimeType: part.inlineData.mimeType };
+      }
+    }
+  }
+  return null;
+}
+
+/** Compact reason for a no-audio TTS response, surfaced in the error so
+ *  it lands in diagnostic_events instead of an opaque "no audio data". */
+function describeNoAudio(res: TtsGenerateContentResponse): string {
+  const block = res.promptFeedback?.blockReason;
+  const finish = res.candidates?.[0]?.finishReason;
+  const bits: string[] = [];
+  if (block) bits.push(`block=${block}`);
+  if (finish) bits.push(`finish=${finish}`);
+  if (!res.candidates?.length) bits.push('no candidates');
+  return bits.length ? `TTS returned no audio (${bits.join(', ')})` : 'TTS returned no audio data';
 }
 
 export const handler: Handler = async (event) => {
@@ -308,27 +337,17 @@ export const handler: Handler = async (event) => {
       // directions (normalizePodcastScriptForSingleNarrator) so the text
       // arriving here is clean single-narrator prose — feed it RAW.
       //
-      // We previously wrapped it in an instruction block ("Read the script
-      // below as one narrator… SCRIPT: \"\"\"…\"\"\""). That regressed TTS
-      // hard: a read-aloud model handed a meta-instruction block tends to
-      // return no audio (→ "TTS returned no audio data"), which is what
-      // turned synthesis into a near-constant failure. Single call here;
-      // the client (synthesizeSpeech) owns retries where it has no 26 s
-      // function-timeout to fight.
+      // Keep the config MINIMAL: just AUDIO modality + the voice. Earlier
+      // additions each regressed synthesis — an instruction-block prompt
+      // and then temperature:0 both made the model return a response with
+      // no audio part ("TTS returned no audio data"). The original
+      // working version set neither. Single call; the client owns retries.
       const res = await callWithKeyRotation(ai =>
         ai.models.generateContent({
           model: 'gemini-2.5-flash-preview-tts',
           contents: [{ parts: [{ text: parsed.text }] }],
           config: {
             responseModalities: ['AUDIO'],
-            // temperature: 0 makes prosody (energy, pace, intonation)
-            // as deterministic as the model allows. With the default
-            // (~1.0) the picker re-rolls per call, so consecutive
-            // chunks of the same podcast sounded like the same voice
-            // but in slightly different moods — what the user heard as
-            // "톤이 달라진다". 0 gives the most consistent across-call
-            // delivery the API exposes.
-            temperature: 0,
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: { voiceName: voice },
@@ -339,14 +358,16 @@ export const handler: Handler = async (event) => {
         usageMeta,
       );
 
-      const part = (res as TtsGenerateContentResponse).candidates?.[0]?.content?.parts?.[0];
-      if (!part?.inlineData?.data) {
-        return json(500, { error: 'TTS returned no audio data' });
+      const audio = findAudioPart(res as TtsGenerateContentResponse);
+      if (!audio) {
+        // Surface the actual reason (safety block / finishReason) so it's
+        // visible in diagnostic_events rather than an opaque message.
+        return json(502, { error: describeNoAudio(res as TtsGenerateContentResponse) });
       }
 
       return json(200, {
-        audioData: part.inlineData.data as string,
-        mimeType: (part.inlineData.mimeType as string) ?? 'audio/pcm;rate=24000',
+        audioData: audio.data,
+        mimeType: audio.mimeType ?? 'audio/pcm;rate=24000',
       });
     }
 
