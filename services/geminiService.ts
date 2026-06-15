@@ -8,6 +8,7 @@ import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBud
 import { createDiagnosticErrorInfo } from '../utils/diagnostics';
 import { logDiagnosticEvent } from './diagnostics';
 import { normalizePodcastScriptForSingleNarrator, splitTextForTts } from '../utils/podcastAudio';
+import { buildQuizAvoidanceBlock } from '../utils/quizMemory';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
@@ -573,7 +574,11 @@ export async function generateQuiz(
   quizType: 'mcq' | 'frq',
   questionCount: number,
   signal?: AbortSignal,
-  language?: string | null
+  language?: string | null,
+  /** Stems of recently-seen questions for the same (user, doc, type)
+   *  so the prompt can steer the model away from repeats. Pass [] when
+   *  the user has no history (first quiz, or guest). */
+  recentQuestions: string[] = [],
 ): Promise<QuizData | FRQData> {
   const diversityRules = `
 CRITICAL RULES — READ BEFORE GENERATING:
@@ -594,7 +599,13 @@ ${diversityRules}`;
 ${diversityRules}`;
   }
 
-  const fullPrompt = `${prompt}\n\n${languageDirective(language)}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.quiz)}\n"""`;
+  // Cross-attempt repetition is the user-quoted "critical motivation
+  // killer" — diversityRules above only prevents dupes WITHIN this
+  // one quiz, not across attempts. The avoidance block tells the
+  // model which stems the user has already seen for this doc + type.
+  const avoidanceBlock = buildQuizAvoidanceBlock(recentQuestions);
+
+  const fullPrompt = `${prompt}\n\n${languageDirective(language)}${avoidanceBlock}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.quiz)}\n"""`;
   const text = await generateContent(model, fullPrompt, { temperature: 1.0, responseMimeType: 'application/json' }, signal, 'quiz');
   return cleanAndParseJSON(text) as QuizData | FRQData;
 }

@@ -21,6 +21,7 @@ import { useChat } from '../hooks/useChat';
 import { t } from '../services/uiStrings';
 import { generateQuiz } from '../services/geminiService';
 import { saveQuizSession } from '../services/wrongAnswersService';
+import { fetchRecentQuestions, recordSeenQuestions } from '../services/quizMemoryService';
 import { getErrorMessage } from '../utils/errors';
 
 export type ActiveTab = 'overview' | 'chat' | 'quiz' | 'mindmap' | 'flashcards' | 'podcast';
@@ -62,7 +63,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     onSignInClick,
 }) => {
     const { dispatch } = useDocuments();
-    const { userProfile } = useUser();
+    const { userProfile, userId } = useUser();
     const language = userProfile?.language ?? null;
     // activeTab is controlled by prop from StudyPage
 
@@ -228,7 +229,15 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: document.id, updates: { quizTabData: null } } });
 
         try {
-            const data = await generateQuiz(document.documentContent, document.model, type, count, undefined, language);
+            // Pull the user's recent stems for this (doc, type) before
+            // generating so we can tell the model what to AVOID. Fetch
+            // failures are silently treated as "no history" — repeating
+            // a question is annoying, but blocking generation outright
+            // because the history fetch flaked is worse.
+            const recentQuestions = await fetchRecentQuestions(userId, document.id, type);
+            const data = await generateQuiz(
+                document.documentContent, document.model, type, count, undefined, language, recentQuestions,
+            );
             const initialQuizState: QuizTabState = type === 'mcq'
                 ? { type: 'mcq', userAnswers: [], isFinished: false, currentQuestionIndex: 0 }
                 : { type: 'frq', userAnswers: [], currentQuestionIndex: 0, isFinished: false, isGrading: false };
@@ -245,6 +254,15 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     }
                 }
             });
+
+            // Record what we just generated so the NEXT attempt avoids
+            // these stems. Fire-and-forget: persist errors are logged
+            // but never block the user from taking the quiz they can
+            // already see on screen.
+            void recordSeenQuestions(
+                userId, document.id, type,
+                data.questions.map(q => q.questionText),
+            );
         } catch (error) {
             console.error("Failed to generate quiz:", error);
             setQuizError(getErrorMessage(error));
