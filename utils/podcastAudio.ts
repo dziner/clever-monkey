@@ -1,11 +1,20 @@
-// Per-request char cap for TTS. Sized so a single Gemini TTS preview
-// call comfortably finishes inside Netlify's ~26 s function wall-clock
-// even when the upstream is slow — at 4400 chars a single call already
-// burned 10–15 s, leaving zero budget for the server retry. 2200 keeps
-// each call at ~3–8 s so a quick server retry + same-chunk client retry
-// both fit within their respective timeouts. Two halves of a longer
-// script also have less voice drift than four+ tiny segments would.
-export const TTS_SAFE_CHUNK_CHARS = 2200;
+// Per-request char cap for TTS — deliberately SMALL.
+//
+// gemini-2.5-flash-preview-tts generation time scales with output audio
+// length, and the whole call has to finish inside Netlify's ~26 s
+// function wall-clock (empirically confirmed when large-PDF OCR timed
+// out at ~26 s). The default podcast script is "~300 words", which after
+// normalization is ~600–1800 chars — comfortably UNDER the old 2200 cap,
+// so the whole script collapsed into ONE chunk and that single giant TTS
+// call regularly blew past 26 s → "오래 기다리다 실패" timeouts.
+//
+// The original working version (2026-05) split by paragraph into 4–6
+// small chunks ("1/6 … 6/6"), each finishing in a few seconds. Restore
+// that: 500 chars keeps every chunk's TTS call fast and well within the
+// function limit, a typical script becomes 2–4 sequential chunks, and
+// the per-chunk progress bar comes back. Smaller also means a transient
+// failure only costs one short retry, not a 26 s timeout.
+export const TTS_SAFE_CHUNK_CHARS = 500;
 
 const SPEAKER_LABEL_PATTERN =
   /^\s*(?:(?:host|guest|co-?host|narrator|speaker\s*\d+|panelist|expert|student|teacher|professor|interviewer|interviewee)|(?:진행자|사회자|게스트|패널|패널리스트|내레이터|나레이터|화자\s*\d+|전문가|학생|선생님|교수|인터뷰어|인터뷰이)|[A-Z])\s*[:：\-]\s*/i;
