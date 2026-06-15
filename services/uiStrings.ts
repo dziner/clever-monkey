@@ -34,6 +34,14 @@ export type UiKey =
     | 'podcast.generateScript'
     | 'podcast.generating'
     | 'podcast.cancel'
+    // Podcast voice picker — characteristic + gender, one key per voice.
+    // Labels follow Google's official voice descriptors for
+    // gemini-2.5-flash-preview-tts (Puck=Upbeat M, Aoede=Breezy F, etc.).
+    | 'podcast.voice.Puck'
+    | 'podcast.voice.Aoede'
+    | 'podcast.voice.Kore'
+    | 'podcast.voice.Charon'
+    | 'podcast.voice.Zephyr'
     // Quiz / generators
     | 'quiz.docMissing'
     // File handler
@@ -325,6 +333,71 @@ const MESSAGES: Record<UiKey, Record<Lang, string>> = {
         ru: 'Отмена',
         vi: 'Huỷ',
         id: 'Batal',
+    },
+    'podcast.voice.Puck': {
+        en: 'Upbeat · M',
+        ko: '활기찬 · 남성',
+        ja: '明るく軽快 · 男性',
+        zh: '活泼 · 男声',
+        es: 'Animado · H',
+        fr: 'Énergique · H',
+        de: 'Lebhaft · M',
+        pt: 'Animado · M',
+        ru: 'Бодрый · М',
+        vi: 'Sôi nổi · Nam',
+        id: 'Bersemangat · Pria',
+    },
+    'podcast.voice.Aoede': {
+        en: 'Breezy · F',
+        ko: '산뜻한 · 여성',
+        ja: 'さわやか · 女性',
+        zh: '轻快 · 女声',
+        es: 'Ligero · M',
+        fr: 'Légère · F',
+        de: 'Locker · W',
+        pt: 'Suave · F',
+        ru: 'Лёгкая · Ж',
+        vi: 'Nhẹ nhàng · Nữ',
+        id: 'Ringan · Wanita',
+    },
+    'podcast.voice.Kore': {
+        en: 'Firm · F',
+        ko: '단단한 · 여성',
+        ja: 'しっかり · 女性',
+        zh: '沉稳 · 女声',
+        es: 'Firme · M',
+        fr: 'Posée · F',
+        de: 'Bestimmt · W',
+        pt: 'Firme · F',
+        ru: 'Уверенная · Ж',
+        vi: 'Vững vàng · Nữ',
+        id: 'Tegas · Wanita',
+    },
+    'podcast.voice.Charon': {
+        en: 'Informative · M',
+        ko: '정보 전달 · 남성',
+        ja: '落ち着いた語り · 男性',
+        zh: '资讯型 · 男声',
+        es: 'Informativo · H',
+        fr: 'Informatif · H',
+        de: 'Sachlich · M',
+        pt: 'Informativo · M',
+        ru: 'Информативный · М',
+        vi: 'Thông tin · Nam',
+        id: 'Informatif · Pria',
+    },
+    'podcast.voice.Zephyr': {
+        en: 'Bright · F',
+        ko: '밝은 · 여성',
+        ja: '明朗 · 女性',
+        zh: '明亮 · 女声',
+        es: 'Brillante · M',
+        fr: 'Lumineuse · F',
+        de: 'Hell · W',
+        pt: 'Brilhante · F',
+        ru: 'Звонкая · Ж',
+        vi: 'Tươi sáng · Nữ',
+        id: 'Cerah · Wanita',
     },
     'quiz.docMissing': {
         en: 'Document content is not available to generate a quiz.',

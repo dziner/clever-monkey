@@ -321,6 +321,14 @@ export const handler: Handler = async (event) => {
           contents: [{ parts: [{ text: parsed.text }] }],
           config: {
             responseModalities: ['AUDIO'],
+            // temperature: 0 makes prosody (energy, pace, intonation)
+            // as deterministic as the model allows. With the default
+            // (~1.0) the picker re-rolls per call, so consecutive
+            // chunks of the same podcast sounded like the same voice
+            // but in slightly different moods — what the user heard as
+            // "톤이 달라진다". 0 gives the most consistent across-call
+            // delivery the API exposes.
+            temperature: 0,
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: { voiceName: voice },

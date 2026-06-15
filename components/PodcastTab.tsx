@@ -14,12 +14,18 @@ import { HeadphonesIcon, AutoAwesomeIcon, ChevronDownIcon, ChevronRightIcon, Ref
 import { Spinner } from './Spinner';
 import { t } from '../services/uiStrings';
 
+// Voice id is the Gemini API name; the human-readable trait + gender
+// comes from i18n (podcast.voice.<id>). Trait labels follow Google's
+// official descriptors for gemini-2.5-flash-preview-tts — the previous
+// hand-written "Warm/Casual/etc." set didn't match how the actual
+// voices sound. Gender added so the user can predict timbre before
+// hitting Generate Audio (the bare names "Puck", "Aoede" are opaque).
 const VOICES = [
-  { id: 'Puck',   label: 'Puck',   desc: 'Enthusiastic' },
-  { id: 'Aoede',  label: 'Aoede',  desc: 'Warm' },
-  { id: 'Kore',   label: 'Kore',   desc: 'Professional' },
-  { id: 'Charon', label: 'Charon', desc: 'Authoritative' },
-  { id: 'Zephyr', label: 'Zephyr', desc: 'Casual' },
+  { id: 'Puck'   },
+  { id: 'Aoede'  },
+  { id: 'Kore'   },
+  { id: 'Charon' },
+  { id: 'Zephyr' },
 ] as const;
 
 interface PodcastTabProps {
@@ -310,7 +316,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                     >
                       {VOICES.map(v => (
                         <option key={v.id} value={v.id}>
-                          {v.label} — {v.desc}
+                          {v.id} — {t(`podcast.voice.${v.id}`, language)}
                         </option>
                       ))}
                     </select>
