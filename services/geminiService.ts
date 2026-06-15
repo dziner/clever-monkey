@@ -766,7 +766,7 @@ ${sampleEvenly(documentContent, CONTENT_BUDGET.slides)}
 // owns only the network step (authenticated call to /api/gemini for
 // each chunk) and orchestrates concurrent synthesis with progress.
 
-import { concatPcmBuffers, decodeAudioData } from './ttsService';
+import { concatPcmBuffers, decodeAudioData, pcmToWavBlob } from './ttsService';
 
 export async function synthesizeSpeech(
   text: string,
@@ -855,13 +855,21 @@ export async function synthesizeSpeech(
 
   // MP3 (48 kbps mono) instead of WAV: ≈8× smaller for the same audible
   // quality on narration, so a 3-minute podcast goes from ~9 MB to ~1 MB
-  // in storage. WAV's only advantage was zero CPU on the client; encoding
-  // a 3-minute clip with lamejs takes well under a second.
+  // in storage. Dynamic import keeps the ~170 kB lamejs codec out of the
+  // main bundle — it only loads when the user actually presses "Generate
+  // Audio".
   //
-  // Dynamic import keeps the ~170 kB lamejs codec out of the main bundle
-  // — it only loads when the user actually presses "Generate Audio".
-  const { pcmToMp3Blob } = await import('./mp3Encoder');
-  return pcmToMp3Blob(concatPcmBuffers(pcmBuffers), 24000);
+  // Defensive: if the codec fails to load or encode for any reason, fall
+  // back to raw WAV rather than throwing away audio the user already
+  // waited through every chunk to synthesize. Bigger file, but it plays.
+  const pcm = concatPcmBuffers(pcmBuffers);
+  try {
+    const { pcmToMp3Blob } = await import('./mp3Encoder');
+    return pcmToMp3Blob(pcm, 24000);
+  } catch (err) {
+    console.error('[tts] MP3 encode failed, falling back to WAV:', err);
+    return pcmToWavBlob(pcm, 24000);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

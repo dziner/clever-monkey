@@ -102,17 +102,6 @@ interface TtsGenerateContentResponse {
   }>;
 }
 
-function buildSingleNarratorTtsPrompt(text: string): string {
-  return `Read the script below as one consistent narrator using exactly one voice.
-Do not perform multiple speakers, character voices, interviews, panels, or dialogue voice-switching.
-Do not read speaker labels or stage directions.
-
-SCRIPT:
-"""
-${text}
-"""`;
-}
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return json(405, { error: 'Method not allowed' });
@@ -314,22 +303,22 @@ export const handler: Handler = async (event) => {
         ? parsed.voice
         : 'Puck';
 
-      // TTS preview model is flaky, but the server retry budget MUST fit
-      // inside Netlify's ~26s wall-clock function limit — and one TTS
-      // call to a ~2200-char chunk already takes 3–8 s. The previous
-      // {6, 1s, 12s} config (cumulative wait alone = 39 s) guaranteed
-      // that retries past #1 never actually completed: Netlify killed
-      // the function first and the client saw a 504 with no chance for
-      // the upstream model to recover.
+      // gemini-2.5-flash-preview-tts is a read-aloud model: it speaks the
+      // text it's given. The client already strips speaker labels / stage
+      // directions (normalizePodcastScriptForSingleNarrator) so the text
+      // arriving here is clean single-narrator prose — feed it RAW.
       //
-      // Tightened so a single attempt + ONE quick retry fits with room
-      // to spare; the client owns longer-horizon retries (where it has
-      // no timeout) via same-chunk retry and split-half fallback in
-      // synthesizeSpeech.
+      // We previously wrapped it in an instruction block ("Read the script
+      // below as one narrator… SCRIPT: \"\"\"…\"\"\""). That regressed TTS
+      // hard: a read-aloud model handed a meta-instruction block tends to
+      // return no audio (→ "TTS returned no audio data"), which is what
+      // turned synthesis into a near-constant failure. Single call here;
+      // the client (synthesizeSpeech) owns retries where it has no 26 s
+      // function-timeout to fight.
       const res = await callWithKeyRotation(ai =>
-        withRetry(() => ai.models.generateContent({
+        ai.models.generateContent({
           model: 'gemini-2.5-flash-preview-tts',
-          contents: [{ parts: [{ text: buildSingleNarratorTtsPrompt(parsed.text) }] }],
+          contents: [{ parts: [{ text: parsed.text }] }],
           config: {
             responseModalities: ['AUDIO'],
             speechConfig: {
@@ -338,7 +327,7 @@ export const handler: Handler = async (event) => {
               },
             },
           } as unknown as GenerateContentConfig,
-        }), { attempts: 2, baseMs: 500, capMs: 1500 }),
+        }),
         usageMeta,
       );
 
