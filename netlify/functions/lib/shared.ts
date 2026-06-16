@@ -275,6 +275,22 @@ export const OCR_PROMPT =
  *  caller can surface the real reason instead of a generic empty-payload
  *  error. promptFeedback.blockReason fires on safety filtering;
  *  candidate.finishReason flags MAX_TOKENS / SAFETY / RECITATION. */
+/** Map raw Gemini finish/block reasons to Korean copy that tells the
+ *  user *why* the model gave nothing back and what (if anything) they can
+ *  do. Falls back to the raw token for unknown reasons so we don't lose
+ *  information. */
+const FINISH_REASON_KO: Record<string, string> = {
+  RECITATION: '문서가 보호된(저작권/공개) 콘텐츠를 포함한 것으로 모델이 판단해 응답이 차단됐어요. 다른 자료로 시도해 주세요.',
+  SAFETY: '안전 필터에 걸려 응답이 차단됐어요.',
+  MAX_TOKENS: '응답이 길이 한도를 넘어 잘렸어요.',
+  OTHER: '모델이 알 수 없는 이유로 응답을 멈췄어요.',
+};
+
+const BLOCK_REASON_KO: Record<string, string> = {
+  SAFETY: '안전 필터에 걸려 요청이 차단됐어요.',
+  OTHER: '요청이 알 수 없는 이유로 차단됐어요.',
+};
+
 export function describeEmptyGeneration(res: unknown): string {
   const r = res as {
     promptFeedback?: { blockReason?: string };
@@ -282,11 +298,12 @@ export function describeEmptyGeneration(res: unknown): string {
   };
   const block = r.promptFeedback?.blockReason;
   const finish = r.candidates?.[0]?.finishReason;
-  const bits: string[] = [];
-  if (block) bits.push(`block=${block}`);
-  if (finish && finish !== 'STOP') bits.push(`finish=${finish}`);
-  if (!r.candidates?.length) bits.push('no candidates');
-  return bits.length ? `Model returned no text (${bits.join(', ')})` : 'Model returned no text';
+  if (block) return BLOCK_REASON_KO[block] ?? `요청이 차단됐어요 (${block}).`;
+  if (finish && finish !== 'STOP') {
+    return FINISH_REASON_KO[finish] ?? `모델이 응답을 멈췄어요 (${finish}).`;
+  }
+  if (!r.candidates?.length) return '모델이 응답을 반환하지 않았어요.';
+  return '모델이 텍스트를 반환하지 않았어요.';
 }
 
 /** Context the key pool uses to attribute a rejection to a feature. */
@@ -327,6 +344,60 @@ export function providerKeyPresence(): { groq: boolean; cerebras: boolean } {
     groq: Boolean(process.env.GROQ_API_KEY),
     cerebras: Boolean(process.env.CEREBRAS_API_KEY),
   };
+}
+
+/** Server-side counterpart to logDiagnosticEvent (which is client-only).
+ *  Inserts straight into diagnostic_events via the REST endpoint using
+ *  the service role so background functions — which fail outside any
+ *  client request — still surface in the admin "최근 에러 로그" feed.
+ *  Fire-and-forget; never throws. */
+export async function logServerDiagnostic(event: {
+  severity: 'info' | 'warn' | 'error';
+  stage: string;
+  message: string;
+  userId?: string | null;
+  documentId?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  fileMime?: string | null;
+  storagePath?: string | null;
+  model?: string | null;
+  processingState?: string | null;
+  errorMessage?: string | null;
+  errorName?: string | null;
+  errorStatus?: number | null;
+  context?: Record<string, unknown>;
+}): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  const extMatch = event.fileName?.match(/\.([a-zA-Z0-9]+)$/);
+  void fetch(`${SUPABASE_URL}/rest/v1/diagnostic_events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify({
+      severity: event.severity,
+      stage: event.stage,
+      message: event.message,
+      source: 'server',
+      user_id: event.userId ?? null,
+      document_id: event.documentId ?? null,
+      file_name: event.fileName ?? null,
+      file_size: event.fileSize ?? null,
+      file_mime: event.fileMime ?? null,
+      file_extension: extMatch?.[1]?.toLowerCase() ?? null,
+      storage_path: event.storagePath ?? null,
+      model: event.model ?? null,
+      processing_state: event.processingState ?? null,
+      error_name: event.errorName ?? null,
+      error_message: event.errorMessage ?? null,
+      error_status: event.errorStatus ?? null,
+      context: event.context ?? {},
+    }),
+  }).catch(() => undefined);
 }
 
 /**

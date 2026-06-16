@@ -2,6 +2,7 @@ import type { Handler } from '@netlify/functions';
 import {
   getUserIdFromToken,
   patchDocument,
+  logServerDiagnostic,
   MAX_TEXT_CHARS,
   extractMessage,
 } from './lib/shared';
@@ -68,9 +69,23 @@ export const handler: Handler = async (event) => {
     });
 
     if (!text.trim()) {
+      const emptyMessage = '문서에서 텍스트를 추출하지 못했어요. 빈 문서이거나 읽을 수 없는 형식일 수 있어요.';
       await patchDocument(documentId, userId, {
         processing_state: 'error',
-        error_message: '문서에서 텍스트를 추출하지 못했어요. 빈 문서이거나 읽을 수 없는 형식일 수 있어요.',
+        error_message: emptyMessage,
+      });
+      void logServerDiagnostic({
+        severity: 'error',
+        stage: 'background_ocr.empty_result',
+        message: 'Background OCR returned empty text',
+        userId,
+        documentId,
+        fileName,
+        fileMime: mimeType,
+        storagePath,
+        model,
+        processingState: 'error',
+        errorMessage: emptyMessage,
       });
       return { statusCode: 200, body: 'empty' };
     }
@@ -99,6 +114,25 @@ export const handler: Handler = async (event) => {
     await patchDocument(documentId, userId, {
       processing_state: 'error',
       error_message: friendly,
+    });
+    // Surface the failure in diagnostic_events so the admin "최근 에러
+    // 로그" feed catches it — without this, background OCR failures were
+    // invisible to the admin dashboard because the function fails outside
+    // any client request.
+    void logServerDiagnostic({
+      severity: 'error',
+      stage: 'background_ocr.failed',
+      message: 'Background OCR failed',
+      userId,
+      documentId,
+      fileName,
+      fileMime: mimeType,
+      storagePath,
+      model,
+      processingState: 'error',
+      errorName: err instanceof Error ? err.name : null,
+      errorMessage: friendly,
+      context: { raw },
     });
     return { statusCode: 200, body: 'error' };
   }

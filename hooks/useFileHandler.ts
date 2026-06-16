@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { processDocument, BackgroundOcrRequired, triggerBackgroundOcr } from '../services/geminiService';
+import { checkPdfPreflightLimits } from '../utils/pdfPreflightCheck';
 import { supabase } from '../services/supabaseClient';
 import { StorageUploadError, uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
@@ -207,6 +208,30 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     }) });
                     return;
                 }
+            }
+
+            // Page-count ceiling for scanned PDFs (Gemini OCR + background
+            // function budget). Catches the user before they wait minutes
+            // on a 500-page scan that we already know won't finish cleanly.
+            const preflight = await checkPdfPreflightLimits(file);
+            if (preflight.ok === false) {
+                const rejectReason = preflight.reason;
+                logUploadDiagnostic({
+                    severity: 'warn',
+                    stage: 'upload.rejected.pdf_too_many_pages',
+                    message: 'Scanned PDF rejected: exceeds page-count ceiling',
+                    fileType,
+                    context: { reason: rejectReason },
+                });
+                dispatch({ type: 'ADD_DOCUMENT', payload: buildErrorDoc({
+                    id: docId,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType,
+                    folderId: targetFolderId,
+                    errorMessage: rejectReason,
+                }) });
+                return;
             }
         }
 
