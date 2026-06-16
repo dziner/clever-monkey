@@ -341,27 +341,32 @@ export async function patchDocument(
   patch: Record<string, unknown>,
 ): Promise<boolean> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return false;
-  try {
-    const url = `${SUPABASE_URL}/rest/v1/documents?id=eq.${encodeURIComponent(documentId)}&user_id=eq.${encodeURIComponent(userId)}`;
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_SERVICE_KEY,
-        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify(patch),
-    });
-    if (!res.ok) {
+  const url = `${SUPABASE_URL}/rest/v1/documents?id=eq.${encodeURIComponent(documentId)}&user_id=eq.${encodeURIComponent(userId)}`;
+  // Retry transient failures: this is how a finished background OCR job
+  // delivers its result, so a single network blip here would silently
+  // throw away minutes of work and leave the doc stuck "처리 중".
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) return true;
       console.error('[patchDocument] failed', res.status, await res.text().catch(() => ''));
-      return false;
+      // 4xx won't fix itself; only retry 5xx.
+      if (res.status < 500) return false;
+    } catch (err) {
+      console.error(`[patchDocument] attempt ${attempt + 1} error`, err);
     }
-    return true;
-  } catch (err) {
-    console.error('[patchDocument] error', err);
-    return false;
+    if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
   }
+  return false;
 }
 
 
@@ -539,6 +544,12 @@ export function isTransient(err: unknown): boolean {
   const m = extractMessage(err);
   if (/\b(5\d\d)\b/.test(m)) return true;
   if (/INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED|temporar|retry|overload|high demand/i.test(m)) return true;
+  // Node/undici network-layer failures — these are exactly the
+  // "fetch failed sending request" / connection-reset class that broke
+  // a 34MB Files API upload mid-flight. They're virtually always
+  // transient, so retrying (with backoff) absorbs the blip instead of
+  // surfacing a raw TypeError to the user.
+  if (/fetch failed|sending request|ECONNRESET|ETIMEDOUT|ECONNREFUSED|EPIPE|socket hang up|network|terminated/i.test(m)) return true;
   return false;
 }
 

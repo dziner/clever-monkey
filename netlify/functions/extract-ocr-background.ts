@@ -89,9 +89,16 @@ export const handler: Handler = async (event) => {
     return { statusCode: 200, body: 'ok' };
   } catch (err) {
     console.error('extract-ocr-background error', err);
+    const raw = extractMessage(err);
+    // Network-layer failures (undici "fetch failed sending request",
+    // connection resets) are retried internally now; if one still
+    // escapes, show actionable copy rather than a raw TypeError.
+    const friendly = /fetch failed|sending request|ECONNRESET|ETIMEDOUT|socket hang up|terminated|network/i.test(raw)
+      ? '문서 처리 중 네트워크 연결이 끊겼어요. 잠시 후 다시 시도해 주세요.'
+      : raw;
     await patchDocument(documentId, userId, {
       processing_state: 'error',
-      error_message: extractMessage(err),
+      error_message: friendly,
     });
     return { statusCode: 200, body: 'error' };
   }

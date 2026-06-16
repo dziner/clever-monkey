@@ -74,7 +74,12 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
     const deadlineMs = params.deadlineMs ?? OCR_DEADLINE_MS;
     const msLeft = () => deadlineMs - (Date.now() - startedAt);
     tick();
-    const storedFile = await downloadStorageObjectForUser(params.userId, params.storagePath);
+    // Retry the (large) storage download: a transient network blip on a
+    // 34MB pull shouldn't kill the whole job.
+    const storedFile = await withRetry(
+        () => downloadStorageObjectForUser(params.userId, params.storagePath),
+        { attempts: 3, baseMs: 1000, capMs: 6000 },
+    );
     tick();
     const mimeType = params.mimeType && params.mimeType !== 'application/octet-stream'
         ? params.mimeType
@@ -93,9 +98,14 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
     return callWithKeyRotation(async ai => {
         tick();
         // Race the upload against the deadline — uploading a 50MB scan can
-        // itself eat most of the budget.
+        // itself eat most of the budget. withRetry absorbs the
+        // "fetch failed sending request" / connection-reset class that
+        // broke a 34MB upload mid-flight (now classified transient).
         const uploadedFile = await Promise.race([
-            ai.files.upload({ file: storedFile.blob, config: { mimeType, displayName: params.fileName } }),
+            withRetry(
+                () => ai.files.upload({ file: storedFile.blob, config: { mimeType, displayName: params.fileName } }),
+                { attempts: 4, baseMs: 1000, capMs: 8000 },
+            ),
             rejectAfter(msLeft()),
         ]);
         tick();
