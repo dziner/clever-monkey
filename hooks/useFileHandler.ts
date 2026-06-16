@@ -183,7 +183,11 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             } catch (error) {
                 const isPasswordError = isPasswordProtectedPdfError(error);
                 logUploadDiagnostic({
-                    severity: 'warn',
+                    // Password rejection is a terminal user-facing failure
+                    // (they see "Processing Failed"), so log it at 'error'
+                    // level to surface in the admin feed. A non-password
+                    // probe failure just continues to OCR — that's a 'warn'.
+                    severity: isPasswordError ? 'error' : 'warn',
                     stage: isPasswordError
                         ? 'upload.rejected.password_protected_pdf'
                         : 'upload.pdf_probe_failed.continuing',
@@ -217,7 +221,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             if (preflight.ok === false) {
                 const rejectReason = preflight.reason;
                 logUploadDiagnostic({
-                    severity: 'warn',
+                    severity: 'error',
                     stage: 'upload.rejected.pdf_too_many_pages',
                     message: 'Scanned PDF rejected: exceeds page-count ceiling',
                     fileType,
