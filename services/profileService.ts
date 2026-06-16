@@ -313,26 +313,8 @@ export interface AdminErrorRow {
  * page. Server clamps the page size (≤40). Returns [] on error so the
  * panel renders an empty state instead of throwing.
  */
-export async function adminGetRecentErrors(
-    before?: string | null,
-    limit = 20,
-    includeWarnings = false,
-): Promise<AdminErrorRow[]> {
-    const args: Record<string, unknown> = {
-        p_limit: limit,
-        p_before: before ?? null,
-    };
-    // Keep the default Error-only mode compatible with the previous
-    // two-argument RPC until supabase/add_admin_recent_errors.sql is rerun.
-    if (includeWarnings) args.p_include_warnings = true;
-
-    const { data, error } = await supabase.rpc('admin_get_recent_errors', args);
-    if (error) {
-        console.error('[admin] admin_get_recent_errors failed:', error);
-        return [];
-    }
-    const rows = (data ?? []) as Array<Record<string, unknown>>;
-    return rows.map(r => ({
+function normalizeAdminErrorRow(r: Record<string, unknown>): AdminErrorRow {
+    return {
         id: String(r.id),
         createdAt: r.created_at as string,
         severity: r.severity === 'warn' ? 'warn' : 'error',
@@ -347,5 +329,85 @@ export async function adminGetRecentErrors(
         isGuest: Boolean(r.is_guest),
         userEmail: (r.user_email as string | null) ?? null,
         context: (r.context as Record<string, unknown> | null) ?? null,
-    }));
+    };
+}
+
+async function adminGetRowsFromRpc(
+    before?: string | null,
+    limit = 20,
+    includeWarnings = false,
+    sendWarningsArg = false,
+): Promise<AdminErrorRow[] | null> {
+    const args: Record<string, unknown> = {
+        p_limit: limit,
+        p_before: before ?? null,
+    };
+    if (sendWarningsArg) args.p_include_warnings = includeWarnings;
+
+    const { data, error } = await supabase.rpc('admin_get_recent_errors', args);
+    if (error) {
+        return null;
+    }
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    return rows.map(normalizeAdminErrorRow);
+}
+
+async function adminGetErrorRows(
+    before?: string | null,
+    limit = 20,
+): Promise<AdminErrorRow[]> {
+    // Keep Error-only compatible with both the old two-argument function
+    // and the new function where p_include_warnings has a default.
+    const rows = await adminGetRowsFromRpc(before, limit);
+    if (!rows) {
+        console.error('[admin] admin_get_recent_errors failed');
+        return [];
+    }
+    return rows;
+}
+
+async function adminGetWarningRows(
+    before?: string | null,
+    limit = 20,
+): Promise<AdminErrorRow[]> {
+    const baseQuery = supabase
+        .from('diagnostic_events')
+        .select('id, created_at, stage, severity, message, error_status, error_name, error_message, file_name, file_size, model, is_guest, context')
+        .eq('severity', 'warn')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    const query = before ? baseQuery.lt('created_at', before) : baseQuery;
+    const { data, error } = await query;
+    if (error) {
+        console.error('[admin] diagnostic warning query failed:', error);
+        return [];
+    }
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    return rows.map(normalizeAdminErrorRow);
+}
+
+export async function adminGetRecentErrors(
+    before?: string | null,
+    limit = 20,
+    includeWarnings = false,
+): Promise<AdminErrorRow[]> {
+    if (!includeWarnings) return adminGetErrorRows(before, limit);
+
+    // Primary path after supabase/add_admin_recent_errors.sql has been
+    // rerun: the RPC returns severity='error' OR severity='warn'.
+    const rpcRows = await adminGetRowsFromRpc(before, limit, true, true);
+    if (rpcRows) return rpcRows;
+
+    // Fallback for environments that have not rerun the SQL yet:
+    // Error+Warn still means a union, so fetch each severity independently
+    // and merge client-side instead of showing an empty state.
+    console.warn('[admin] admin_get_recent_errors with warnings failed; falling back to client-side union');
+    const [errors, warnings] = await Promise.all([
+        adminGetErrorRows(before, limit),
+        adminGetWarningRows(before, limit),
+    ]);
+
+    return [...errors, ...warnings]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limit);
 }

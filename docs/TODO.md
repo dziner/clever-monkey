@@ -13,9 +13,7 @@
 
 ### P0 - Next
 
-- [ ] Supabase에서 `supabase/add_admin_recent_errors.sql` 재실행
-  - 이유: admin recent errors RPC가 `diagnostic_events.context`와 `p_include_warnings`를 지원해야 OCR progress 요약 및 Error+Warn 토글이 완전히 동작한다.
-  - 검증: admin 최근 에러 로그 상세에서 background OCR row에 `ocr:` 요약이 보이고, Error+Warn 모드에서 warning row가 포함되는지 확인.
+현재 없음.
 
 ### P1 - Soon
 
@@ -43,6 +41,15 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-16 Admin Error+Warn 토글 fallback 수정
+  - 현상: SQL 미실행 상태에서 `p_include_warnings` RPC 호출이 실패해 Error+Warn 모드가 빈 상태처럼 보였다.
+  - 수정: 새 RPC가 있으면 `p_include_warnings=true` 결과를 사용하고, 실패 시 error RPC + warning 직접 조회를 합쳐 표시.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npx vitest run` 통과.
+
+- [x] 2026-06-16 Supabase에서 `supabase/add_admin_recent_errors.sql` 재실행
+  - 실행자: 사용자
+  - 효과: admin recent errors RPC가 `diagnostic_events.context`와 `p_include_warnings`를 지원.
 
 - [x] 2026-06-16 Admin recent log에 Error / Error+Warn 토글 추가
   - 기본 Error 모드는 기존 RPC와 호환되도록 error만 조회.
