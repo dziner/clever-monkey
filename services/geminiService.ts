@@ -271,11 +271,35 @@ async function extractTextFromStorageStreaming(params: {
   model: string;
   mimeType: string;
   fileName: string;
+  fileSize?: number;
   prompt?: string;
 }): Promise<string> {
   const authHeader = await getAuthHeader();
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (authHeader) headers['authorization'] = authHeader;
+
+  // Attach file metadata to every OCR diagnostic. The 06-12 logs had
+  // file_name/size/mime all null, which made it impossible to tell a
+  // huge scan from a tiny image when diagnosing a failure — capture it
+  // here so future OCR rows are self-explanatory.
+  const extMatch = params.fileName.match(/\.([a-zA-Z0-9]+)$/);
+  const fileInfo = {
+    name: params.fileName,
+    sizeBytes: params.fileSize ?? 0,
+    mimeType: params.mimeType,
+    extension: extMatch?.[1]?.toLowerCase() ?? '',
+  };
+  const logOcrFailure = (stage: string, message: string, error: ReturnType<typeof createDiagnosticErrorInfo>) => {
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage,
+      message,
+      model: params.model,
+      storagePath: params.storagePath,
+      file: fileInfo,
+      error,
+    });
+  };
 
   let res: Response;
   try {
@@ -292,28 +316,14 @@ async function extractTextFromStorageStreaming(params: {
       }),
     });
   } catch (error) {
-    void logDiagnosticEvent({
-      severity: 'error',
-      stage: 'api.gemini_stream_ocr.network_failed',
-      message: 'Gemini stream OCR network request failed',
-      model: params.model,
-      storagePath: params.storagePath,
-      error: createDiagnosticErrorInfo(error),
-    });
+    logOcrFailure('api.gemini_stream_ocr.network_failed', 'Gemini stream OCR network request failed', createDiagnosticErrorInfo(error));
     throw error;
   }
 
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({})) as { error?: string };
     const error = new Error(data?.error || `Gemini OCR request failed (${res.status})`);
-    void logDiagnosticEvent({
-      severity: 'error',
-      stage: 'api.gemini_stream_ocr.failed',
-      message: 'Gemini stream OCR request failed before body',
-      model: params.model,
-      storagePath: params.storagePath,
-      error: { ...createDiagnosticErrorInfo(error), status: res.status },
-    });
+    logOcrFailure('api.gemini_stream_ocr.failed', 'Gemini stream OCR request failed before body', { ...createDiagnosticErrorInfo(error), status: res.status });
     throw error;
   }
 
@@ -328,14 +338,7 @@ async function extractTextFromStorageStreaming(params: {
     if (errAt >= 0) {
       const errMsg = full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream OCR failed';
       const error = new Error(errMsg);
-      void logDiagnosticEvent({
-        severity: 'error',
-        stage: 'api.gemini_stream_ocr.midstream_failed',
-        message: 'Gemini stream OCR returned an error sentinel',
-        model: params.model,
-        storagePath: params.storagePath,
-        error: createDiagnosticErrorInfo(error),
-      });
+      logOcrFailure('api.gemini_stream_ocr.midstream_failed', 'Gemini stream OCR returned an error sentinel', createDiagnosticErrorInfo(error));
       throw error;
     }
   }
@@ -343,14 +346,7 @@ async function extractTextFromStorageStreaming(params: {
   const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
   if (errAt >= 0) {
     const error = new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream OCR failed');
-    void logDiagnosticEvent({
-      severity: 'error',
-      stage: 'api.gemini_stream_ocr.completed_with_error',
-      message: 'Gemini stream OCR completed with an error sentinel',
-      model: params.model,
-      storagePath: params.storagePath,
-      error: createDiagnosticErrorInfo(error),
-    });
+    logOcrFailure('api.gemini_stream_ocr.completed_with_error', 'Gemini stream OCR completed with an error sentinel', createDiagnosticErrorInfo(error));
     throw error;
   }
   // Strip every keep-alive heartbeat; what's left is the OCR result.
@@ -361,14 +357,7 @@ async function extractTextFromStorageStreaming(params: {
     // keep the log so a silent empty stream is visible in
     // diagnostic_events instead of a generic frontend error.
     const error = new Error('Gemini OCR returned no text');
-    void logDiagnosticEvent({
-      severity: 'error',
-      stage: 'api.gemini_stream_ocr.empty_response',
-      message: 'Gemini stream OCR completed with no text payload',
-      model: params.model,
-      storagePath: params.storagePath,
-      error: createDiagnosticErrorInfo(error),
-    });
+    logOcrFailure('api.gemini_stream_ocr.empty_response', 'Gemini stream OCR completed with no text payload', createDiagnosticErrorInfo(error));
     throw error;
   }
   return text;
@@ -509,6 +498,7 @@ async function extractTextFromDocument(file: File, model: ProcessingModel, stora
       model,
       mimeType: file.type || 'application/octet-stream',
       fileName: file.name,
+      fileSize: file.size,
     });
   }
 
