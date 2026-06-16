@@ -94,12 +94,17 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
 }) => (
     <React.Fragment>
         {isProcessing && (
-            <div className="absolute inset-0 bg-ink-50/95 flex flex-col items-center justify-center z-10 p-8">
+            <div className="absolute inset-0 bg-ink-50/95 flex flex-col items-center justify-center z-30 p-8">
                 <ProcessingProgress processingState={processingState} />
             </div>
         )}
         {processingState === 'error' && (
-            <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-10 p-8 text-center">
+            // z-30 so Retry/Close sit ABOVE PdfViewer's z-20 text-selection
+            // layer — otherwise the canvas-overlaid <div className="z-20">
+            // in PdfViewer intercepts every click and the buttons look
+            // dead. Reproduces on desktop because `file` is loaded by the
+            // time the error renders, so PdfViewer mounts behind us.
+            <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-30 p-8 text-center">
                 <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
                 <p className="text-red-600 mt-2 max-w-xs">{errorMessage}</p>
                 <div className="mt-5 flex items-center gap-3">
@@ -123,7 +128,11 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                 </div>
             </div>
         )}
-        {file ? (
+        {/* Skip PdfViewer on error so its z-20 text layer can't steal
+            clicks from the error overlay buttons. The user can't
+            meaningfully interact with the PDF anyway when processing
+            failed — they need to retry or close. */}
+        {file && processingState !== 'error' ? (
             <PdfViewer
                 file={file}
                 imageUrl={imageUrl}
@@ -132,7 +141,7 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                 onPageChange={onPageChange}
             />
         ) : (
-            !isProcessing && (isLoadingStoredFile ? <StoredFileLoadingPlaceholder /> : <ViewerPlaceholder />)
+            !isProcessing && processingState !== 'error' && (isLoadingStoredFile ? <StoredFileLoadingPlaceholder /> : <ViewerPlaceholder />)
         )}
     </React.Fragment>
 ));
