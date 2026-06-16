@@ -21,6 +21,29 @@ const GEMINI_PDF_FILE_LIMIT_BYTES = 50 * 1024 * 1024;
 const FILE_PROCESSING_POLL_MS = 5000;
 const FILE_PROCESSING_MAX_POLLS = 24;
 
+// Hard wall-clock budget for the whole OCR call. Netlify's synchronous
+// (and streaming) functions are killed at ~26s — streaming heartbeats
+// keep the gateway from idle-cutting EARLIER, but they do NOT extend the
+// execution limit. If we let the function run to the kill, the client
+// only ever received heartbeats and reported the opaque "OCR returned no
+// text". Instead, give up a few seconds early and throw a clear, honest,
+// actionable message that propagates to the user as a real error.
+const OCR_DEADLINE_MS = 23_000;
+
+class OcrTimeoutError extends Error {
+    constructor() {
+        super('OCR가 제한 시간 내에 완료되지 않았습니다 — 파일이 너무 크거나 페이지가 많습니다. PDF를 더 작게 나눠서(예: 20~30페이지씩) 다시 시도해 주세요.');
+        this.name = 'OcrTimeoutError';
+    }
+}
+
+/** Reject after `ms`, so a slow Files API upload / OCR call can't run
+ *  the function into Netlify's hard kill (which surfaces as a silent
+ *  heartbeat-only stream). */
+function rejectAfter(ms: number): Promise<never> {
+    return new Promise((_, reject) => setTimeout(() => reject(new OcrTimeoutError()), Math.max(0, ms)));
+}
+
 export interface FilesApiOcrParams {
     userId: string;
     storagePath: string;
@@ -40,6 +63,8 @@ export interface FilesApiOcrParams {
 
 export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise<string> {
     const tick = params.onTick ?? (() => undefined);
+    const startedAt = Date.now();
+    const msLeft = () => OCR_DEADLINE_MS - (Date.now() - startedAt);
     tick();
     const storedFile = await downloadStorageObjectForUser(params.userId, params.storagePath);
     tick();
@@ -59,10 +84,12 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
 
     return callWithKeyRotation(async ai => {
         tick();
-        const uploadedFile = await ai.files.upload({
-            file: storedFile.blob,
-            config: { mimeType, displayName: params.fileName },
-        });
+        // Race the upload against the deadline — uploading a 50MB scan can
+        // itself eat most of the budget.
+        const uploadedFile = await Promise.race([
+            ai.files.upload({ file: storedFile.blob, config: { mimeType, displayName: params.fileName } }),
+            rejectAfter(msLeft()),
+        ]);
         tick();
         const uploadedFileName = uploadedFile.name;
         if (!uploadedFileName) {
@@ -72,6 +99,10 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
         try {
             let currentFile = uploadedFile;
             for (let i = 0; currentFile.state === 'PROCESSING' && i < FILE_PROCESSING_MAX_POLLS; i += 1) {
+                // Stop polling if the next poll cycle wouldn't leave enough
+                // budget to also run OCR — fail with a clear message rather
+                // than polling straight into Netlify's hard kill.
+                if (msLeft() < FILE_PROCESSING_POLL_MS + 4000) throw new OcrTimeoutError();
                 await new Promise(resolve => setTimeout(resolve, FILE_PROCESSING_POLL_MS));
                 tick();
                 currentFile = await ai.files.get({ name: uploadedFileName });
@@ -79,7 +110,7 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
             }
 
             if (currentFile.state === 'PROCESSING') {
-                throw new Error('File processing is taking too long. Please try again shortly.');
+                throw new OcrTimeoutError();
             }
             if (currentFile.state === 'FAILED') {
                 throw new Error('Gemini failed to process this file.');
@@ -95,17 +126,25 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
             // retry on a higher-availability model when the primary is
             // overloaded. The uploaded file is tied to the project, so the
             // same filePart works across models without re-uploading.
-            const runOcr = (model: string) => withRetry(() => ai.models.generateContent({
-                model,
-                contents: [filePart, { text: prompt }],
-            }));
+            // Race OCR against whatever budget is left. withRetry stays for
+            // transient 5xx, but the outer race guarantees we surface a
+            // clear timeout instead of being silently killed mid-call.
+            const runOcr = (model: string) => Promise.race([
+                withRetry(() => ai.models.generateContent({
+                    model,
+                    contents: [filePart, { text: prompt }],
+                })),
+                rejectAfter(msLeft()),
+            ]);
             tick();
             let res: { text?: string };
             try {
                 res = await runOcr(params.model);
             } catch (err) {
+                if (err instanceof OcrTimeoutError) throw err;
                 const fallback = OVERLOAD_FALLBACK_MODEL[params.model];
-                if (fallback && isOverloaded(err)) {
+                // Only attempt the fallback model if there's still budget.
+                if (fallback && isOverloaded(err) && msLeft() > 6000) {
                     console.warn(`[gemini] OCR ${params.model} overloaded — retrying on ${fallback}`);
                     tick();
                     res = await runOcr(fallback);

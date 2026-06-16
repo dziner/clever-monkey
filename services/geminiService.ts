@@ -352,12 +352,16 @@ async function extractTextFromStorageStreaming(params: {
   // Strip every keep-alive heartbeat; what's left is the OCR result.
   const text = full.split(STREAM_KEEPALIVE_BYTE).join('');
   if (text.length === 0) {
-    // Server-side now throws describeEmptyGeneration() with the actual
-    // reason (safety/finish), so this branch should rarely fire — but
-    // keep the log so a silent empty stream is visible in
-    // diagnostic_events instead of a generic frontend error.
-    const error = new Error('Gemini OCR returned no text');
-    logOcrFailure('api.gemini_stream_ocr.empty_response', 'Gemini stream OCR completed with no text payload', createDiagnosticErrorInfo(error));
+    // A stream that ends with ONLY heartbeats (no text, no error sentinel)
+    // means the function was cut off before it could emit the result —
+    // i.e. it hit Netlify's hard ~26s execution limit. The server now
+    // races against a 23s budget and throws an explicit timeout sentinel
+    // first, so this branch is the last-resort "killed even before that"
+    // case. Message is honest + actionable (not the old opaque "no text"),
+    // and doubles as a deploy canary: seeing the OLD wording in prod means
+    // the new build hasn't gone live.
+    const error = new Error('OCR 처리가 시간 내에 끝나지 않았어요 (파일이 너무 크거나 페이지가 많습니다). PDF를 더 작게 나눠서 다시 시도해 주세요.');
+    logOcrFailure('api.gemini_stream_ocr.truncated', 'Gemini stream OCR stream ended with heartbeats only (likely function timeout)', createDiagnosticErrorInfo(error));
     throw error;
   }
   return text;
