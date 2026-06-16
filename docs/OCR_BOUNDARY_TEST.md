@@ -4,9 +4,19 @@ Purpose: find the practical limit for PDF files whose page content is image-base
 
 ## Current Test
 
-- Target: user-provided 200-page cut of the previously failing image-content PDF.
+- Target: user-provided page-range cuts of the previously failing image-content PDF.
 - Current policy limit: 200 pages for image-content PDFs.
 - Current OCR path: upload to Supabase Storage, trigger `extract-ocr-background`, OCR through Gemini Files API, patch `documents.processing_state` to `ocr_ready`, then client finalizes summary/questions.
+
+## Current Evidence
+
+| Date | Pages | Result | Notes |
+| --- | ---: | --- | --- |
+| 2026-06-16 | 50 | Success | First known successful cut from the previously failing document. |
+| 2026-06-16 | 80 | Failed | User reported no diagnostic log was visible. Treat as an observability bug before changing the limit from this run alone. |
+| 2026-06-16 | 100 | Failed | Confirms the practical boundary for this document is below 100 pages. |
+
+Do not raise the current page policy. A temporary 50-page policy is plausible, but the 80-page failure needs a recorded failure class first.
 
 ## How To Capture Logs
 
@@ -35,6 +45,7 @@ Purpose: find the practical limit for PDF files whose page content is image-base
 - If it fails after `ocr_generate_started`, especially with `MAX_TOKENS`, `RECITATION`, empty output, or a very large partial response, the boundary is OCR output generation. Chunk OCR is the right next design.
 - If it reaches `background_ocr.completed` but then `patch_failed`, OCR itself succeeded. Fix Supabase patch reliability before changing PDF limits.
 - If it reaches `ocr_ready` but later fails during summary/questions, this is not an OCR boundary. Investigate client finalization and prompt budget instead.
+- If the UI errors after a long queued state but no `background_ocr.failed` row exists, check for `processing.background_ocr.poll_timeout`. That means the background function likely died or never patched the row, and the client-side watchdog produced the terminal error.
 
 ## Limit Adjustment Guidance
 

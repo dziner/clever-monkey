@@ -19,7 +19,7 @@
 
 - [ ] 페이지 내용이 이미지로 구성된 PDF의 OCR 실패 경계 테스트
   - 이유: 현재 200페이지 제한은 안정성 정책이며, 실제 실패 경계는 데이터가 부족하다.
-  - 현재 상태: 사용자가 이전 실패 문서를 200페이지로 잘라 실제 업로드 테스트 중.
+  - 현재 상태: 사용자 테스트에서 50페이지 성공, 100페이지 실패, 80페이지 실패. 80페이지 실패 로그 누락 경로는 보강 완료, 같은 80페이지 재테스트 로그 확인 필요.
   - 방법: `supabase/inspect_ocr_boundary_test.sql`로 `diagnostic_events.context.progressTrail`과 `documents.processing_state` 확인.
   - 산출물: 페이지 수, 파일 크기, duration, 마지막 stage, textLength 기준으로 제한값 조정 여부 결정.
 
@@ -37,6 +37,12 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-16 80페이지 이미지 내용 기반 PDF 실패 로그 누락 경로 보강
+  - 현상: 50페이지 성공, 100페이지 실패, 80페이지 실패. 단 80페이지 실패는 로그에 기록되지 않음.
+  - 가설: background OCR이 Netlify 15분 제한 등으로 종료되고, client poll timeout 경로가 UI error만 만들고 `diagnostic_events`/`documents`에 남기지 않는 관측성 구멍.
+  - 수정: `useBackgroundProcessing` timeout 경로에서 documents row를 `error`로 patch하고 `processing.background_ocr.poll_timeout` diagnostic event를 남김.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build` 통과.
 
 - [x] 2026-06-16 페이지 내용이 이미지로 구성된 PDF의 chunk OCR 설계 검토
   - 문서: `docs/OCR_CHUNK_DESIGN.md`

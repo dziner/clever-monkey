@@ -3,8 +3,10 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../services/supabaseClient';
 import { summarizeExtractedText } from '../services/geminiService';
+import { logDiagnosticEvent } from '../services/diagnostics';
 import { getErrorMessage } from '../utils/errors';
-import type { ProcessingModel } from '../types';
+import type { DiagnosticFileInfo } from '../utils/diagnostics';
+import type { DocumentData, ProcessingModel } from '../types';
 
 // Drives the background-OCR lifecycle on the client:
 //
@@ -22,6 +24,18 @@ const POLL_INTERVAL_MS = 5000;
 // a job that genuinely died doesn't spin forever.
 const MAX_BACKGROUND_AGE_MS = 16 * 60 * 1000;
 
+function documentDiagnosticFile(doc: DocumentData | undefined): DiagnosticFileInfo | undefined {
+  if (!doc) return undefined;
+  const extensionMatch = doc.fileName.match(/\.([a-zA-Z0-9]+)$/);
+  return {
+    name: doc.fileName,
+    sizeBytes: doc.fileSize,
+    mimeType: doc.fileMime || 'application/octet-stream',
+    extension: extensionMatch?.[1]?.toLowerCase() ?? '',
+    fileType: doc.fileType,
+  };
+}
+
 export function useBackgroundProcessing(): void {
   const { state, dispatch } = useDocuments();
   const { userProfile } = useUser();
@@ -29,6 +43,11 @@ export function useBackgroundProcessing(): void {
 
   const finalizingRef = React.useRef<Set<string>>(new Set());
   const pollStartRef = React.useRef<Map<string, number>>(new Map());
+  const documentsRef = React.useRef(state.documents);
+
+  React.useEffect(() => {
+    documentsRef.current = state.documents;
+  }, [state.documents]);
 
   // ── Phase 1: poll 'queued' docs for the OCR result ──────────────────
   const queuedKey = state.documents
@@ -48,8 +67,35 @@ export function useBackgroundProcessing(): void {
       for (const id of ids) {
         const startedAt = pollStartRef.current.get(id) ?? startNow;
         if (Date.now() - startedAt > MAX_BACKGROUND_AGE_MS) {
+          const queuedForMs = Date.now() - startedAt;
+          const doc = documentsRef.current.find(d => d.id === id);
+          const timeoutMessage = '문서 처리가 예상보다 오래 걸려요. 다시 시도해 주세요.';
           pollStartRef.current.delete(id);
-          dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: id, updates: { processingState: 'error', errorMessage: '문서 처리가 예상보다 오래 걸려요. 다시 시도해 주세요.' } } });
+          dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: id, updates: { processingState: 'error', errorMessage: timeoutMessage } } });
+          void supabase
+            .from('documents')
+            .update({ processing_state: 'error', error_message: timeoutMessage })
+            .eq('id', id);
+          void logDiagnosticEvent({
+            severity: 'error',
+            stage: 'processing.background_ocr.poll_timeout',
+            message: 'Background OCR did not finish before client poll timeout',
+            documentId: id,
+            file: documentDiagnosticFile(doc),
+            storagePath: doc?.storagePath,
+            model: doc?.fileType === 'image' ? 'gemini-flash-latest' : doc?.model,
+            processingState: 'error',
+            error: {
+              name: 'BackgroundOcrPollTimeout',
+              message: timeoutMessage,
+            },
+            context: {
+              queuedForMs,
+              maxBackgroundAgeMs: MAX_BACKGROUND_AGE_MS,
+              pollIntervalMs: POLL_INTERVAL_MS,
+              previousProcessingState: 'queued',
+            },
+          });
           continue;
         }
         const { data, error } = await supabase
