@@ -19,13 +19,9 @@
 
 - [ ] 페이지 내용이 이미지로 구성된 PDF의 OCR 실패 경계 테스트
   - 이유: 현재 200페이지 제한은 안정성 정책이며, 실제 실패 경계는 데이터가 부족하다.
-  - 방법: 50/100/150/200페이지급 파일로 업로드 테스트 후 `diagnostic_events.context.progressTrail` 확인.
+  - 현재 상태: 사용자가 이전 실패 문서를 200페이지로 잘라 실제 업로드 테스트 중.
+  - 방법: `supabase/inspect_ocr_boundary_test.sql`로 `diagnostic_events.context.progressTrail`과 `documents.processing_state` 확인.
   - 산출물: 페이지 수, 파일 크기, duration, 마지막 stage, textLength 기준으로 제한값 조정 여부 결정.
-
-- [ ] 페이지 내용이 이미지로 구성된 PDF의 chunk OCR 설계 검토
-  - 이유: 전체 파일을 한 번에 OCR 응답으로 받는 구조는 출력 토큰/시간 한계에 취약하다.
-  - 방향: 페이지 chunk 단위 OCR, 부분 성공 저장, 실패 chunk 재시도, 진행률 표시를 검토한다.
-  - 주의: 기존 `queued -> ocr_ready -> done/error` state contract를 깨지 않는다.
 
 ### P2 - Later
 
@@ -41,6 +37,16 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-16 페이지 내용이 이미지로 구성된 PDF의 chunk OCR 설계 검토
+  - 문서: `docs/OCR_CHUNK_DESIGN.md`
+  - 결론: 기존 `queued -> ocr_ready -> done/error` state contract는 유지하고, 필요 시 feature flag 기반 prompt-range 실험부터 시작한다.
+  - 주의: 실제 200페이지 테스트 로그가 `ocr_generate_*`/MAX_TOKENS/RECITATION 쪽 병목을 가리킬 때 구현 검토.
+
+- [x] 2026-06-16 OCR 실패 경계 테스트 로그 분석 쿼리 추가
+  - 문서: `docs/OCR_BOUNDARY_TEST.md`
+  - SQL: `supabase/inspect_ocr_boundary_test.sql`
+  - 상태: 실제 200페이지 업로드 결과 로그를 기다리는 중. 제한값은 아직 변경하지 않음.
 
 - [x] 2026-06-16 Admin Error+Warn 토글 fallback 수정
   - 현상: SQL 미실행 상태에서 `p_include_warnings` RPC 호출이 실패해 Error+Warn 모드가 빈 상태처럼 보였다.
