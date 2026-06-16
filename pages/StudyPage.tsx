@@ -21,8 +21,36 @@ const PROCESSING_STEPS: { state: DocumentProcessingState; label: string }[] = [
     { state: 'summarizing', label: 'Summarizing & preparing questions' },
 ];
 
+// Map every processing state to a visible step. OCR-extraction states
+// ('reading' sync, 'queued' background, 'ocr_ready' just finished) all
+// belong to the first step; everything after is the summarize step.
+const STEP_INDEX_FOR_STATE: Partial<Record<DocumentProcessingState, number>> = {
+    reading: 0,
+    queued: 0,
+    ocr_ready: 1,
+    summarizing: 1,
+    generating_questions: 1,
+};
+
 const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }> = ({ processingState }) => {
-    const activeIndex = PROCESSING_STEPS.findIndex(s => s.state === processingState);
+    // Large scanned PDFs are OCR'd in a background function that can take
+    // minutes — reassure the user it's safe to leave instead of showing a
+    // stalled-looking step list.
+    if (processingState === 'queued') {
+        return (
+            <div className="flex flex-col items-center gap-4 w-full max-w-xs text-center">
+                <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+                <div>
+                    <p className="text-sm font-semibold text-ink-700">대용량 문서를 처리하고 있어요</p>
+                    <p className="text-xs text-ink-400 mt-1.5 leading-relaxed">
+                        스캔 PDF는 몇 분 걸릴 수 있어요. 이 탭을 닫아도 처리는 계속되고,
+                        다시 돌아오면 완료돼 있어요.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+    const activeIndex = STEP_INDEX_FOR_STATE[processingState] ?? -1;
     return (
         <div className="flex flex-col items-center gap-5 w-full max-w-xs">
             <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />

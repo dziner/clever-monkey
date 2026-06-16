@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { processDocument } from '../services/geminiService';
+import { processDocument, BackgroundOcrRequired, triggerBackgroundOcr } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { StorageUploadError, uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
@@ -456,6 +456,50 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                 }
             }
         } catch (error) {
+            // Large scanned file: extraction bailed out asking for the
+            // background OCR function (15-min limit) instead of a doomed
+            // synchronous call. Fire it and park the doc in 'queued'; the
+            // result arrives later via useBackgroundProcessing.
+            if (error instanceof BackgroundOcrRequired) {
+                const ocrModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
+                try {
+                    await triggerBackgroundOcr({
+                        documentId: docId,
+                        storagePath,
+                        model: ocrModel,
+                        mimeType: uploadFile.type || newDoc.fileMime || 'application/octet-stream',
+                        fileName: newDoc.fileName,
+                    });
+                    dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'queued', errorMessage: undefined } } });
+                    if (!isGuest && user) {
+                        await supabase.from('documents').update({ processing_state: 'queued', error_message: null }).eq('id', docId).eq('user_id', user.id);
+                    }
+                    logUploadDiagnostic({
+                        severity: 'info',
+                        stage: 'processing.background_ocr.queued',
+                        message: 'Large scan handed to background OCR',
+                        fileType,
+                        storagePath,
+                        model: ocrModel,
+                    });
+                } catch (bgErr) {
+                    const bgMsg = getErrorMessage(bgErr);
+                    dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'error', errorMessage: bgMsg } } });
+                    if (!isGuest && user) {
+                        await supabase.from('documents').update({ processing_state: 'error', error_message: bgMsg }).eq('id', docId).eq('user_id', user.id);
+                    }
+                    logUploadDiagnostic({
+                        severity: 'error',
+                        stage: 'processing.background_ocr.trigger_failed',
+                        message: 'Background OCR could not start',
+                        fileType,
+                        storagePath,
+                        model: ocrModel,
+                        error: createDiagnosticErrorInfo(bgErr),
+                    });
+                }
+                return;
+            }
             console.error('Failed to process document:', error);
             // FILE_TOO_LARGE sentinel: callGemini raises it on 413 or our
             // own MAX_BODY_BYTES guard. Localize it like the password

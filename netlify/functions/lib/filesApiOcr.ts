@@ -52,6 +52,13 @@ export interface FilesApiOcrParams {
     fileName: string;
     prompt?: string;
     /**
+     * Wall-clock budget for the whole OCR call, in ms. The streaming
+     * (synchronous) endpoint passes the default so it fails cleanly
+     * before Netlify's ~26s kill; the background function passes a large
+     * value (it has 15 min) so big scans actually complete.
+     */
+    deadlineMs?: number;
+    /**
      * Called at every meaningful step (storage download, upload to
      * Files API, each poll iteration, OCR start, OCR fallback). The
      * streaming endpoint wires this to flush a one-byte heartbeat into
@@ -64,7 +71,8 @@ export interface FilesApiOcrParams {
 export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise<string> {
     const tick = params.onTick ?? (() => undefined);
     const startedAt = Date.now();
-    const msLeft = () => OCR_DEADLINE_MS - (Date.now() - startedAt);
+    const deadlineMs = params.deadlineMs ?? OCR_DEADLINE_MS;
+    const msLeft = () => deadlineMs - (Date.now() - startedAt);
     tick();
     const storedFile = await downloadStorageObjectForUser(params.userId, params.storagePath);
     tick();

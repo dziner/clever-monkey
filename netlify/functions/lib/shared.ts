@@ -329,6 +329,41 @@ export function providerKeyPresence(): { groq: boolean; cerebras: boolean } {
   };
 }
 
+/**
+ * Patch a documents row server-side (service role) from a background
+ * function. Scoped to (id, user_id) so a background job can only ever
+ * touch the row it was authorized for. Returns false on failure (logged)
+ * so the caller can record an error state without throwing.
+ */
+export async function patchDocument(
+  documentId: string,
+  userId: string,
+  patch: Record<string, unknown>,
+): Promise<boolean> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return false;
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/documents?id=eq.${encodeURIComponent(documentId)}&user_id=eq.${encodeURIComponent(userId)}`;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      console.error('[patchDocument] failed', res.status, await res.text().catch(() => ''));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[patchDocument] error', err);
+    return false;
+  }
+}
+
 
 // Fallback IP-based rate limiting (anonymous / unverified users)
 const RATE_LIMIT_WINDOW_MS = 60_000;

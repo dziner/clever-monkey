@@ -65,7 +65,11 @@ export interface ChatMessage {
   variant?: 'on' | 'off' | 'document' | 'general';
 }
 
-export type DocumentProcessingState = 'reading' | 'summarizing' | 'generating_questions' | 'error' | 'done';
+// 'queued'    — large scanned PDF handed to the background OCR function;
+//               the client polls until it flips to 'ocr_ready'/'error'.
+// 'ocr_ready' — background OCR wrote document_content; the client still
+//               needs to run the (fast) summary + preset-question step.
+export type DocumentProcessingState = 'queued' | 'reading' | 'ocr_ready' | 'summarizing' | 'generating_questions' | 'error' | 'done';
 export type DocumentUploadState = 'pending' | 'uploaded' | 'failed' | 'metadata_failed';
 
 export const AVAILABLE_MODEL_IDS = ['gemini-2.5-flash', 'gemini-2.5-pro'] as const;

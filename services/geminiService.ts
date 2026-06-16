@@ -17,10 +17,6 @@ const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
 // byte-identical) — a mid-stream failure can't change the HTTP status
 // anymore, so the server appends this marker followed by the error message.
 const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
-// Single keep-alive byte the streaming OCR endpoint emits during the
-// Files API polling loop so the Netlify gateway never times the
-// connection out. Stripped here before treating the body as text.
-const STREAM_KEEPALIVE_BYTE = '\x01';
 
 import { cleanAndParseJSON } from '../utils/jsonRepair';
 
@@ -259,112 +255,80 @@ async function generateContentStreaming(
 }
 
 /**
- * Run a Files-API OCR over a Supabase Storage object through the
- * streaming endpoint. The server emits a 1-byte heartbeat
- * (STREAM_KEEPALIVE_BYTE) during its Files API polling loop so the
- * Netlify gateway never drops the connection at 26s; once OCR
- * completes the extracted text follows. The client filters the
- * heartbeat bytes out and returns the remainder as the OCR result.
+ * Thrown by extractTextFromDocument when a file is too large to OCR
+ * inside a synchronous function and must be handed to the background
+ * OCR function instead. Callers catch this and fire triggerBackgroundOcr.
  */
-async function extractTextFromStorageStreaming(params: {
+export class BackgroundOcrRequired extends Error {
+  constructor() {
+    super('BACKGROUND_OCR_REQUIRED');
+    this.name = 'BackgroundOcrRequired';
+  }
+}
+
+// Background functions are invoked at their own function URL. Netlify
+// accepts the request and returns 202 immediately, then runs the handler
+// for up to 15 minutes.
+const BACKGROUND_OCR_ENDPOINT = '/.netlify/functions/extract-ocr-background';
+
+/**
+ * Kick off server-side background OCR for a large scanned document and
+ * return as soon as Netlify accepts the job (202). The extracted text is
+ * NOT returned here — it lands on the documents row later
+ * (processing_state -> 'ocr_ready'), which the client picks up via
+ * useBackgroundProcessing and then finalizes with summary + questions.
+ */
+export async function triggerBackgroundOcr(params: {
+  documentId: string;
   storagePath: string;
-  model: string;
+  model: ProcessingModel;
   mimeType: string;
   fileName: string;
-  fileSize?: number;
-  prompt?: string;
-}): Promise<string> {
+}): Promise<void> {
   const authHeader = await getAuthHeader();
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (authHeader) headers['authorization'] = authHeader;
 
-  // Attach file metadata to every OCR diagnostic. The 06-12 logs had
-  // file_name/size/mime all null, which made it impossible to tell a
-  // huge scan from a tiny image when diagnosing a failure — capture it
-  // here so future OCR rows are self-explanatory.
-  const extMatch = params.fileName.match(/\.([a-zA-Z0-9]+)$/);
-  const fileInfo = {
-    name: params.fileName,
-    sizeBytes: params.fileSize ?? 0,
-    mimeType: params.mimeType,
-    extension: extMatch?.[1]?.toLowerCase() ?? '',
-  };
-  const logOcrFailure = (stage: string, message: string, error: ReturnType<typeof createDiagnosticErrorInfo>) => {
-    void logDiagnosticEvent({
-      severity: 'error',
-      stage,
-      message,
-      model: params.model,
-      storagePath: params.storagePath,
-      file: fileInfo,
-      error,
-    });
-  };
-
   let res: Response;
   try {
-    res = await fetch(GEMINI_STREAM_ENDPOINT, {
+    res = await fetch(BACKGROUND_OCR_ENDPOINT, {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        action: 'extractTextFromStorage',
-        model: params.model,
+        documentId: params.documentId,
         storagePath: params.storagePath,
+        model: params.model,
         mimeType: params.mimeType,
         fileName: params.fileName,
-        prompt: params.prompt,
       }),
     });
   } catch (error) {
-    logOcrFailure('api.gemini_stream_ocr.network_failed', 'Gemini stream OCR network request failed', createDiagnosticErrorInfo(error));
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.background_ocr.trigger_failed',
+      message: 'Background OCR trigger network request failed',
+      model: params.model,
+      storagePath: params.storagePath,
+      error: createDiagnosticErrorInfo(error),
+    });
     throw error;
   }
 
-  if (!res.ok || !res.body) {
+  // Netlify returns 202 Accepted for background functions; treat any 2xx
+  // as accepted. Anything else means the job never started.
+  if (res.status < 200 || res.status >= 300) {
     const data = await res.json().catch(() => ({})) as { error?: string };
-    const error = new Error(data?.error || `Gemini OCR request failed (${res.status})`);
-    logOcrFailure('api.gemini_stream_ocr.failed', 'Gemini stream OCR request failed before body', { ...createDiagnosticErrorInfo(error), status: res.status });
+    const error = new Error(data?.error || `Background OCR could not start (${res.status})`);
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.background_ocr.trigger_rejected',
+      message: 'Background OCR trigger returned non-2xx',
+      model: params.model,
+      storagePath: params.storagePath,
+      error: { ...createDiagnosticErrorInfo(error), status: res.status },
+    });
     throw error;
   }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let full = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    full += decoder.decode(value, { stream: true });
-    const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
-    if (errAt >= 0) {
-      const errMsg = full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream OCR failed';
-      const error = new Error(errMsg);
-      logOcrFailure('api.gemini_stream_ocr.midstream_failed', 'Gemini stream OCR returned an error sentinel', createDiagnosticErrorInfo(error));
-      throw error;
-    }
-  }
-  full += decoder.decode();
-  const errAt = full.indexOf(STREAM_ERROR_SENTINEL);
-  if (errAt >= 0) {
-    const error = new Error(full.slice(errAt + STREAM_ERROR_SENTINEL.length).trim() || 'Stream OCR failed');
-    logOcrFailure('api.gemini_stream_ocr.completed_with_error', 'Gemini stream OCR completed with an error sentinel', createDiagnosticErrorInfo(error));
-    throw error;
-  }
-  // Strip every keep-alive heartbeat; what's left is the OCR result.
-  const text = full.split(STREAM_KEEPALIVE_BYTE).join('');
-  if (text.length === 0) {
-    // A stream that ends with ONLY heartbeats (no text, no error sentinel)
-    // means the function was cut off before it could emit the result —
-    // i.e. it hit Netlify's hard ~26s execution limit. The server now
-    // races against a 23s budget and throws an explicit timeout sentinel
-    // first, so this branch is the last-resort "killed even before that"
-    // case. Message is honest + actionable (not the old opaque "no text"),
-    // and doubles as a deploy canary: seeing the OLD wording in prod means
-    // the new build hasn't gone live.
-    const error = new Error('OCR 처리가 시간 내에 끝나지 않았어요 (파일이 너무 크거나 페이지가 많습니다). PDF를 더 작게 나눠서 다시 시도해 주세요.');
-    logOcrFailure('api.gemini_stream_ocr.truncated', 'Gemini stream OCR stream ended with heartbeats only (likely function timeout)', createDiagnosticErrorInfo(error));
-    throw error;
-  }
-  return text;
 }
 
 async function sendChatMessage(params: {
@@ -493,17 +457,13 @@ async function extractTextFromDocument(file: File, model: ProcessingModel, stora
   }
 
   if (storagePath && file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {
-    // Routed through the STREAMING endpoint so a heartbeat keeps the
-    // gateway alive past 26s — large scanned PDFs need ~30-60s of
-    // Files API processing time and were dying at ~33s with a 502
-    // through the buffered endpoint. See netlify/functions/lib/filesApiOcr.ts.
-    return extractTextFromStorageStreaming({
-      storagePath,
-      model,
-      mimeType: file.type || 'application/octet-stream',
-      fileName: file.name,
-      fileSize: file.size,
-    });
+    // Large scanned file: OCR can take 30-120s (download + Files API
+    // upload + processing + multimodal OCR), which no synchronous /
+    // streaming Netlify function can survive (~26s hard kill). Hand it
+    // to the background OCR function (15-min limit) instead of trying to
+    // stream it. The caller catches this and fires the background job;
+    // the result arrives later via DB poll (useBackgroundProcessing).
+    throw new BackgroundOcrRequired();
   }
 
   if (file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {
@@ -539,6 +499,33 @@ export async function processDocument(
   // spending an API round-trip on it.
   const tokenCount = estimateTokens(extractedContent);
   const documentContent = sampleEvenly(extractedContent, CONTENT_BUDGET.documentContent);
+
+  onProgress('summarizing');
+  const { summary, presetQuestions } = await summarizeExtractedText(documentContent, model, language, onSummaryChunk);
+
+  return { summary, presetQuestions, chat: null, documentContent, tokenCount };
+}
+
+const FALLBACK_PRESET_QUESTIONS = [
+  '❓ What is the main takeaway from this document?',
+  '📄 Can you summarize the key points?',
+  '🔑 What are the key terms mentioned?',
+];
+
+/**
+ * Summary + preset questions from already-extracted document text. Split
+ * out of processDocument so the background-OCR finalize step
+ * (useBackgroundProcessing) runs the exact same fast generation over text
+ * the background function already OCR'd — no need to re-implement these
+ * prompts server-side. `documentContent` is expected to already be
+ * sampled to CONTENT_BUDGET.documentContent.
+ */
+export async function summarizeExtractedText(
+  documentContent: string,
+  model: ProcessingModel,
+  language?: string | null,
+  onSummaryChunk?: (partialSummary: string) => void,
+): Promise<{ summary: string; presetQuestions: string[] }> {
   const langDir = languageDirective(language);
 
   const summaryPrompt = `Based on the following document, provide a comprehensive, well-structured summary. Use Markdown for formatting (headings, lists, bold text) to make it clear and easy to read.\n\n${langDir}\n\nDOCUMENT CONTENT:\n"""\n${sampleEvenly(documentContent, CONTENT_BUDGET.summary)}\n"""`;
@@ -547,7 +534,6 @@ export async function processDocument(
   // Summary streams (long output; live display, no gateway timeout) while
   // the preset questions run concurrently. Questions are a small task:
   // an evenly-sampled excerpt and the cheap flash model are plenty.
-  onProgress('summarizing');
   const [summary, questionsText] = await Promise.all([
     generateContentStreaming(model, summaryPrompt, onSummaryChunk, undefined, undefined, 'summary'),
     generateContent('gemini-2.5-flash', questionsPrompt, undefined, undefined, 'presetQuestions'),
@@ -558,21 +544,13 @@ export async function processDocument(
     const parsedQuestions = cleanAndParseJSON(questionsText);
     presetQuestions = Array.isArray(parsedQuestions) && parsedQuestions.length > 0
       ? parsedQuestions
-      : [
-          '❓ What is the main takeaway from this document?',
-          '📄 Can you summarize the key points?',
-          '🔑 What are the key terms mentioned?',
-        ];
+      : FALLBACK_PRESET_QUESTIONS;
   } catch (e) {
     console.error('Failed to parse preset questions:', e, questionsText);
-    presetQuestions = [
-      '❓ What is the main takeaway from this document?',
-      '📄 Can you summarize the key points?',
-      '🔑 What are the key terms mentioned?',
-    ];
+    presetQuestions = FALLBACK_PRESET_QUESTIONS;
   }
 
-  return { summary, presetQuestions, chat: null, documentContent, tokenCount };
+  return { summary, presetQuestions };
 }
 
 export async function generateQuiz(

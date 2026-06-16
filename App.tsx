@@ -4,6 +4,7 @@ import { useDocuments } from './contexts/DocumentContext';
 import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { useFileHandler } from './hooks/useFileHandler';
+import { useBackgroundProcessing } from './hooks/useBackgroundProcessing';
 import { PanelLeftCloseIcon, CleverMonkeyIcon, AdminPanelIcon } from './components/icons';
 import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
@@ -46,6 +47,10 @@ const App: React.FC = () => {
     const { state, isLoading: isDocumentsLoading } = useDocuments();
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
     const handleFileSelected = useFileHandler(() => setIsAuthModalOpen(true));
+    // Drives background OCR for large scanned PDFs (poll 'queued' →
+    // finalize 'ocr_ready'). Mounted here so it survives navigation
+    // between routes and tab switches.
+    useBackgroundProcessing();
     const navigate = useNavigate();
     const location = useLocation();
 

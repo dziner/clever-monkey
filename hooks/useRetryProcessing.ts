@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
-import { processDocument } from '../services/geminiService';
+import { processDocument, BackgroundOcrRequired, triggerBackgroundOcr } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
@@ -127,6 +127,33 @@ export const useRetryProcessing = () => {
                 }).eq('id', docId).eq('user_id', user.id);
             }
         } catch (err) {
+            // Large scan → hand to background OCR (15-min limit) and park
+            // in 'queued'; useBackgroundProcessing delivers the result.
+            if (err instanceof BackgroundOcrRequired) {
+                const ocrModel: ProcessingModel = doc.fileType === 'image' ? 'gemini-flash-latest' : doc.model as ProcessingModel;
+                try {
+                    await triggerBackgroundOcr({
+                        documentId: docId,
+                        storagePath: doc.storagePath!,
+                        model: ocrModel,
+                        mimeType: doc.fileMime || file.type || 'application/octet-stream',
+                        fileName: doc.fileName,
+                    });
+                    dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'queued', errorMessage: undefined } } });
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        await supabase.from('documents').update({ processing_state: 'queued', error_message: null }).eq('id', docId).eq('user_id', user.id);
+                    }
+                } catch (bgErr) {
+                    const bgMsg = getErrorMessage(bgErr);
+                    dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'error', errorMessage: bgMsg } } });
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        await supabase.from('documents').update({ processing_state: 'error', error_message: bgMsg }).eq('id', docId).eq('user_id', user.id);
+                    }
+                }
+                return;
+            }
             // FILE_TOO_LARGE sentinel: callGemini raises it when our 4MB
             // body cap kicked in (e.g. a single big raw image). Swap in
             // localized guidance instead of leaking the raw HTTP code.
