@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { processDocument, BackgroundOcrRequired, triggerBackgroundOcr } from '../services/geminiService';
-import { checkPdfPreflightLimits } from '../utils/pdfPreflightCheck';
+import { checkPdfPreflightLimits, SCANNED_PDF_PAGE_LIMIT, type PdfPreflightResult } from '../utils/pdfPreflightCheck';
 import { supabase } from '../services/supabaseClient';
 import { StorageUploadError, uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
@@ -25,6 +25,16 @@ import {
     getFileType,
 } from '../utils/uploadValidation';
 import { buildErrorDoc } from '../utils/buildErrorDoc';
+
+function pdfPreflightDiagnosticContext(preflight: PdfPreflightResult): Record<string, unknown> {
+    return {
+        classification: preflight.classification,
+        numPages: 'numPages' in preflight ? preflight.numPages : undefined,
+        pagesScanned: 'pagesScanned' in preflight ? preflight.pagesScanned : undefined,
+        textLayerChars: 'textLayerChars' in preflight ? preflight.textLayerChars : undefined,
+        scannedPageLimit: SCANNED_PDF_PAGE_LIMIT,
+    };
+}
 
 /**
  * File upload handler.
@@ -177,6 +187,8 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             fileType,
         });
 
+        let pdfPreflightContext: Record<string, unknown> | undefined;
+
         if (fileType === 'pdf') {
             try {
                 await assertPdfCanOpenWithoutPassword(file);
@@ -218,14 +230,25 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             // function budget). Catches the user before they wait minutes
             // on a 500-page scan that we already know won't finish cleanly.
             const preflight = await checkPdfPreflightLimits(file);
+            pdfPreflightContext = pdfPreflightDiagnosticContext(preflight);
+            logUploadDiagnostic({
+                severity: 'info',
+                stage: 'upload.pdf_preflight_checked',
+                message: 'PDF preflight completed',
+                fileType,
+                context: { pdfPreflight: pdfPreflightContext },
+            });
             if (preflight.ok === false) {
                 const rejectReason = preflight.reason;
                 logUploadDiagnostic({
-                    severity: 'error',
+                    severity: 'warn',
                     stage: 'upload.rejected.pdf_too_many_pages',
-                    message: 'Scanned PDF rejected: exceeds page-count ceiling',
+                    message: 'PDF with image-based page content rejected: exceeds page-count ceiling',
                     fileType,
-                    context: { reason: rejectReason },
+                    context: {
+                        reason: rejectReason,
+                        pdfPreflight: pdfPreflightContext,
+                    },
                 });
                 dispatch({ type: 'ADD_DOCUMENT', payload: buildErrorDoc({
                     id: docId,
@@ -492,12 +515,17 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             if (error instanceof BackgroundOcrRequired) {
                 const ocrModel = fileType === 'image' ? 'gemini-flash-latest' : newDoc.model;
                 try {
+                    const pageCount = typeof pdfPreflightContext?.numPages === 'number'
+                        ? pdfPreflightContext.numPages
+                        : undefined;
                     await triggerBackgroundOcr({
                         documentId: docId,
                         storagePath,
                         model: ocrModel,
                         mimeType: uploadFile.type || newDoc.fileMime || 'application/octet-stream',
                         fileName: newDoc.fileName,
+                        pageCount,
+                        preflight: pdfPreflightContext,
                     });
                     dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId, updates: { processingState: 'queued', errorMessage: undefined } } });
                     if (!isGuest && user) {
@@ -510,6 +538,7 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                         fileType,
                         storagePath,
                         model: ocrModel,
+                        context: { pdfPreflight: pdfPreflightContext },
                     });
                 } catch (bgErr) {
                     const bgMsg = getErrorMessage(bgErr);

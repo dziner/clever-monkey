@@ -293,6 +293,7 @@ export async function adminGetDbStats(): Promise<DbStats | null> {
 export interface AdminErrorRow {
     id: string;
     createdAt: string;
+    severity: 'error' | 'warn';
     stage: string;
     message: string;
     errorStatus: number | null;
@@ -303,6 +304,7 @@ export interface AdminErrorRow {
     model: string | null;
     isGuest: boolean;
     userEmail: string | null;
+    context: Record<string, unknown> | null;
 }
 
 /**
@@ -314,11 +316,17 @@ export interface AdminErrorRow {
 export async function adminGetRecentErrors(
     before?: string | null,
     limit = 20,
+    includeWarnings = false,
 ): Promise<AdminErrorRow[]> {
-    const { data, error } = await supabase.rpc('admin_get_recent_errors', {
+    const args: Record<string, unknown> = {
         p_limit: limit,
         p_before: before ?? null,
-    });
+    };
+    // Keep the default Error-only mode compatible with the previous
+    // two-argument RPC until supabase/add_admin_recent_errors.sql is rerun.
+    if (includeWarnings) args.p_include_warnings = true;
+
+    const { data, error } = await supabase.rpc('admin_get_recent_errors', args);
     if (error) {
         console.error('[admin] admin_get_recent_errors failed:', error);
         return [];
@@ -327,6 +335,7 @@ export async function adminGetRecentErrors(
     return rows.map(r => ({
         id: String(r.id),
         createdAt: r.created_at as string,
+        severity: r.severity === 'warn' ? 'warn' : 'error',
         stage: (r.stage as string) ?? '',
         message: (r.message as string) ?? '',
         errorStatus: (r.error_status as number | null) ?? null,
@@ -337,5 +346,6 @@ export async function adminGetRecentErrors(
         model: (r.model as string | null) ?? null,
         isGuest: Boolean(r.is_guest),
         userEmail: (r.user_email as string | null) ?? null,
+        context: (r.context as Record<string, unknown> | null) ?? null,
     }));
 }

@@ -1,5 +1,64 @@
 # Session Handoff — Clever Monkey
 
+## Codex Context Scan — 2026-06-16
+
+> 목적: Claude가 주도한 구조를 Codex가 보조할 때, Claude가 모르는 변경이 비가역적으로 굳지 않도록 추적 데이터를 남긴다.
+
+### 현재 기준점
+
+- 브랜치: `main`
+- 기준 커밋: `8192360` — `fix(admin): log terminal upload rejections at 'error' so the feed shows them`
+- 작업 트리 확인 시점: clean (`main...origin/main`)
+- 최근 30개 커밋 작성자: Claude
+
+### 최근 30개 커밋에서 읽은 개선 방향
+
+1. OCR/대용량 PDF 안정화
+   - 텍스트 PDF는 브라우저 pdf.js 로컬 추출을 우선한다.
+   - 대용량 스캔 PDF는 26초 동기 Netlify 함수 한계를 피하기 위해 `extract-ocr-background`로 넘기고, `documents.processing_state`를 `queued -> ocr_ready -> done/error`로 폴링한다.
+   - 빈 OCR 결과를 조용히 성공 처리하지 않고, safety/finish reason 또는 타임아웃 사유를 사용자와 관리자 로그에 드러낸다.
+   - page-count preflight와 server-side diagnostic logging으로 실패를 기다리기 전에 차단하거나 관측 가능하게 만든다.
+
+2. Podcast/TTS 안정화
+   - 긴 스크립트/음성 생성이 함수 timeout에 닿지 않도록 podcast script는 streaming, TTS는 작은 chunk로 처리한다.
+   - TTS preview 모델은 instruction wrapper나 `temperature: 0` 같은 추가 config에 취약했으므로, 서버 TTS payload는 원문 text + audio modality + voice만 유지한다.
+   - chunk 간 voice consistency 때문에 TTS는 sequential 처리한다. 같은 chunk 재시도 후 split-half fallback으로 전환한다.
+   - 합성 오디오는 refresh 이후에도 살아남도록 storage persistence를 둔다.
+
+3. Admin observability/capacity
+   - 기능별 API 사용량, 실제 429/quota/503 rejection, provider/model/family/variant를 admin에서 볼 수 있게 했다.
+   - 최근 에러 feed는 `diagnostic_events`/RPC 기반으로 live refresh한다.
+   - background OCR처럼 client request 밖에서 실패하는 작업도 server diagnostic으로 feed에 올라오게 한다.
+
+4. Quiz/학습 루프
+   - `user x document x quiz_type` 단위 질문 이력을 저장해 같은 퀴즈가 반복되는 동기 저하를 줄인다.
+   - `InteractionPanel`에서 `ChatTabPanel`, `QuizTabPanel`, `ChatModeToggles`를 분리해 큰 파일의 충돌면을 줄이기 시작했다.
+
+### 확인한 병목과 주의점
+
+- Netlify synchronous/streaming 함수는 약 26초 hard limit가 있다. Heartbeat는 idle cut을 막을 뿐 실행 시간을 늘리지 않는다.
+- Background function은 15분 예산이 있지만 결과 전달은 Supabase row patch에 의존한다. `patchDocument`, `processing_state`, `error_message` 계약을 함부로 바꾸면 queued 문서가 stuck될 수 있다.
+- 무료 AI quota/RPM 및 provider flakiness가 실제 천장이다. `router.ts`, `providers.ts`, `shared.ts`의 key rotation/rejection tracking은 용량 관측의 핵심 경계다.
+- TTS preview는 깨지기 쉬운 경로다. prompt wrapper, temperature, 병렬 chunk 처리, voice label 복원은 이미 회귀를 만든 이력이 있으므로 재도입하지 않는다.
+- Supabase migration/RPC 파일들이 기능과 짝을 이룬다. UI/서비스만 바꾸고 SQL을 누락하면 admin dashboard/feed가 조용히 빈 상태가 될 수 있다.
+- Hotspot 파일은 `services/geminiService.ts`, `netlify/functions/gemini.ts`, `netlify/functions/lib/shared.ts`, `netlify/functions/lib/filesApiOcr.ts`, `hooks/useFileHandler.ts`다. 변경 시 작은 단위와 테스트 우선.
+
+### Codex 작업 기록 규칙
+
+- Codex는 Claude의 메인 구조를 임의로 재설계하지 않는다. 변경은 버그 수정, 관측성 보강, 테스트/문서 보강처럼 보조적이고 되돌릴 수 있는 단위로 제한한다.
+- 앞으로의 작업 후보와 우선순위는 `docs/TODO.md`에 등록한다. 새 요청이 오면 먼저 backlog에 추가하고, 상위 우선순위부터 처리하되 매번 사용자 의도와 운영 리스크로 재판단한다.
+- 작업 전 이 섹션 아래에 intent, touched files, expected risk를 짧게 남긴다.
+- 작업 후 changed files, validation command/result, Claude handoff note, rollback hint를 남긴다.
+- DB schema/RPC, Netlify function protocol, storage path/state machine, provider routing 변경은 반드시 별도 handoff note를 남기고, 가능한 한 migration 파일과 테스트를 함께 둔다.
+- 불확실하면 구조 변경보다 diagnostic/log/test를 먼저 추가한다.
+
+### Codex work log
+
+- 2026-06-16: 최근 30개 커밋, `CLAUDE.md`, `SESSION_HANDOFF.md`, `docs/CODEBASE_HEALTH_PLAN.md`, `docs/LOAD_TEST_REPORT.md`, `docs/SWOT_AND_ROADMAP.md`, OCR/TTS/admin/quiz hotspot 파일을 읽고 위 컨텍스트를 기록함. 코드 동작 변경 없음.
+- 2026-06-16 intent: 이미지/스캔 PDF의 실제 실패 경계를 찾기 위해 background OCR 경로에 진행 단계 diagnostic trail을 추가한다. Touched files 예상: `netlify/functions/lib/filesApiOcr.ts`, `netlify/functions/extract-ocr-background.ts`, 필요 시 unit test. Risk: OCR 실행 경로 hot path이므로 동작 변경 없이 observer callback만 추가하고, DB schema/RPC 변경은 하지 않는다.
+- 2026-06-16 result: OCR 실행 방식은 바꾸지 않고 추적만 추가함. Changed files: `utils/pdfPreflightCheck.ts`, `tests/unit/pdfPreflightCheck.test.ts`, `hooks/useFileHandler.ts`, `services/geminiService.ts`, `netlify/functions/lib/filesApiOcr.ts`, `netlify/functions/extract-ocr-background.ts`, `supabase/add_admin_recent_errors.sql`, `services/profileService.ts`, `components/AdminRecentErrors.tsx`. Background OCR diagnostic context now records `pageCount`, preflight classification/page/text probe metadata, `durationMs`, and compact `progressTrail` stages (`storage_download_*`, `files_upload_*`, `files_processing_*`, `ocr_generate_*`). Admin recent error expanded row shows a compact `ocr:` summary when the RPC has `context`. Validation: Homebrew installed Node `v26.3.0` with npm/npx `11.16.0`; `npm install` added the missing `@breezystack/lamejs` package to `node_modules` without package file changes; `git diff --check`, `npx tsc --noEmit`, and `npx vitest run` all passed (`25` files, `146` tests). Claude handoff note: rerun `supabase/add_admin_recent_errors.sql` so the RPC returns `context`; then upload a scanned PDF under the 200-page limit and inspect `diagnostic_events.context.progressTrail` or the admin feed expanded row. Rollback hint: revert the observer additions and RPC/context UI changes; no new DB columns were introduced.
+- 2026-06-16 result: Admin recent log now has an `Error / Error+Warn` segmented toggle. `admin_get_recent_errors` gained `p_include_warnings`; `adminGetRecentErrors` only sends the new arg when warnings are requested so the default Error view remains compatible until SQL is rerun. PDF page-limit copy now says "페이지의 내용이 이미지로 구성된 PDF 파일" instead of "이미지 PDF/스캔 PDF"; that policy rejection logs as `warn`, and StudyPage/FileListItem render it with amber warning styling instead of a red failure presentation. Validation: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, and `npm run build` all passed. Browser verification was attempted after starting Vite at `http://127.0.0.1:5173/`, but the Browser plugin reported no available `iab` browser sessions (`agent.browsers.list()` returned `[]`).
+
 > 이전 세션이 API 400 오류로 중단되어 새 세션에서 이어가기 위한 컨텍스트 기록.
 > 작성: 2026-05-23 / 브랜치: `claude/affectionate-curie-fVBXy`
 

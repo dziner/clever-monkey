@@ -3,17 +3,22 @@
 -- overview dashboard.
 -- ===================================================================
 -- Reads the existing diagnostic_events table (no new schema). Returns
--- the most recent severity='error' rows, newest first, with the
--- reporter's email joined in. Keyset pagination via p_before
+-- the most recent severity='error' rows by default, or severity in
+-- ('error', 'warn') when p_include_warnings=true, newest first, with
+-- the reporter's email joined in. Keyset pagination via p_before
 -- (created_at cursor) powers the "더 보기" button without OFFSET drift.
 --
 -- Admin-gated by is_admin_user(), matching the other admin_* RPCs.
 -- Idempotent — safe to re-run.
 -- ===================================================================
 
-create or replace function public.admin_get_recent_errors(
+drop function if exists public.admin_get_recent_errors(integer, timestamptz);
+drop function if exists public.admin_get_recent_errors(integer, timestamptz, boolean);
+
+create function public.admin_get_recent_errors(
     p_limit  integer default 20,
-    p_before timestamptz default null
+    p_before timestamptz default null,
+    p_include_warnings boolean default false
 )
 returns jsonb
 language plpgsql
@@ -48,10 +53,11 @@ begin
             e.file_size,
             e.model,
             e.is_guest,
+            e.context,
             u.email as user_email
         from public.diagnostic_events e
         left join auth.users u on u.id = e.user_id
-        where e.severity = 'error'
+        where (e.severity = 'error' or (p_include_warnings and e.severity = 'warn'))
           and (p_before is null or e.created_at < p_before)
         order by e.created_at desc
         limit v_limit
@@ -62,3 +68,5 @@ end; $$;
 
 -- Verify (run as an admin): returns the latest error rows.
 -- select public.admin_get_recent_errors(20, null);
+-- Verify warnings too:
+-- select public.admin_get_recent_errors(20, null, true);

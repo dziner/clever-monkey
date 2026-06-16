@@ -66,6 +66,37 @@ export interface FilesApiOcrParams {
      * past 10/26s. No-op when called from the buffered classic handler.
      */
     onTick?: () => void;
+    /**
+     * Observer-only structured progress for diagnostics. The OCR pipeline
+     * still behaves exactly the same; callers can store this trail to see
+     * whether a large scan died during download, Files upload, processing,
+     * generation, or fallback.
+     */
+    onProgress?: (event: FilesApiOcrProgressEvent) => void;
+}
+
+export type FilesApiOcrProgressStage =
+    | 'storage_download_started'
+    | 'storage_download_completed'
+    | 'files_upload_started'
+    | 'files_upload_completed'
+    | 'files_processing_poll'
+    | 'files_processing_completed'
+    | 'ocr_generate_started'
+    | 'ocr_fallback_started'
+    | 'ocr_generate_completed';
+
+export interface FilesApiOcrProgressEvent {
+    stage: FilesApiOcrProgressStage;
+    elapsedMs: number;
+    msLeft: number;
+    fileSizeBytes?: number;
+    mimeType?: string;
+    pollCount?: number;
+    fileState?: string;
+    model?: string;
+    fallbackModel?: string;
+    textLength?: number;
 }
 
 export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise<string> {
@@ -73,14 +104,30 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
     const startedAt = Date.now();
     const deadlineMs = params.deadlineMs ?? OCR_DEADLINE_MS;
     const msLeft = () => deadlineMs - (Date.now() - startedAt);
-    tick();
+    const progress = (
+        stage: FilesApiOcrProgressStage,
+        detail: Omit<FilesApiOcrProgressEvent, 'stage' | 'elapsedMs' | 'msLeft'> = {},
+    ) => {
+        tick();
+        params.onProgress?.({
+            stage,
+            elapsedMs: Date.now() - startedAt,
+            msLeft: Math.max(0, msLeft()),
+            ...detail,
+        });
+    };
+
+    progress('storage_download_started');
     // Retry the (large) storage download: a transient network blip on a
     // 34MB pull shouldn't kill the whole job.
     const storedFile = await withRetry(
         () => downloadStorageObjectForUser(params.userId, params.storagePath),
         { attempts: 3, baseMs: 1000, capMs: 6000 },
     );
-    tick();
+    progress('storage_download_completed', {
+        fileSizeBytes: storedFile.size,
+        mimeType: storedFile.contentType,
+    });
     const mimeType = params.mimeType && params.mimeType !== 'application/octet-stream'
         ? params.mimeType
         : storedFile.contentType || 'application/octet-stream';
@@ -96,7 +143,10 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
     const prompt = params.prompt || OCR_PROMPT;
 
     return callWithKeyRotation(async ai => {
-        tick();
+        progress('files_upload_started', {
+            fileSizeBytes: storedFile.size,
+            mimeType,
+        });
         // Race the upload against the deadline — uploading a 50MB scan can
         // itself eat most of the budget. withRetry absorbs the
         // "fetch failed sending request" / connection-reset class that
@@ -108,7 +158,10 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
             ),
             rejectAfter(msLeft()),
         ]);
-        tick();
+        progress('files_upload_completed', {
+            fileSizeBytes: storedFile.size,
+            mimeType,
+        });
         const uploadedFileName = uploadedFile.name;
         if (!uploadedFileName) {
             throw new Error('Gemini did not return an uploaded file name.');
@@ -124,7 +177,10 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
                 await new Promise(resolve => setTimeout(resolve, FILE_PROCESSING_POLL_MS));
                 tick();
                 currentFile = await ai.files.get({ name: uploadedFileName });
-                tick();
+                progress('files_processing_poll', {
+                    pollCount: i + 1,
+                    fileState: currentFile.state ? String(currentFile.state) : undefined,
+                });
             }
 
             if (currentFile.state === 'PROCESSING') {
@@ -138,6 +194,9 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
             }
 
             const filePart = createPartFromUri(currentFile.uri, currentFile.mimeType || mimeType);
+            progress('files_processing_completed', {
+                fileState: currentFile.state ? String(currentFile.state) : undefined,
+            });
             // OCR of a large scanned PDF is a heavy multimodal request and
             // the single most common failure here is the upstream model
             // returning 503 "high demand". Mirror generateContentResilient:
@@ -154,8 +213,9 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
                 })),
                 rejectAfter(msLeft()),
             ]);
-            tick();
+            progress('ocr_generate_started', { model: params.model });
             let res: { text?: string };
+            let usedModel = params.model;
             try {
                 res = await runOcr(params.model);
             } catch (err) {
@@ -164,7 +224,11 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
                 // Only attempt the fallback model if there's still budget.
                 if (fallback && isOverloaded(err) && msLeft() > 6000) {
                     console.warn(`[gemini] OCR ${params.model} overloaded — retrying on ${fallback}`);
-                    tick();
+                    progress('ocr_fallback_started', {
+                        model: params.model,
+                        fallbackModel: fallback,
+                    });
+                    usedModel = fallback;
                     res = await runOcr(fallback);
                 } else {
                     throw err;
@@ -172,6 +236,10 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
             }
 
             const text = res.text ?? '';
+            progress('ocr_generate_completed', {
+                model: usedModel,
+                textLength: text.length,
+            });
             if (!text.trim()) {
                 // Same pattern as the inline OCR + TTS paths: when the
                 // model returns an empty payload, surface the actual

@@ -43,7 +43,7 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
                 <div>
                     <p className="text-sm font-semibold text-ink-700">대용량 문서를 처리하고 있어요</p>
                     <p className="text-xs text-ink-400 mt-1.5 leading-relaxed">
-                        스캔 PDF는 몇 분 걸릴 수 있어요. 이 탭을 닫아도 처리는 계속되고,
+                        페이지 내용이 이미지로 구성된 PDF 파일은 몇 분 걸릴 수 있어요. 이 탭을 닫아도 처리는 계속되고,
                         다시 돌아오면 완료돼 있어요.
                     </p>
                 </div>
@@ -116,11 +116,18 @@ interface PdfContentPanelProps {
     onRetryProcessing: () => void;
 }
 
+function isPdfPageContentWarning(message?: string | null): boolean {
+    return Boolean(message?.includes('페이지의 내용이 이미지로 구성된 PDF 파일'));
+}
+
 const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
     file, imageUrl, docId, currentPage, onPageChange,
     isProcessing, isLoadingStoredFile, processingState, errorMessage, canRetryProcessing, isRetrying, onDeleteDocument, onRetryProcessing,
-}) => (
-    <React.Fragment>
+}) => {
+    const isWarning = isPdfPageContentWarning(errorMessage);
+
+    return (
+        <React.Fragment>
         {isProcessing && (
             <div className="absolute inset-0 bg-ink-50/95 flex flex-col items-center justify-center z-30 p-8">
                 <ProcessingProgress processingState={processingState} />
@@ -132,11 +139,13 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
             // in PdfViewer intercepts every click and the buttons look
             // dead. Reproduces on desktop because `file` is loaded by the
             // time the error renders, so PdfViewer mounts behind us.
-            <div className="absolute inset-0 bg-red-50 flex flex-col items-center justify-center z-30 p-8 text-center">
-                <h3 className="text-lg font-bold text-red-700">Processing Failed</h3>
-                <p className="text-red-600 mt-2 max-w-xs">{errorMessage}</p>
+            <div className={`absolute inset-0 flex flex-col items-center justify-center z-30 p-8 text-center ${isWarning ? 'bg-amber-50' : 'bg-red-50'}`}>
+                <h3 className={`text-lg font-bold ${isWarning ? 'text-amber-800' : 'text-red-700'}`}>
+                    {isWarning ? '업로드 안내' : 'Processing Failed'}
+                </h3>
+                <p className={`mt-2 max-w-xs ${isWarning ? 'text-amber-700' : 'text-red-600'}`}>{errorMessage}</p>
                 <div className="mt-5 flex items-center gap-3">
-                    {canRetryProcessing && (
+                    {canRetryProcessing && !isWarning && (
                         <button
                             type="button"
                             onClick={onRetryProcessing}
@@ -149,7 +158,7 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
                     <button
                         type="button"
                         onClick={onDeleteDocument}
-                        className="flex items-center px-4 py-2 bg-ink-200 text-ink-700 rounded-lg font-semibold hover:bg-ink-300"
+                        className={`flex items-center px-4 py-2 rounded-lg font-semibold ${isWarning ? 'bg-amber-200 text-amber-900 hover:bg-amber-300' : 'bg-ink-200 text-ink-700 hover:bg-ink-300'}`}
                     >
                         <XIcon className="text-base mr-1.5" /> Close
                     </button>
@@ -171,8 +180,9 @@ const PdfContentPanel: React.FC<PdfContentPanelProps> = React.memo(({
         ) : (
             !isProcessing && processingState !== 'error' && (isLoadingStoredFile ? <StoredFileLoadingPlaceholder /> : <ViewerPlaceholder />)
         )}
-    </React.Fragment>
-));
+        </React.Fragment>
+    );
+});
 
 const ACCEPTED_FILE_TYPES = 'application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,text/plain,text/markdown';
 

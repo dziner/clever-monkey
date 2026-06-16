@@ -26,6 +26,10 @@ const ProcessingBadge: React.FC<{ state: DocumentData['processingState'] }> = ({
     );
 };
 
+function isPdfPageContentWarning(message?: string): boolean {
+    return Boolean(message?.includes('페이지의 내용이 이미지로 구성된 PDF 파일'));
+}
+
 interface FileListItemProps {
     doc: DocumentData;
     isActive: boolean;
@@ -41,6 +45,7 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
 }) => {
     const [isEditing, setIsEditing] = React.useState(false);
     const [editingName, setEditingName] = React.useState(doc.fileName);
+    const isWarning = doc.processingState === 'error' && isPdfPageContentWarning(doc.errorMessage);
 
     const startRename = () => { setEditingName(doc.fileName); setIsEditing(true); };
     const confirmRename = () => {
@@ -93,7 +98,10 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
                                 <p className="text-sm font-medium truncate">{doc.fileName}</p>
                                 <ProcessingBadge state={doc.processingState} />
                                 {doc.processingState === 'error' && (
-                                    <ErrorOutlineIcon className="text-danger-500 text-base flex-shrink-0" title="Processing failed" />
+                                    <ErrorOutlineIcon
+                                        className={`${isWarning ? 'text-amber-500' : 'text-danger-500'} text-base flex-shrink-0`}
+                                        title={isWarning ? '업로드 안내' : 'Processing failed'}
+                                    />
                                 )}
                             </>
                         )}

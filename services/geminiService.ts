@@ -284,6 +284,8 @@ export async function triggerBackgroundOcr(params: {
   model: ProcessingModel;
   mimeType: string;
   fileName: string;
+  pageCount?: number;
+  preflight?: Record<string, unknown>;
 }): Promise<void> {
   const authHeader = await getAuthHeader();
   const headers: Record<string, string> = { 'content-type': 'application/json' };
@@ -300,6 +302,8 @@ export async function triggerBackgroundOcr(params: {
         model: params.model,
         mimeType: params.mimeType,
         fileName: params.fileName,
+        pageCount: params.pageCount,
+        preflight: params.preflight,
       }),
     });
   } catch (error) {
@@ -467,7 +471,7 @@ async function extractTextFromDocument(file: File, model: ProcessingModel, stora
   }
 
   if (file.size > INLINE_TEXT_EXTRACTION_LIMIT_BYTES) {
-    throw new Error('Large scanned PDFs and images require sign-in so the file can be processed securely after upload.');
+    throw new Error('페이지 내용이 이미지로 구성된 큰 PDF 파일과 큰 이미지 파일은 안전하게 처리하려면 로그인이 필요해요. 로그인 후 다시 업로드해 주세요.');
   }
 
   const documentPart = await fileToGenerativePart(file);

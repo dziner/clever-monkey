@@ -24,10 +24,10 @@ const friendlyError = (raw: string): string => {
         return '요청이 잠시 몰렸어요. 잠깐 후 다시 시도해 주세요.';
     }
     if (/image-based PDFs over 50MB|scanned\/image PDFs up to 50MB|OCR processing/i.test(raw)) {
-        return '이미지 기반 PDF는 OCR 처리 한도 때문에 50MB 이하만 지원해요. 파일을 나누거나 압축한 뒤 다시 업로드해 주세요.';
+        return '페이지의 내용이 이미지로 구성된 PDF 파일은 OCR 처리 한도 때문에 50MB 이하만 지원해요. 파일을 나누거나 압축한 뒤 다시 업로드해 주세요.';
     }
     if (/image-based PDFs over 1,000 pages|over 1,000 pages/i.test(raw)) {
-        return '이미지 기반 PDF는 1,000페이지 이하만 지원해요. 파일을 나눠서 다시 업로드해 주세요.';
+        return '페이지의 내용이 이미지로 구성된 PDF 파일은 1,000페이지 이하만 지원해요. 파일을 나눠서 다시 업로드해 주세요.';
     }
     return raw;
 };

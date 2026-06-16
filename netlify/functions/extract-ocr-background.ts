@@ -6,7 +6,7 @@ import {
   MAX_TEXT_CHARS,
   extractMessage,
 } from './lib/shared';
-import { extractTextViaFilesApi } from './lib/filesApiOcr';
+import { extractTextViaFilesApi, type FilesApiOcrProgressEvent } from './lib/filesApiOcr';
 import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../../utils/promptBudget';
 
 // Background OCR for large scanned PDFs.
@@ -30,6 +30,26 @@ interface BackgroundOcrRequest {
   mimeType: string;
   fileName: string;
   prompt?: string;
+  pageCount?: number;
+  preflight?: Record<string, unknown>;
+}
+
+function compactProgressTrail(events: FilesApiOcrProgressEvent[]): Array<Record<string, unknown>> {
+  return events.slice(-40).map(event => {
+    const compact: Record<string, unknown> = {
+      stage: event.stage,
+      elapsedMs: event.elapsedMs,
+      msLeft: event.msLeft,
+    };
+    if (event.fileSizeBytes !== undefined) compact.fileSizeBytes = event.fileSizeBytes;
+    if (event.mimeType) compact.mimeType = event.mimeType;
+    if (event.pollCount !== undefined) compact.pollCount = event.pollCount;
+    if (event.fileState) compact.fileState = event.fileState;
+    if (event.model) compact.model = event.model;
+    if (event.fallbackModel) compact.fallbackModel = event.fallbackModel;
+    if (event.textLength !== undefined) compact.textLength = event.textLength;
+    return compact;
+  });
 }
 
 export const handler: Handler = async (event) => {
@@ -49,10 +69,38 @@ export const handler: Handler = async (event) => {
     return { statusCode: 400, body: 'Invalid JSON' };
   }
 
-  const { documentId, storagePath, model, mimeType, fileName, prompt } = body;
+  const { documentId, storagePath, model, mimeType, fileName, prompt, pageCount, preflight } = body;
   if (!documentId || !storagePath || !model || !fileName) {
     return { statusCode: 400, body: 'Missing required fields' };
   }
+
+  const startedAt = Date.now();
+  const progressEvents: FilesApiOcrProgressEvent[] = [];
+  const captureProgress = (progress: FilesApiOcrProgressEvent) => {
+    progressEvents.push(progress);
+    if (progressEvents.length > 60) progressEvents.shift();
+  };
+  const diagnosticContext = (extra: Record<string, unknown> = {}) => ({
+    pageCount,
+    preflight,
+    durationMs: Date.now() - startedAt,
+    progressTrail: compactProgressTrail(progressEvents),
+    ...extra,
+  });
+
+  void logServerDiagnostic({
+    severity: 'info',
+    stage: 'background_ocr.started',
+    message: 'Background OCR started',
+    userId,
+    documentId,
+    fileName,
+    fileMime: mimeType,
+    storagePath,
+    model,
+    processingState: 'queued',
+    context: diagnosticContext({ deadlineMs: BACKGROUND_OCR_DEADLINE_MS }),
+  });
 
   // The actual work. Netlify forces the response to 202 for background
   // functions, so the return value below is irrelevant to the client —
@@ -66,6 +114,7 @@ export const handler: Handler = async (event) => {
       fileName,
       prompt,
       deadlineMs: BACKGROUND_OCR_DEADLINE_MS,
+      onProgress: captureProgress,
     });
 
     if (!text.trim()) {
@@ -86,6 +135,7 @@ export const handler: Handler = async (event) => {
         model,
         processingState: 'error',
         errorMessage: emptyMessage,
+        context: diagnosticContext({ extractedTextLength: text.length }),
       });
       return { statusCode: 200, body: 'empty' };
     }
@@ -95,11 +145,31 @@ export const handler: Handler = async (event) => {
     const tokenCount = estimateTokens(text);
     const documentContent = sampleEvenly(text, CONTENT_BUDGET.documentContent).slice(0, MAX_TEXT_CHARS);
 
-    await patchDocument(documentId, userId, {
+    const patchSucceeded = await patchDocument(documentId, userId, {
       document_content: documentContent,
       token_count: tokenCount,
       processing_state: 'ocr_ready',
       error_message: null,
+    });
+    void logServerDiagnostic({
+      severity: patchSucceeded ? 'info' : 'error',
+      stage: patchSucceeded ? 'background_ocr.completed' : 'background_ocr.patch_failed',
+      message: patchSucceeded
+        ? 'Background OCR completed'
+        : 'Background OCR completed but documents row patch failed',
+      userId,
+      documentId,
+      fileName,
+      fileMime: mimeType,
+      storagePath,
+      model,
+      processingState: patchSucceeded ? 'ocr_ready' : 'error',
+      context: diagnosticContext({
+        extractedTextLength: text.length,
+        storedContentLength: documentContent.length,
+        tokenCount,
+        patchSucceeded,
+      }),
     });
     return { statusCode: 200, body: 'ok' };
   } catch (err) {
@@ -132,7 +202,7 @@ export const handler: Handler = async (event) => {
       processingState: 'error',
       errorName: err instanceof Error ? err.name : null,
       errorMessage: friendly,
-      context: { raw },
+      context: diagnosticContext({ raw }),
     });
     return { statusCode: 200, body: 'error' };
   }

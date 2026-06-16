@@ -2,7 +2,7 @@
 // the user finds out a file is over the line in seconds, not minutes.
 //
 // Why these numbers:
-// - Scanned/image PDFs are OCR'd by Gemini Files API. The 34MB / 500-page
+// - PDFs whose pages are images are OCR'd by Gemini Files API. The 34MB / 500-page
 //   case took 5+ minutes and still returned a RECITATION block. Empirically,
 //   ~200 pages is the comfortable ceiling where end-to-end OCR succeeds
 //   reliably inside the background function's 15-min budget AND fits
@@ -19,16 +19,35 @@ export const SCANNED_PDF_PAGE_LIMIT = 200;
  *  "text-layer". Same threshold the OCR fallback uses. */
 const MIN_TEXT_LAYER_CHARS = 200;
 
+export type PdfPreflightClassification =
+    | 'not_pdf'
+    | 'text_layer'
+    | 'scanned_or_image'
+    | 'probe_failed';
+
 export type PdfPreflightResult =
-    | { ok: true }
-    | { ok: false; reason: string };
+    | {
+        ok: true;
+        classification: PdfPreflightClassification;
+        numPages?: number;
+        pagesScanned?: number;
+        textLayerChars?: number;
+      }
+    | {
+        ok: false;
+        reason: string;
+        classification: 'scanned_or_image';
+        numPages: number;
+        pagesScanned: number;
+        textLayerChars: number;
+      };
 
 /**
  * Decide BEFORE upload whether a PDF will be accepted. Text-layer PDFs
- * pass unconditionally (local extract is fast and free); scanned PDFs
- * over SCANNED_PDF_PAGE_LIMIT are rejected with an actionable Korean
- * message so the user doesn't waste minutes waiting for OCR that we
- * already know won't finish cleanly.
+ * pass unconditionally (local extract is fast and free); PDFs whose pages
+ * are image content over SCANNED_PDF_PAGE_LIMIT are rejected with an
+ * actionable Korean message so the user doesn't waste minutes waiting
+ * for OCR that we already know won't finish cleanly.
  *
  * Returns ok:true if not a PDF (image / text uploads bypass this check)
  * or if probing fails (we don't want a flaky pdf.js error to block
@@ -36,7 +55,7 @@ export type PdfPreflightResult =
  */
 export async function checkPdfPreflightLimits(file: File): Promise<PdfPreflightResult> {
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    if (!isPdf) return { ok: true };
+    if (!isPdf) return { ok: true, classification: 'not_pdf' };
 
     let probe: { text: string; numPages: number; pagesScanned: number };
     try {
@@ -47,19 +66,39 @@ export async function checkPdfPreflightLimits(file: File): Promise<PdfPreflightR
     } catch {
         // pdf.js choked — let the downstream pipeline produce a real
         // error rather than blocking the upload here on a maybe-issue.
-        return { ok: true };
+        return { ok: true, classification: 'probe_failed' };
     }
+
+    const textLayerChars = probe.text.trim().length;
 
     // Text-layer PDF: extracted locally regardless of page count. No
     // upper bound makes sense for these (no OCR, no Gemini round trip).
-    if (probe.text.trim().length >= MIN_TEXT_LAYER_CHARS) return { ok: true };
+    if (textLayerChars >= MIN_TEXT_LAYER_CHARS) {
+        return {
+            ok: true,
+            classification: 'text_layer',
+            numPages: probe.numPages,
+            pagesScanned: probe.pagesScanned,
+            textLayerChars,
+        };
+    }
 
-    // Scanned/image PDF — would route to OCR. Reject up front if too big.
+    // PDF pages are image content — would route to OCR. Reject up front if too big.
     if (probe.numPages > SCANNED_PDF_PAGE_LIMIT) {
         return {
             ok: false,
-            reason: `스캔 PDF는 최대 ${SCANNED_PDF_PAGE_LIMIT}페이지까지 지원해요. 이 파일은 ${probe.numPages}페이지예요 — 파일을 더 작게 나눠서 다시 업로드해 주세요.`,
+            reason: `페이지의 내용이 이미지로 구성된 PDF 파일은 현재 최대 ${SCANNED_PDF_PAGE_LIMIT}페이지까지 안정적으로 처리할 수 있어요. 이 파일은 ${probe.numPages}페이지예요. ${SCANNED_PDF_PAGE_LIMIT}페이지 이하로 나눠서 다시 업로드해 주세요.`,
+            classification: 'scanned_or_image',
+            numPages: probe.numPages,
+            pagesScanned: probe.pagesScanned,
+            textLayerChars,
         };
     }
-    return { ok: true };
+    return {
+        ok: true,
+        classification: 'scanned_or_image',
+        numPages: probe.numPages,
+        pagesScanned: probe.pagesScanned,
+        textLayerChars,
+    };
 }
