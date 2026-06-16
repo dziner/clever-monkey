@@ -287,3 +287,55 @@ export async function adminGetDbStats(): Promise<DbStats | null> {
         docsCreatedWeek: d.docs_created_week ?? 0,
     };
 }
+
+// ─── Admin Recent Errors ────────────────────────────────────────────────────────
+
+export interface AdminErrorRow {
+    id: string;
+    createdAt: string;
+    stage: string;
+    message: string;
+    errorStatus: number | null;
+    errorName: string | null;
+    errorMessage: string | null;
+    fileName: string | null;
+    fileSize: number | null;
+    model: string | null;
+    isGuest: boolean;
+    userEmail: string | null;
+}
+
+/**
+ * Recent error events for the admin overview feed. Keyset-paginated:
+ * pass the oldest loaded row's createdAt as `before` to fetch the next
+ * page. Server clamps the page size (≤40). Returns [] on error so the
+ * panel renders an empty state instead of throwing.
+ */
+export async function adminGetRecentErrors(
+    before?: string | null,
+    limit = 20,
+): Promise<AdminErrorRow[]> {
+    const { data, error } = await supabase.rpc('admin_get_recent_errors', {
+        p_limit: limit,
+        p_before: before ?? null,
+    });
+    if (error) {
+        console.error('[admin] admin_get_recent_errors failed:', error);
+        return [];
+    }
+    const rows = (data ?? []) as Array<Record<string, unknown>>;
+    return rows.map(r => ({
+        id: String(r.id),
+        createdAt: r.created_at as string,
+        stage: (r.stage as string) ?? '',
+        message: (r.message as string) ?? '',
+        errorStatus: (r.error_status as number | null) ?? null,
+        errorName: (r.error_name as string | null) ?? null,
+        errorMessage: (r.error_message as string | null) ?? null,
+        fileName: (r.file_name as string | null) ?? null,
+        fileSize: (r.file_size as number | null) ?? null,
+        model: (r.model as string | null) ?? null,
+        isGuest: Boolean(r.is_guest),
+        userEmail: (r.user_email as string | null) ?? null,
+    }));
+}

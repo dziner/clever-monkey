@@ -16,6 +16,7 @@ import { Spinner } from '../components/Spinner';
 import { UserRow, TierBadge } from '../components/AdminUserTable';
 import { MiniBarChart, StorageGauge } from '../components/AdminCharts';
 import { AdminCapacityPanel } from '../components/AdminCapacityPanel';
+import { AdminRecentErrors } from '../components/AdminRecentErrors';
 import { getUserStats } from '../utils/adminStats';
 import { isAdminUser } from '../services/adminConfig';
 import { ROUTES } from '../routes';
@@ -339,6 +340,11 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     </div>
                                 </section>
                             )}
+
+                            {/* Live error feed — surfaces user-facing failures
+                                (OCR, TTS, network) as they happen so the
+                                operator can triage without opening SQL. */}
+                            <AdminRecentErrors />
                         </div>
                     )}
 
