@@ -66,7 +66,7 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
             onDragEnd={onDragEnd}
             onClick={isEditing ? undefined : onClick}
             className={[
-                'group relative flex items-center justify-between gap-2 w-full pl-3 pr-2 py-2 rounded-xl transition-colors',
+                'group relative flex items-center gap-2 w-full pl-3 pr-3 py-2 rounded-xl transition-colors',
                 isEditing ? '' : 'cursor-pointer',
                 isActive
                     ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-100'
@@ -121,12 +121,18 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
             </div>
 
             {!isEditing && (
-                <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                <div
+                    className={[
+                        'absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-0.5 rounded-xl px-1 py-1',
+                        'opacity-0 shadow-soft transition-opacity group-hover:opacity-100 focus-within:opacity-100',
+                        isActive ? 'bg-brand-50/95' : 'bg-white/95',
+                    ].join(' ')}
+                >
                     {onRename && (
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); startRename(); }}
-                            className="p-1.5 rounded-lg text-ink-400 hover:text-ink-700 hover:bg-white"
+                            className="p-1.5 rounded-lg text-ink-400 hover:text-ink-700 hover:bg-ink-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                             aria-label={`Rename ${doc.fileName}`}
                             title="이름 수정"
                         >
@@ -136,7 +142,7 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
                     <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="p-1.5 rounded-lg text-ink-400 hover:text-danger-600 hover:bg-white"
+                        className="p-1.5 rounded-lg text-ink-400 hover:text-danger-600 hover:bg-danger-50 focus:outline-none focus:ring-2 focus:ring-danger-500/20"
                         aria-label={`Delete ${doc.fileName}`}
                         title="삭제"
                     >

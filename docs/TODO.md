@@ -25,6 +25,11 @@
 
 ### P2 - Later
 
+- [ ] `appShell.spec.ts` e2e 기대값 최신 UI에 맞게 갱신
+  - 발견: 파일 리스트 UI 수정 검증 중 `npx playwright test`에서 smoke 2개는 통과했지만 `appShell.spec.ts` 8개가 실패.
+  - 원인 후보: 현재 랜딩/법적 페이지/404 카피 또는 라우팅과 테스트 기대 문자열이 맞지 않음.
+  - 주의: 이번 파일 리스트 hover overlay 변경과 직접 관련 없는 기존 테스트 정합성 문제로 분리.
+
 - [ ] npm audit dependency hygiene
   - 현재 상태: `npm audit` reports 4 vulnerabilities in dev/build tooling (`vite`, `@vitejs/plugin-react`, `esbuild`, `@babel/core`).
   - 판단: 배포 런타임 즉시 취약점보다는 build-time/supply-chain 잠재 리스크로 분류.
@@ -37,6 +42,12 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-16 파일 목록 항목 우측 버튼 예약 여백 제거
+  - 현상: 수정/삭제 버튼이 보이지 않을 때도 flex 영역을 차지해 파일명이 지나치게 짧게 잘림.
+  - 수정: `FileListItem`의 수정/삭제 버튼을 normal flow에서 absolute hover/focus overlay로 변경.
+  - 효과: 평소에는 파일명/메타 영역이 전체 폭을 쓰고, hover/focus 시 버튼 pill이 오른쪽 위를 덮어 표시됨.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build` 통과. `npx playwright test`는 기존 `appShell.spec.ts` 기대값 문제로 8개 실패, smoke 2개 통과.
 
 - [x] 2026-06-16 80페이지 이미지 내용 기반 PDF 실패 로그 누락 경로 보강
   - 현상: 50페이지 성공, 100페이지 실패, 80페이지 실패. 단 80페이지 실패는 로그에 기록되지 않음.
