@@ -16,6 +16,8 @@ import {
   providerKeyPresence,
   ALLOWED_MODELS,
   MAX_TEXT_CHARS,
+  OCR_PROMPT,
+  describeEmptyGeneration,
 } from './lib/shared';
 import { routedGenerate } from './lib/router';
 import { extractTextViaFilesApi } from './lib/filesApiOcr';
@@ -276,10 +278,10 @@ export const handler: Handler = async (event) => {
         return json(400, { error: 'Missing inlineData' });
       }
 
-      // Some lightweight validation; base64 can still be big, overall request already capped.
-      const prompt =
-        parsed.prompt ||
-        'Extract all text from this document. Respond with only the text content. If there is no text, return an empty string.';
+      // Strong exhaustive prompt (no "return empty string if no text"
+      // escape hatch — see OCR_PROMPT comment). Real failures now reach
+      // the empty-text guard below with the actual reason.
+      const prompt = parsed.prompt || OCR_PROMPT;
 
       const res = await generateContentResilient(model, {
         contents: {
@@ -291,6 +293,11 @@ export const handler: Handler = async (event) => {
       }, usageMeta);
 
       const text = res.text ?? '';
+      if (!text.trim()) {
+        // Surface the actual reason (safety / finish) so the client
+        // can show something actionable instead of an opaque "no text".
+        return json(502, { error: describeEmptyGeneration(res) });
+      }
       if (text.length > MAX_TEXT_CHARS) {
         return json(200, { text: text.slice(0, MAX_TEXT_CHARS) });
       }

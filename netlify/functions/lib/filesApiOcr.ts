@@ -5,6 +5,8 @@ import {
     isOverloaded,
     OVERLOAD_FALLBACK_MODEL,
     downloadStorageObjectForUser,
+    OCR_PROMPT,
+    describeEmptyGeneration,
 } from './shared';
 
 // Server-side OCR via Gemini Files API. Pulled out of the classic
@@ -53,8 +55,7 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
         );
     }
 
-    const prompt = params.prompt ||
-        'Extract all text from this document. Respond with only the text content. If there is no text, return an empty string.';
+    const prompt = params.prompt || OCR_PROMPT;
 
     return callWithKeyRotation(async ai => {
         tick();
@@ -113,7 +114,15 @@ export async function extractTextViaFilesApi(params: FilesApiOcrParams): Promise
                 }
             }
 
-            return res.text ?? '';
+            const text = res.text ?? '';
+            if (!text.trim()) {
+                // Same pattern as the inline OCR + TTS paths: when the
+                // model returns an empty payload, surface the actual
+                // reason (safety block / finishReason) instead of an
+                // opaque "no text" that's invisible in logs.
+                throw new Error(describeEmptyGeneration(res));
+            }
+            return text;
         } finally {
             await ai.files.delete({ name: uploadedFileName }).catch(() => undefined);
         }

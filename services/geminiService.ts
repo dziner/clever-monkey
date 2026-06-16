@@ -356,7 +356,20 @@ async function extractTextFromStorageStreaming(params: {
   // Strip every keep-alive heartbeat; what's left is the OCR result.
   const text = full.split(STREAM_KEEPALIVE_BYTE).join('');
   if (text.length === 0) {
-    throw new Error('Gemini OCR returned no text');
+    // Server-side now throws describeEmptyGeneration() with the actual
+    // reason (safety/finish), so this branch should rarely fire — but
+    // keep the log so a silent empty stream is visible in
+    // diagnostic_events instead of a generic frontend error.
+    const error = new Error('Gemini OCR returned no text');
+    void logDiagnosticEvent({
+      severity: 'error',
+      stage: 'api.gemini_stream_ocr.empty_response',
+      message: 'Gemini stream OCR completed with no text payload',
+      model: params.model,
+      storagePath: params.storagePath,
+      error: createDiagnosticErrorInfo(error),
+    });
+    throw error;
   }
   return text;
 }

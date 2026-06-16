@@ -256,6 +256,39 @@ export async function callWithKeyRotation<T>(fn: (ai: GoogleGenAI) => Promise<T>
 
 export const MAX_TEXT_CHARS = 250_000;
 
+// OCR prompt for both inline (small files via extractText) and Files-API
+// (large PDFs via extractTextViaFilesApi). The earlier version included
+// "If there is no text, return an empty string" — that escape hatch is
+// what produced the user-facing "Gemini OCR returned no text" failures:
+// the model latched onto the permission and bailed out on any document
+// it found hard to transcribe (low-contrast scans, complex layouts,
+// handwriting) instead of trying. Same failure class as the TTS
+// "return no audio when uncertain" we just untangled.
+//
+// New prompt is exhaustive and gives the model no out — the only valid
+// failure path is now a real safety block or quota error, both of which
+// the empty-response detection below surfaces with their actual reason.
+export const OCR_PROMPT =
+  'Transcribe ALL visible text from this document exhaustively — every paragraph, heading, list item, table cell, caption, figure label, page number, and footnote, in natural reading order. If the document is a scan, photo, or image-only PDF, perform OCR. Preserve the original language; do not translate. Respond with ONLY the transcribed text — no preamble, no commentary, no markdown, no surrounding quotes.';
+
+/** Pull out why a generateContent response carried no text/audio so the
+ *  caller can surface the real reason instead of a generic empty-payload
+ *  error. promptFeedback.blockReason fires on safety filtering;
+ *  candidate.finishReason flags MAX_TOKENS / SAFETY / RECITATION. */
+export function describeEmptyGeneration(res: unknown): string {
+  const r = res as {
+    promptFeedback?: { blockReason?: string };
+    candidates?: Array<{ finishReason?: string }>;
+  };
+  const block = r.promptFeedback?.blockReason;
+  const finish = r.candidates?.[0]?.finishReason;
+  const bits: string[] = [];
+  if (block) bits.push(`block=${block}`);
+  if (finish && finish !== 'STOP') bits.push(`finish=${finish}`);
+  if (!r.candidates?.length) bits.push('no candidates');
+  return bits.length ? `Model returned no text (${bits.join(', ')})` : 'Model returned no text';
+}
+
 /** Context the key pool uses to attribute a rejection to a feature. */
 export interface UsageMeta {
   category: string;
