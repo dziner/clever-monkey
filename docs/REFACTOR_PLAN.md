@@ -65,8 +65,8 @@ Goal: eventually reduce collision risk in OCR/TTS/AI paths.
 
 ## Current Execution Plan
 
-1. Current low-risk refactor round is complete through admin service, public shell footer, document mapper, Gemini payload diagnostics, and podcast prompt builder splits.
-2. Next code movement should start only after choosing a specific hotspot and writing a targeted test/rollback plan for it.
+1. P2 hotspot design is closed in `docs/HOTSPOT_REFACTOR_GUARDRAILS.md`.
+2. Automatic deeper movement inside `InteractionPanel`, OCR/upload, TTS synthesis, or provider routing is cancelled until a specific target has characterization tests.
 3. Keep deeper OCR/TTS/provider/upload movement deferred until operational logs or tests justify that exact change.
 4. Run the full verification bar before code commits: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test`.
 

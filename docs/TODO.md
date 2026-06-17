@@ -22,12 +22,6 @@
 
 ### P2 - Later
 
-- [ ] `InteractionPanel.tsx` / `geminiService.ts` 고위험 분리 설계
-  - 배경: 두 파일은 기능 추가 충돌 가능성이 높은 hotspot이지만, 채팅/퀴즈/팟캐스트/OCR 계약이 얽혀 있다.
-  - 방향: prompt builders, generation transport, tab state hooks, quiz persistence를 순차 분리한다.
-  - 주의: TTS single-narrator/sequential chunk와 OCR `queued -> ocr_ready -> done/error` 계약을 변경하지 않는다.
-  - 진행: `DocumentContext` row mapper, Gemini payload diagnostics, podcast script prompt builder처럼 순수하고 테스트 가능한 경계부터 분리 완료. 실제 generation/upload state machine 분리는 아직 보류.
-
 - [ ] inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
   - 배경: 어드민 삭제는 현재 `inactive` 상태 전환 + 30일 복구 기한으로 구현한다.
   - 남은 결정: 30일 경과 후 자동 hard delete를 둘지, 관리자 수동 삭제만 둘지, 사용자 문서/스토리지/진단 로그 보존 기간을 어떻게 맞출지 정해야 한다.
@@ -54,6 +48,13 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-18 `InteractionPanel.tsx` / `geminiService.ts` 고위험 분리 설계
+  - 배경: 두 파일은 기능 추가 충돌 가능성이 높은 hotspot이지만, 채팅/퀴즈/팟캐스트/OCR 계약이 얽혀 있다.
+  - 완료한 안전한 분리: `services/documentMapper.ts`, `services/geminiPayload.ts`, `services/podcastPrompt.ts`.
+  - 위험 감지: tab state hook, generation transport, OCR/upload state machine, TTS synthesis로 더 들어가는 자동 이동은 회귀 위험이 커서 취소.
+  - 문서: `docs/HOTSPOT_REFACTOR_GUARDRAILS.md`
+  - 다음 권장: side-effect 없는 quiz-state helper부터 characterization test를 만든 뒤 진행.
 
 - [x] 2026-06-17 리팩토링 6차: Podcast script prompt builder 분리
   - 배경: 최근 팟캐스트 기본 길이/길게 옵션이 추가된 prompt 문자열이 `geminiService.ts` 안에 inline으로 있어 회귀 테스트가 어려웠다.
