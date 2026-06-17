@@ -18,11 +18,7 @@
 
 ### P1 - Soon
 
-- [ ] custom mobile modal/sheet 정리
-  - 출처: `docs/UI_REVIEW_2026-06-18.md`
-  - 대상: `UpgradeModal`, `FileListPanel` delete confirmation, `FlashcardsTab` settings modal.
-  - 이유: 공통 `Modal`은 mobile sheet/fullscreen 기준이 정리됐지만, 일부 custom overlay가 safe-area/정렬/둥근 모서리 패턴을 중복 구현한다.
-  - 주의: 삭제/업그레이드/플래시카드 설정 기능 동작을 바꾸지 않고 presentation만 맞춘다.
+현재 없음.
 
 ### P2 - Later
 
@@ -32,6 +28,12 @@
   - 우선순위: 낮음. 주변 컴포넌트를 만질 때 같이 정리한다.
 
 ## Done
+
+- [x] 2026-06-18 UI/CSS review 2차: custom mobile sheet alignment
+  - 출처: `docs/UI_REVIEW_2026-06-18.md`
+  - 대상: `UpgradeModal`, `FileListPanel` delete confirmation, `FlashcardsTab` settings modal.
+  - 수정: 모바일 overlay wrapper gap 제거, dialog `mt-auto` bottom anchoring, desktop `sm:my-auto`, safe-area max-height, token sheet shadow로 정렬.
+  - 주의: 업그레이드/삭제/플래시카드 생성 액션 핸들러는 변경하지 않음.
 
 - [x] 2026-06-18 UI/CSS review 1차: mobile auth fullscreen
   - 문서: `docs/UI_REVIEW_2026-06-18.md`

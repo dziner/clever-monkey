@@ -44,11 +44,11 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
 
     return (
         <div
-            className="fixed inset-0 z-[300] flex items-end justify-center overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+            className="fixed inset-0 z-[300] flex items-end justify-center overflow-y-auto overscroll-contain p-0 sm:items-center sm:p-4"
             style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
         >
             <div className="absolute inset-0 bg-ink-900/50 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
-            <div className="relative my-auto flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-sheet animate-scale-in max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl">
+            <div className="relative mt-auto flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-sheet animate-slide-in-up max-h-[calc(100dvh_-_env(safe-area-inset-top))] sm:my-auto sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl sm:animate-scale-in">
                 {/* Header */}
                 <div className="relative flex-shrink-0 bg-ink-900 px-5 pb-6 pt-6 text-white overflow-hidden sm:px-7 sm:pb-7 sm:pt-8">
                     <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-500/30 rounded-full blur-3xl pointer-events-none" />

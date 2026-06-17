@@ -218,7 +218,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
         {/* Delete confirmation modal */}
         {confirmDelete && ReactDOM.createPortal(
             <div
-                className="fixed inset-0 z-[9999] flex items-end justify-center overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+                className="fixed inset-0 z-[9999] flex items-end justify-center overflow-y-auto overscroll-contain p-0 sm:items-center sm:p-4"
                 style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
             >
                 <button
@@ -227,7 +227,7 @@ export const FileListPanel: React.FC<FileListPanelProps> = ({
                     onClick={() => setConfirmDelete(null)}
                     aria-label="Cancel"
                 />
-                <div className="relative my-auto w-full max-w-sm overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-5 shadow-pop animate-scale-in max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:rounded-3xl sm:p-6 sm:max-h-[calc(100dvh_-_2rem)]">
+                <div className="relative mt-auto w-full max-w-sm overflow-y-auto overscroll-contain rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-sheet animate-slide-in-up max-h-[calc(100dvh_-_env(safe-area-inset-top))] sm:my-auto sm:rounded-2xl sm:p-6 sm:max-h-[calc(100dvh_-_2rem)] sm:animate-scale-in">
                     <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-xl bg-danger-50 flex items-center justify-center flex-shrink-0">
                             <TrashIcon className="text-danger-600 text-xl" />

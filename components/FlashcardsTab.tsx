@@ -241,13 +241,13 @@ const GenerateModal: React.FC<{
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-black/50 p-0 sm:items-center sm:p-4"
       style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
     >
-      <div className="my-auto flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-sheet max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl">
+      <div className="mt-auto flex min-h-0 w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-sheet animate-slide-in-up max-h-[calc(100dvh_-_env(safe-area-inset-top))] sm:my-auto sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl sm:animate-scale-in">
         <div className="flex flex-shrink-0 items-center justify-between border-b border-ink-100 p-5">
           <h2 className="text-h2 text-ink-900">새 플래시카드 덱 만들기</h2>
-          <button type="button" onClick={onClose} className="p-2 text-ink-400 hover:text-ink-700 rounded-lg hover:bg-ink-100 transition-colors duration-200">
+          <button type="button" onClick={onClose} className="p-2 text-ink-400 hover:text-ink-700 rounded-lg hover:bg-ink-100 transition-colors duration-200" aria-label="Close flashcard deck dialog">
             <XIcon className="text-xl" />
           </button>
         </div>
