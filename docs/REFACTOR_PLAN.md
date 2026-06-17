@@ -65,9 +65,10 @@ Goal: eventually reduce collision risk in OCR/TTS/AI paths.
 
 ## Current Execution Plan
 
-1. Commit/push the podcast script prompt builder split once full verification is green.
-2. Stop before deeper OCR/TTS/provider/upload movement unless a targeted test/rollback plan exists for that specific path.
-3. Run the full verification bar before each staged commit: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test`.
+1. Current low-risk refactor round is complete through admin service, public shell footer, document mapper, Gemini payload diagnostics, and podcast prompt builder splits.
+2. Next code movement should start only after choosing a specific hotspot and writing a targeted test/rollback plan for it.
+3. Keep deeper OCR/TTS/provider/upload movement deferred until operational logs or tests justify that exact change.
+4. Run the full verification bar before code commits: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test`.
 
 ## Deferrals
 
