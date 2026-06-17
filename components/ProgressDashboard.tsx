@@ -3,7 +3,7 @@ import { fetchQuizSessions, fetchWrongAnswers } from '../services/wrongAnswersSe
 import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 import { computeStreak, averageScore, dailyCounts, type DashboardSession } from '../utils/progressStats';
-import { CheckIcon, BoltIcon, AssignmentIcon, ErrorOutlineIcon } from './icons';
+import { BarChartIcon, CheckIcon, BoltIcon, AssignmentIcon, ErrorOutlineIcon } from './icons';
 
 /**
  * Compact per-user dashboard rendered at the top of Overview. Cards show
@@ -52,9 +52,11 @@ export const ProgressDashboard: React.FC = () => {
     if (sessions.length === 0) {
         return (
             <div className="bg-white rounded-2xl border border-ink-200 p-5 text-center">
-                <p className="text-2xl mb-2">📊</p>
-                <h3 className="text-sm font-bold text-ink-800 mb-1">{t('dash.empty.title', lang)}</h3>
-                <p className="text-xs text-ink-500 leading-relaxed">{t('dash.empty.body', lang)}</p>
+                <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <BarChartIcon className="text-xl" />
+                </div>
+                <h3 className="text-h4 mb-1">{t('dash.empty.title', lang)}</h3>
+                <p className="text-body-sm text-ink-500">{t('dash.empty.body', lang)}</p>
             </div>
         );
     }

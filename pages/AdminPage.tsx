@@ -11,7 +11,7 @@ import {
     AdminPanelIcon, PeopleIcon, WorkspacePremiumIcon, DocumentIcon, BoltIcon,
     ChevronLeftIcon, RefreshIcon, CheckIcon,
     ErrorOutlineIcon, StorageIcon, WarningIcon,
-    QuizIcon, FolderOpenIcon, CloudIcon,
+    QuizIcon, FolderOpenIcon, CloudIcon, AnnotationIcon,
 } from '../components/icons';
 import { Spinner } from '../components/Spinner';
 import { TierBadge } from '../components/AdminUserTable';
@@ -522,16 +522,17 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     </div>
                                     <div className="divide-y divide-ink-50">
                                         {[
-                                            { label: 'profiles',      value: users.length,                icon: '👤' },
-                                            { label: 'documents',     value: dbStats?.documentCount ?? 0, icon: '📄' },
-                                            { label: 'folders',       value: dbStats?.folders ?? 0,       icon: '📁' },
-                                            { label: 'quiz_sessions', value: dbStats?.quizSessions ?? 0,  icon: '📝' },
-                                            { label: 'wrong_answers', value: dbStats?.wrongAnswers ?? 0,  icon: '❌' },
-                                            { label: 'annotations',   value: dbStats?.annotations ?? 0,   icon: '🖊️' },
+                                            { label: 'profiles',      value: users.length,                Icon: PeopleIcon },
+                                            { label: 'documents',     value: dbStats?.documentCount ?? 0, Icon: DocumentIcon },
+                                            { label: 'folders',       value: dbStats?.folders ?? 0,       Icon: FolderOpenIcon },
+                                            { label: 'quiz_sessions', value: dbStats?.quizSessions ?? 0,  Icon: QuizIcon },
+                                            { label: 'wrong_answers', value: dbStats?.wrongAnswers ?? 0,  Icon: ErrorOutlineIcon },
+                                            { label: 'annotations',   value: dbStats?.annotations ?? 0,   Icon: AnnotationIcon },
                                         ].map(row => (
                                             <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
                                                 <span className="text-sm text-ink-700 font-mono flex items-center gap-2">
-                                                    <span>{row.icon}</span>{row.label}
+                                                    <row.Icon className="text-base text-ink-500" />
+                                                    {row.label}
                                                 </span>
                                                 <span className="text-sm font-bold text-ink-800 tabular-nums">
                                                     {row.value.toLocaleString()}

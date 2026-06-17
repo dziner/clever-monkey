@@ -3,7 +3,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { PdfViewer } from '../components/PdfViewer';
 import { InteractionPanel } from '../components/InteractionPanel';
 import type { ActiveTab } from '../components/InteractionPanel';
-import { DocumentIcon, XIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, StyleIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon, MenuIcon, UploadIcon } from '../components/icons';
+import { CheckIcon, DocumentIcon, XIcon, ChatIcon, AssignmentIcon, AccountTreeIcon, StyleIcon, HeadphonesIcon, PanelRightCloseIcon, SpaceDashboardIcon, MenuIcon, UploadIcon } from '../components/icons';
 import { useResizablePanel } from '../hooks/useResizablePanel';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useRetryProcessing } from '../hooks/useRetryProcessing';
@@ -38,11 +38,11 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
     // stalled-looking step list.
     if (processingState === 'queued') {
         return (
-            <div className="flex flex-col items-center gap-4 w-full max-w-xs text-center">
+            <div className="flex flex-col items-center gap-4 w-full max-w-sm text-center">
                 <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
                 <div>
-                    <p className="text-sm font-semibold text-ink-700">대용량 문서를 처리하고 있어요</p>
-                    <p className="text-xs text-ink-400 mt-1.5 leading-relaxed">
+                    <p className="text-h3">대용량 문서를 처리하고 있어요</p>
+                    <p className="text-body-sm text-ink-500 mt-2">
                         페이지 내용이 이미지로 구성된 PDF 파일은 몇 분 걸릴 수 있어요. 이 탭을 닫아도 처리는 계속되고,
                         다시 돌아오면 완료돼 있어요.
                     </p>
@@ -65,7 +65,7 @@ const ProcessingProgress: React.FC<{ processingState: DocumentProcessingState }>
                                 isActive ? 'bg-brand-600 text-white' :
                                 'bg-ink-200 text-ink-400'
                             }`}>
-                                {isDone ? '✓' : i + 1}
+                                {isDone ? <CheckIcon className="text-xs" /> : i + 1}
                             </div>
                             <span className={`text-sm font-medium transition-colors ${
                                 isActive ? 'text-brand-700' :

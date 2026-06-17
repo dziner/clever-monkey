@@ -30,6 +30,12 @@
 
 ## Done
 
+- [x] 2026-06-18 icon/type consistency review
+  - 문서: `docs/ICON_TYPE_REVIEW_2026-06-18.md`
+  - 수정: UI 아이콘 역할의 이모지/문자 기호/인라인 SVG를 공통 Phosphor wrapper 또는 마스코트 asset으로 교체.
+  - 폰트: 채팅 Markdown은 compact variant로 낮추고, 대용량 이미지 내용 기반 PDF 처리 안내는 `text-h3`/`text-body-sm`로 올림.
+  - 보류: admin chart/table badge 등 10~12px micro type은 정보 밀도용이라 dashboard별 visual comparison 전까지 일괄 확대하지 않음.
+
 - [x] 2026-06-18 UI/CSS review 3차: high-signal arbitrary shadow tokenization
   - 출처: `docs/UI_REVIEW_2026-06-18.md`
   - 수정: desktop sidebar와 PDF toolbar의 arbitrary shadow를 `shadow-card` token으로 교체.

@@ -1,7 +1,7 @@
 // Fix: Use namespace import for React to resolve JSX intrinsic element errors.
 import * as React from 'react';
 import { renderInline } from './MarkdownRenderer';
-import { ChevronDownIcon, ChevronUpIcon, LightbulbIcon } from './icons';
+import { AssignmentIcon, ChevronDownIcon, LightbulbIcon } from './icons';
 
 interface PresetQuestionsProps {
     questions: string[];
@@ -9,6 +9,8 @@ interface PresetQuestionsProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
 }
+
+const BRAIN_EMOJI_MARKER = '\u{1F9E0}';
 
 export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQuestionClick, isOpen, setIsOpen }) => {
     
@@ -46,25 +48,23 @@ export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQ
             
             <div className="p-3 pt-0 grid grid-cols-1 gap-2">
                 {questions.map((q, i) => {
-                     // Simple regex to split emoji from text
-                    const match = q.match(/^(.*?)\s(.*)$/);
-                    const emoji = match ? match[1] : '';
-                    const text = match ? match[2] : q;
+                    const text = q.replace(/^[\p{Extended_Pictographic}\uFE0F]+\s*/u, '').trim();
                     const quizKeywords = ['quiz', '퀴즈'];
-                    const isQuizQuestion = q.includes('🧠') || quizKeywords.some(kw => text.toLowerCase().includes(kw));
+                    const isQuizQuestion = q.includes(BRAIN_EMOJI_MARKER) || quizKeywords.some(kw => text.toLowerCase().includes(kw));
+                    const QuestionIcon = isQuizQuestion ? AssignmentIcon : LightbulbIcon;
 
                     return (
                         <button
                             key={i}
                             onClick={() => onQuestionClick(q)}
-                            className={`p-3 rounded-lg text-left border transition-all shadow-sm flex items-start space-x-2 animate-fade-in-up ${
+                            className={`p-3 rounded-lg text-left border transition-all shadow-sm flex items-start gap-2 animate-fade-in-up ${
                                 isQuizQuestion
                                 ? 'bg-brand-100 border-brand-300 text-brand-900 hover:bg-brand-200 font-semibold'
                                 : 'bg-white text-ink-700 border-ink-200 hover:border-brand-400 hover:bg-brand-50'
                             }`}
                              style={{ animationDelay: `${i * 100}ms` }}
                         >
-                           <span className="text-lg mt-0.5">{emoji}</span>
+                           <QuestionIcon className={`mt-0.5 text-lg flex-shrink-0 ${isQuizQuestion ? 'text-brand-600' : 'text-warning-500'}`} />
                            <span className="flex-1 font-medium">{renderInline(text)}</span>
                         </button>
                     )

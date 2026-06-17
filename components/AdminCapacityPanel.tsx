@@ -1,5 +1,24 @@
 import * as React from 'react';
 import type { ApiCategoryStats, ApiCategoryUsage, KeyMeta } from '../services/adminService';
+import {
+    AccountTreeIcon,
+    AssignmentIcon,
+    ChatIcon,
+    DocumentIcon,
+    EditIcon,
+    FileImageIcon,
+    HeadphonesIcon,
+    LightbulbIcon,
+    MicrophoneIcon,
+    MoreVertIcon,
+    PictureAsPdfIcon,
+    QuizIcon,
+    SlideshowIcon,
+    StyleIcon,
+    TextSnippetIcon,
+    TrendingUpIcon,
+    WarningIcon,
+} from './icons';
 
 // Per-feature capacity dashboard. Aggregates per-category usage rows
 // returned by admin_get_api_category_stats() into one card per feature
@@ -55,21 +74,31 @@ const MODEL_QUOTAS: Record<string, ModelInfo> = {
 
 const FALLBACK_QUOTA: ModelInfo = { rpd: 1000, provider: 'unknown', family: 'Unknown', variant: '' };
 
-const CATEGORY_LABELS: Record<string, { label: string; emoji: string; hint: string }> = {
-    chat:              { label: '채팅',         emoji: '💬', hint: '문서 Q&A · 모키 모드' },
-    summary:           { label: '요약 (스트림)', emoji: '📝', hint: '문서 업로드 후 자동' },
-    presetQuestions:   { label: '추천 질문',     emoji: '❓', hint: '문서당 1회' },
-    quiz:              { label: '퀴즈 생성',     emoji: '🎯', hint: '객관식 · 서술형' },
-    flashcards:        { label: '플래시카드',    emoji: '🃏', hint: '덱 1개당 1회' },
-    mindmap:           { label: '마인드맵',      emoji: '🌳', hint: '문서당 1회' },
-    slides:            { label: '슬라이드',      emoji: '🎞️', hint: '문서당 1회' },
-    podcast_script:    { label: '팟캐스트 스크립트', emoji: '🎙️', hint: '스트리밍 생성' },
-    podcast_tts:       { label: '팟캐스트 음성',  emoji: '🔊', hint: 'preview 모델 · 가장 흔들림' },
-    extract_inline:    { label: '소형 OCR',       emoji: '📃', hint: '5MB 미만 즉시' },
-    extract_storage:   { label: '대형 PDF OCR',   emoji: '📚', hint: 'Files API · 스트리밍' },
-    studyTips:         { label: '학습 팁',        emoji: '💡', hint: '퀴즈 후 1회' },
-    evaluate:          { label: 'FRQ 채점',       emoji: '✏️', hint: '답안당 1회' },
-    other:             { label: '기타',           emoji: '·',  hint: '미분류' },
+type CategoryIcon = React.FC<React.HTMLAttributes<HTMLSpanElement>>;
+
+interface CategoryMeta {
+    label: string;
+    Icon: CategoryIcon;
+    hint: string;
+}
+
+const FALLBACK_CATEGORY_META: CategoryMeta = { label: '기타', Icon: MoreVertIcon, hint: '미분류' };
+
+const CATEGORY_LABELS: Record<string, CategoryMeta> = {
+    chat:              { label: '채팅',              Icon: ChatIcon,        hint: '문서 Q&A · 모키 모드' },
+    summary:           { label: '요약 (스트림)',      Icon: TextSnippetIcon, hint: '문서 업로드 후 자동' },
+    presetQuestions:   { label: '추천 질문',          Icon: QuizIcon,        hint: '문서당 1회' },
+    quiz:              { label: '퀴즈 생성',          Icon: AssignmentIcon,  hint: '객관식 · 서술형' },
+    flashcards:        { label: '플래시카드',         Icon: StyleIcon,       hint: '덱 1개당 1회' },
+    mindmap:           { label: '마인드맵',           Icon: AccountTreeIcon, hint: '문서당 1회' },
+    slides:            { label: '슬라이드',           Icon: SlideshowIcon,   hint: '문서당 1회' },
+    podcast_script:    { label: '팟캐스트 스크립트',  Icon: MicrophoneIcon,  hint: '스트리밍 생성' },
+    podcast_tts:       { label: '팟캐스트 음성',      Icon: HeadphonesIcon,  hint: 'preview 모델 · 가장 흔들림' },
+    extract_inline:    { label: '소형 OCR',           Icon: PictureAsPdfIcon,hint: '5MB 미만 즉시' },
+    extract_storage:   { label: '대형 PDF OCR',       Icon: FileImageIcon,   hint: 'Files API · 스트리밍' },
+    studyTips:         { label: '학습 팁',            Icon: LightbulbIcon,   hint: '퀴즈 후 1회' },
+    evaluate:          { label: 'FRQ 채점',           Icon: EditIcon,        hint: '답안당 1회' },
+    other:             FALLBACK_CATEGORY_META,
 };
 
 interface AdminCapacityPanelProps {
@@ -161,7 +190,8 @@ interface CategoryCardProps {
 }
 
 const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg, geminiKeys }) => {
-    const meta = CATEGORY_LABELS[category] ?? { label: category, emoji: '·', hint: '' };
+    const meta = CATEGORY_LABELS[category] ?? { ...FALLBACK_CATEGORY_META, label: category };
+    const CategoryIcon = meta.Icon;
 
     // Effective daily cap = per-model RPD, multiplied by the number of
     // rotating Gemini keys (each key has its own quota). Non-Gemini
@@ -181,7 +211,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg, geminiKeys }
             <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
                     <p className="text-sm font-bold text-ink-800 flex items-center gap-1.5">
-                        <span>{meta.emoji}</span>
+                        <CategoryIcon className="text-base text-brand-600" />
                         {meta.label}
                     </p>
                     <p className="text-[11px] text-ink-400 mt-0.5">{meta.hint}</p>
@@ -283,10 +313,17 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, agg, geminiKeys }
                 or go paid" signal even when the estimate looks comfortable. */}
             {(agg.todayRejects > 0 || pct >= 70) && (
                 <div className="mt-2 pt-2 border-t border-ink-100">
-                    <p className={`text-[10px] font-semibold ${agg.todayRejects > 0 || pct >= 90 ? 'text-red-600' : 'text-orange-600'}`}>
-                        {agg.todayRejects > 0
-                            ? '⚠️ 실제 한도 거부 발생 — 키 추가 또는 유료 전환 권장'
-                            : pct >= 90 ? '⚠️ 한도 임박 — 키 추가 또는 폴백 권장' : '↗ 한도 70% 초과 — 모니터링 권장'}
+                    <p className={`inline-flex items-center gap-1.5 text-[10px] font-semibold ${agg.todayRejects > 0 || pct >= 90 ? 'text-red-600' : 'text-orange-600'}`}>
+                        {agg.todayRejects > 0 || pct >= 90 ? (
+                            <WarningIcon className="text-xs flex-shrink-0" />
+                        ) : (
+                            <TrendingUpIcon className="text-xs flex-shrink-0" />
+                        )}
+                        <span>
+                            {agg.todayRejects > 0
+                                ? '실제 한도 거부 발생 — 키 추가 또는 유료 전환 권장'
+                                : pct >= 90 ? '한도 임박 — 키 추가 또는 폴백 권장' : '한도 70% 초과 — 모니터링 권장'}
+                        </span>
                     </p>
                 </div>
             )}

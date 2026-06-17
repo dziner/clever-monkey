@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { DocumentData, QuizData, FRQData, QuizTabState } from '../types';
 import type { ActiveTab } from './InteractionPanel';
 import type { WrongAnswerRecord } from '../services/wrongAnswersService';
-import { AssignmentIcon, ErrorOutlineIcon, StyleIcon } from './icons';
+import { AssignmentIcon, BrainIcon, ErrorOutlineIcon, StyleIcon } from './icons';
 import { Spinner } from './Spinner';
 import { LoginRequired } from './LoginRequired';
 import { Quiz } from './Quiz';
@@ -89,7 +89,10 @@ export const QuizTabPanel: React.FC<QuizTabPanelProps> = ({
                         {isGeneratingQuiz && (
                             <div className="flex flex-col items-center justify-center h-full text-center">
                                 <Spinner />
-                                <p className="mt-4 font-semibold text-ink-700">Generating your quiz... 🧠</p>
+                                <p className="mt-4 inline-flex items-center gap-1.5 font-semibold text-ink-700">
+                                    <BrainIcon className="text-base text-brand-500" />
+                                    <span>Generating your quiz...</span>
+                                </p>
                             </div>
                         )}
                         {!isGeneratingQuiz && quizError && (

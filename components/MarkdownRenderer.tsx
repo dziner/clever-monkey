@@ -2,7 +2,7 @@
 import * as React from 'react';
 
 // Moved outside of the component and exported for reuse
-export const renderInline = (text: string): React.ReactNode => {
+export const renderInline = (text: string, codeClassName = 'bg-ink-200 text-ink-800 rounded px-1 py-0.5 text-sm font-mono'): React.ReactNode => {
     if (!text) return text;
     const segments: (string | React.ReactNode)[] = [text];
 
@@ -31,7 +31,7 @@ export const renderInline = (text: string): React.ReactNode => {
 
     process(/\*\*(.*?)\*\*/g, (s, k) => <strong key={`b-${k}`}>{s}</strong>);
     process(/\*(.*?)\*/g, (s, k) => <em key={`i-${k}`} className="italic">{s}</em>);
-    process(/`(.*?)`/g, (s, k) => <code key={`c-${k}`} className="bg-ink-200 text-ink-800 rounded px-1 py-0.5 text-sm font-mono">{s}</code>);
+    process(/`(.*?)`/g, (s, k) => <code key={`c-${k}`} className={codeClassName}>{s}</code>);
     
     return <>{segments.map((s, i) => <React.Fragment key={i}>{s}</React.Fragment>)}</>;
 };
@@ -54,7 +54,36 @@ const getListItem = (line: string) => {
     return null;
 }
 
-export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
+interface MarkdownRendererProps {
+    content: string;
+    variant?: 'default' | 'compact';
+}
+
+const TYPE_CLASSES = {
+    default: {
+        root: 'leading-normal',
+        h1: 'text-2xl font-bold mt-6 mb-3',
+        h2: 'text-xl font-bold mt-5 mb-2 pb-1 border-b border-ink-200',
+        h3: 'text-lg font-semibold mt-4 mb-2',
+        paragraph: 'my-2 leading-relaxed',
+        quote: 'border-l-4 border-ink-300 pl-4 my-4 text-ink-700 italic',
+        pre: 'bg-ink-800 text-white rounded-lg p-4 my-4 overflow-x-auto text-sm',
+        code: 'bg-ink-200 text-ink-800 rounded px-1 py-0.5 text-sm font-mono',
+    },
+    compact: {
+        root: 'leading-relaxed text-sm',
+        h1: 'text-base font-bold mt-4 mb-2',
+        h2: 'text-sm font-bold mt-3 mb-1.5 pb-1 border-b border-current/10',
+        h3: 'text-sm font-semibold mt-3 mb-1.5',
+        paragraph: 'my-1.5 leading-relaxed',
+        quote: 'border-l-4 border-current/20 pl-3 my-3 italic opacity-90',
+        pre: 'bg-ink-800 text-white rounded-lg p-3 my-3 overflow-x-auto text-xs',
+        code: 'bg-ink-200 text-ink-800 rounded px-1 py-0.5 text-xs font-mono',
+    },
+} as const;
+
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, variant = 'default' }) => {
+    const type = TYPE_CLASSES[variant];
     const blocks: React.ReactNode[] = [];
     const lines = content.split('\n');
     
@@ -64,13 +93,13 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
         const trimmedLine = line.trim();
 
         if (trimmedLine.startsWith('# ')) {
-            blocks.push(<h1 key={blocks.length} className="text-2xl font-bold mt-6 mb-3">{renderInline(trimmedLine.substring(2))}</h1>);
+            blocks.push(<h1 key={blocks.length} className={type.h1}>{renderInline(trimmedLine.substring(2), type.code)}</h1>);
             i++;
         } else if (trimmedLine.startsWith('## ')) {
-            blocks.push(<h2 key={blocks.length} className="text-xl font-bold mt-5 mb-2 pb-1 border-b border-ink-200">{renderInline(trimmedLine.substring(3))}</h2>);
+            blocks.push(<h2 key={blocks.length} className={type.h2}>{renderInline(trimmedLine.substring(3), type.code)}</h2>);
             i++;
         } else if (trimmedLine.startsWith('### ')) {
-            blocks.push(<h3 key={blocks.length} className="text-lg font-semibold mt-4 mb-2">{renderInline(trimmedLine.substring(4))}</h3>);
+            blocks.push(<h3 key={blocks.length} className={type.h3}>{renderInline(trimmedLine.substring(4), type.code)}</h3>);
             i++;
         } else if (trimmedLine.startsWith('> ')) {
             const quoteLines = [];
@@ -79,8 +108,8 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
                 i++;
             }
             blocks.push(
-                <blockquote key={`quote-${blocks.length}`} className="border-l-4 border-ink-300 pl-4 my-4 text-ink-700 italic">
-                    {quoteLines.map((qline, qi) => <p key={qi} className="mb-1">{renderInline(qline)}</p>)}
+                <blockquote key={`quote-${blocks.length}`} className={type.quote}>
+                    {quoteLines.map((qline, qi) => <p key={qi} className="mb-1">{renderInline(qline, type.code)}</p>)}
                 </blockquote>
             );
         } else if (trimmedLine.startsWith('```')) {
@@ -92,7 +121,7 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
             }
             i++; // Move past the closing ```
             blocks.push(
-                <pre key={`code-${blocks.length}`} className="bg-ink-800 text-white rounded-lg p-4 my-4 overflow-x-auto text-sm">
+                <pre key={`code-${blocks.length}`} className={type.pre}>
                     <code>{codeLines.join('\n')}</code>
                 </pre>
             );
@@ -130,7 +159,7 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
                     }
 
                     if (item.type === ListTag || ListTag === 'ol') { // Allow mixed markers in ol for a.,b. etc.
-                         listItems.push(<li key={currentIndex}>{renderInline(item.content)}</li>);
+                         listItems.push(<li key={currentIndex}>{renderInline(item.content, type.code)}</li>);
                     } else {
                         break;
                     }
@@ -151,11 +180,11 @@ export const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => 
             i = nextIndex;
         } else {
             if (trimmedLine) {
-                blocks.push(<p key={blocks.length} className="my-2 leading-relaxed">{renderInline(trimmedLine)}</p>);
+                blocks.push(<p key={blocks.length} className={type.paragraph}>{renderInline(trimmedLine, type.code)}</p>);
             }
             i++;
         }
     }
 
-    return <div className="leading-normal">{blocks}</div>;
+    return <div className={type.root}>{blocks}</div>;
 };

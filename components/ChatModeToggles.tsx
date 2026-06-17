@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { CleverMonkeyIcon, DocumentIcon } from './icons';
 
 // Two pill-style toggles that sit above the chat input. They share the
 // same visual shape and behaviour (label + role=switch), so a single
@@ -41,7 +42,12 @@ interface MonkeyModeToggleProps {
 
 export const MonkeyModeToggle: React.FC<MonkeyModeToggleProps> = ({ on, onChange }) => (
     <PillToggle
-        label="🍌 Monkey"
+        label={(
+            <span className="inline-flex items-center gap-1.5">
+                <CleverMonkeyIcon className="h-4 w-4 text-yellow-600" />
+                <span>Monkey</span>
+            </span>
+        )}
         on={on}
         onChange={onChange}
         onColor="bg-yellow-500"
@@ -59,7 +65,12 @@ export const AnswerScopeToggle: React.FC<AnswerScopeToggleProps> = ({ scope, onC
     const onDocument = scope === 'document';
     return (
         <PillToggle
-            label="📚 From Document Only"
+            label={(
+                <span className="inline-flex items-center gap-1.5">
+                    <DocumentIcon className="text-base text-brand-600" />
+                    <span>From Document Only</span>
+                </span>
+            )}
             on={onDocument}
             onChange={(next) => onChange(next ? 'document' : 'general')}
             onColor="bg-brand-600"

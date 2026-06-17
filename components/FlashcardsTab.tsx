@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleIcon, TrashIcon, BrainIcon, CheckIcon, XIcon, AddIcon } from './icons';
+import { StyleIcon, TrashIcon, BrainIcon, CheckIcon, XIcon, AddIcon, RefreshIcon } from './icons';
 import { Spinner } from './Spinner';
 import { supabase } from '../services/supabaseClient';
 import { generateFlashcards } from '../services/geminiService';
@@ -153,7 +153,9 @@ const StudyView: React.FC<{
             <div className="flex items-center gap-1.5 mb-4">
               <p className="text-xs font-bold uppercase tracking-widest text-ink-400">질문</p>
               {isRequeued && (
-                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full">🔁 다시</span>
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-full">
+                  <RefreshIcon className="text-xs" /> 다시
+                </span>
               )}
             </div>
             <p className="text-lg font-semibold text-ink-800 leading-relaxed">{current.front}</p>

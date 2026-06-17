@@ -2,7 +2,7 @@ import * as React from 'react';
 import type { WrongAnswerRecord } from '../services/wrongAnswersService';
 import {
     AssignmentIcon, BrainIcon, ChevronDownIcon, ChevronUpIcon,
-    CheckIcon, TrashIcon, ErrorOutlineIcon,
+    CheckIcon, TrashIcon, ErrorOutlineIcon, XIcon,
 } from './icons';
 import { Spinner } from './Spinner';
 
@@ -57,8 +57,16 @@ const WrongAnswerCard: React.FC<WrongAnswerCardProps> = ({ item, onMarkReviewed,
                                 return (
                                     <div key={i} className={`text-xs px-3 py-1.5 rounded-lg ${cls}`}>
                                         <span className="font-bold mr-1.5">{String.fromCharCode(65 + i)}.</span>{opt}
-                                        {isCorrect && <span className="ml-1.5 text-success-600">✓ 정답</span>}
-                                        {isUser && !isCorrect && <span className="ml-1.5 text-danger-500">✗ 내 답</span>}
+                                        {isCorrect && (
+                                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-success-600">
+                                                <CheckIcon className="text-xs" /> 정답
+                                            </span>
+                                        )}
+                                        {isUser && !isCorrect && (
+                                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-danger-500">
+                                                <XIcon className="text-xs" /> 내 답
+                                            </span>
+                                        )}
                                     </div>
                                 );
                             })}

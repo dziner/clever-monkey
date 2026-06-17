@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { adminGetRecentErrors, type AdminErrorRow } from '../services/adminService';
 import { formatRelativeTimeKo } from '../utils/relativeTime';
-import { ErrorOutlineIcon, RefreshIcon } from './icons';
+import { CheckIcon, ErrorOutlineIcon, RefreshIcon } from './icons';
 import { Spinner } from './Spinner';
 
 // Live error feed on the admin overview tab. Reads diagnostic_events via
@@ -192,8 +192,9 @@ export const AdminRecentErrors: React.FC = () => {
                 {loading ? (
                     <div className="flex items-center justify-center py-10"><Spinner /></div>
                 ) : rows.length === 0 ? (
-                    <p className="text-sm text-ink-400 text-center py-10">
-                        {includeWarnings ? '최근 에러나 경고가 없습니다 — 좋은 신호예요 🎉' : '최근 에러가 없습니다 — 좋은 신호예요 🎉'}
+                    <p className="inline-flex w-full items-center justify-center gap-1.5 py-10 text-sm text-ink-400">
+                        <CheckIcon className="text-base text-success-500" />
+                        <span>{includeWarnings ? '최근 에러나 경고가 없습니다 — 좋은 신호예요' : '최근 에러가 없습니다 — 좋은 신호예요'}</span>
                     </p>
                 ) : (
                     <>

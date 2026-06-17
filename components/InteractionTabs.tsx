@@ -78,7 +78,7 @@ const TabButton: React.FC<TabButtonProps> = ({ tab, activeTab, isGuest, onTabCha
             ].join(' ')}
         >
             <span className="relative inline-flex">
-                <tab.icon className="text-[18px]" />
+                <tab.icon className="text-lg" />
                 {locked && (
                     <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-ink-300" aria-hidden="true" />
                 )}

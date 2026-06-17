@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { ChatMessage } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { CleverMonkeyIcon, RefreshIcon } from './icons';
+import { ChatIcon, CleverMonkeyIcon, DocumentIcon, RefreshIcon } from './icons';
 import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 
@@ -37,13 +37,17 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
         const isEnabled = message.variant
             ? message.variant === 'on'
             : message.text.includes('monkey is here');
-        const emoji = isEnabled ? '🍌' : '📚';
+        const statusIcon = isEnabled
+            ? <CleverMonkeyIcon className="h-5 w-5 text-yellow-700" />
+            : <DocumentIcon className="text-xl text-yellow-700" />;
 
         return (
             <div className="w-full my-3 px-2">
                 <div className="bg-yellow-100 text-yellow-800 rounded-xl p-3 text-sm max-w-md mx-auto shadow-sm">
                     <div className="flex items-center gap-3">
-                        <span className="text-xl pt-0.5">{emoji}</span>
+                        <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/60">
+                            {statusIcon}
+                        </span>
                         <p className="font-semibold">{message.text}</p>
                     </div>
                 </div>
@@ -56,7 +60,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
             ? message.variant === 'general'
             : message.text.includes('expanded');
         const [title, description] = message.text.split('\n');
-        const emoji = isExpanded ? '🌎' : '📚';
+        const statusIcon = isExpanded
+            ? <ChatIcon className="text-xl" />
+            : <DocumentIcon className="text-xl" />;
         const bgColor = isExpanded ? 'bg-orange-100' : 'bg-green-100';
         const textColor = isExpanded ? 'text-orange-800' : 'text-green-800';
 
@@ -64,7 +70,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
             <div className="w-full my-3 px-2">
                 <div className={`${bgColor} ${textColor} rounded-xl p-3 text-sm max-w-md mx-auto shadow-sm`}>
                     <div className="flex items-start gap-3">
-                        <span className="text-xl pt-0.5">{emoji}</span>
+                        <span className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-white/60">
+                            {statusIcon}
+                        </span>
                         <div>
                             <p className="font-bold">{title}</p>
                             <p className="text-current/80">{description}</p>
@@ -90,11 +98,11 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onRetry }) => {
             )}
 
             <div className={`max-w-xl rounded-2xl shadow-card ${isUser ? 'bg-brand-600 text-white rounded-br-sm shadow-brand' : botBubbleStyle}`}>
-                <div className="px-4 py-3">
+                <div className="px-4 py-3 text-sm leading-relaxed">
                     {isBot && message.text === '...' ? (
                         <TypingIndicator isMonkeyMode={message.wasMonkeyMode} />
                     ) : (
-                        <MarkdownRenderer content={message.text} />
+                        <MarkdownRenderer content={message.text} variant="compact" />
                     )}
                 </div>
                 {message.isError && onRetry && (

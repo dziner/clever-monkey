@@ -43,7 +43,7 @@ export const NamePromptModal: React.FC<NamePromptModalProps> = ({ isOpen, onSave
                 <div className="mx-auto mb-2.5 h-14 w-14 sm:mb-3 sm:h-16 sm:w-16">
                     <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                 </div>
-                <h2 className="text-xl font-bold leading-snug tracking-tight text-ink-900 sm:text-22">반갑습니다 👋</h2>
+                <h2 className="text-xl font-bold leading-snug tracking-tight text-ink-900 sm:text-22">반갑습니다</h2>
                 <p className="mt-1.5 text-sm leading-relaxed text-ink-500 sm:text-base">
                     프로필에 표시할 이름을 알려주세요. 언제든지 프로필에서 수정할 수 있습니다.
                 </p>

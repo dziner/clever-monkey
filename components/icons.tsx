@@ -24,7 +24,7 @@ import {
     CaretDoubleRight, Cloud, Key, Prohibit, Star, TrendUp, ChartBar, Crown,
     ShieldCheck, Question, HardDrives, Warning, NotePencil, NoteBlank,
     Highlighter, Pause, Play, Stop, ArrowsClockwise, UsersThree, FileImage,
-    type Icon as PhosphorIcon,
+    PaperPlaneTilt, type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 
 type IconProps = React.HTMLAttributes<HTMLSpanElement> & { title?: string };
@@ -111,6 +111,7 @@ export const PlayArrowIcon         = wrap(Play);
 export const StopIcon              = wrap(Stop);
 export const RefreshIcon           = wrap(ArrowsClockwise);
 export const PeopleIcon            = wrap(UsersThree);
+export const SendIcon              = wrap(PaperPlaneTilt);
 // Legacy alias — points to same glyph
 export const PanelCloseIcon        = wrap(CaretDoubleLeft);
 export const PanelOpenIcon         = wrap(CaretDoubleRight);
