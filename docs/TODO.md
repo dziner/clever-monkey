@@ -30,6 +30,13 @@
 
 ## Done
 
+- [x] 2026-06-18 chat controls and file active-state polish
+  - 수정: Monkey mode를 switch가 아닌 아이콘 토글(`aria-pressed`)로 변경하고 채팅 입력창 좌상단에 배치.
+  - 수정: Monkey mode 활성 시 채팅 입력창 border/focus ring을 yellow tone으로 전환.
+  - 수정: pre-generated questions 질문 글자를 채팅 말풍선과 같은 `text-sm` 기준으로 낮춤.
+  - 수정: 파일 목록 active row의 왼쪽 radius를 제거하고 indicator bar를 full-height로 붙여 선택 상태 시각을 정리.
+  - 주의: chat send, answer scope, file select/rename/delete handler는 변경하지 않음.
+
 - [x] 2026-06-18 icon/type consistency review
   - 문서: `docs/ICON_TYPE_REVIEW_2026-06-18.md`
   - 수정: UI 아이콘 역할의 이모지/문자 기호/인라인 SVG를 공통 Phosphor wrapper 또는 마스코트 asset으로 교체.

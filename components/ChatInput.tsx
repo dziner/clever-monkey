@@ -5,10 +5,11 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 interface ChatInputProps {
     isBotTyping: boolean;
+    isMonkeyMode?: boolean;
     onSendMessage: (message: string) => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, isMonkeyMode = false, onSendMessage }) => {
     const [userInput, setUserInput] = React.useState('');
     
     const { isListening, toggleListening, isSupported } = useSpeechRecognition(setUserInput);
@@ -36,7 +37,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({ isBotTyping, onSendMessage
     };
 
     return (
-        <div className="flex items-start gap-2 p-1.5 bg-white border border-ink-300 rounded-xl focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/15 transition-colors">
+        <div
+            className={[
+                'flex items-start gap-2 rounded-xl border bg-white p-1.5 transition-colors focus-within:ring-2',
+                isMonkeyMode
+                    ? 'border-yellow-400 focus-within:border-yellow-500 focus-within:ring-yellow-500/20'
+                    : 'border-ink-300 focus-within:border-brand-400 focus-within:ring-brand-500/15',
+            ].join(' ')}
+        >
             <button
                 onClick={toggleListening}
                 disabled={!isSupported}

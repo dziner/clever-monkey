@@ -177,12 +177,13 @@ export const ChatTabPanel: React.FC<ChatTabPanelProps> = ({
             </div>
             <div className="p-4 bg-ink-50 border-t border-ink-200">
                 <div className="max-w-3xl mx-auto">
-                    <div className="mb-2 flex flex-row flex-wrap justify-end items-center gap-x-4 gap-y-2">
+                    <div className="mb-2 flex items-center justify-between gap-2">
                         <MonkeyModeToggle on={document.monkeyMode} onChange={onMonkeyModeChange} />
                         <AnswerScopeToggle scope={document.answerScope} onChange={onScopeChange} />
                     </div>
                     <ChatInput
                         isBotTyping={isBotTyping}
+                        isMonkeyMode={document.monkeyMode}
                         onSendMessage={(message) => {
                             onSendMessage(message);
                             setIsPresetQuestionsOpen(false);

@@ -57,14 +57,14 @@ export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQ
                         <button
                             key={i}
                             onClick={() => onQuestionClick(q)}
-                            className={`p-3 rounded-lg text-left border transition-all shadow-sm flex items-start gap-2 animate-fade-in-up ${
+                            className={`flex items-start gap-2 rounded-lg border p-3 text-left text-sm leading-relaxed shadow-sm transition-all animate-fade-in-up ${
                                 isQuizQuestion
                                 ? 'bg-brand-100 border-brand-300 text-brand-900 hover:bg-brand-200 font-semibold'
                                 : 'bg-white text-ink-700 border-ink-200 hover:border-brand-400 hover:bg-brand-50'
                             }`}
                              style={{ animationDelay: `${i * 100}ms` }}
                         >
-                           <QuestionIcon className={`mt-0.5 text-lg flex-shrink-0 ${isQuizQuestion ? 'text-brand-600' : 'text-warning-500'}`} />
+                           <QuestionIcon className={`mt-0.5 text-base flex-shrink-0 ${isQuizQuestion ? 'text-brand-600' : 'text-warning-500'}`} />
                            <span className="flex-1 font-medium">{renderInline(text)}</span>
                         </button>
                     )

@@ -66,7 +66,8 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
             onDragEnd={onDragEnd}
             onClick={isEditing ? undefined : onClick}
             className={[
-                'group relative flex items-center gap-2 w-full pl-3 pr-3 py-2 rounded-xl transition-colors',
+                'group relative flex w-full items-center gap-2 py-2 pr-3 transition-colors',
+                isActive && !isEditing ? 'rounded-l-none rounded-r-xl pl-4' : 'rounded-xl pl-3',
                 isEditing ? '' : 'cursor-pointer',
                 isActive
                     ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-100'
@@ -75,7 +76,7 @@ export const FileListItem: React.FC<FileListItemProps> = React.memo(({
         >
             {/* Active indicator bar */}
             {isActive && !isEditing && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-brand-600" />
+                <span className="absolute left-0 top-0 bottom-0 w-1 rounded-r-full bg-brand-600" />
             )}
 
             <div className="flex items-center min-w-0 gap-2.5 flex-1">

@@ -1,11 +1,9 @@
 import * as React from 'react';
 import { CleverMonkeyIcon, DocumentIcon } from './icons';
 
-// Two pill-style toggles that sit above the chat input. They share the
-// same visual shape and behaviour (label + role=switch), so a single
-// PillToggle backs both and each named export is just a thin call to it.
-// Lives outside InteractionPanel so the chat-tab refactor can extract
-// the chat surface without dragging the two inline FCs along.
+// Chat-mode controls live above the chat input. Monkey mode is intentionally
+// icon-only so it stays compact on mobile; answer scope keeps the labelled
+// switch because its state needs explicit text.
 
 interface PillToggleProps {
     label: React.ReactNode;
@@ -41,19 +39,22 @@ interface MonkeyModeToggleProps {
 }
 
 export const MonkeyModeToggle: React.FC<MonkeyModeToggleProps> = ({ on, onChange }) => (
-    <PillToggle
-        label={(
-            <span className="inline-flex items-center gap-1.5">
-                <CleverMonkeyIcon className="h-4 w-4 text-yellow-600" />
-                <span>Monkey</span>
-            </span>
-        )}
-        on={on}
-        onChange={onChange}
-        onColor="bg-yellow-500"
-        title="Toggle mischievous monkey mode"
-        ariaLabel="Toggle monkey mode"
-    />
+    <button
+        type="button"
+        aria-pressed={on}
+        aria-label={on ? 'Turn monkey mode off' : 'Turn monkey mode on'}
+        title={on ? 'Monkey mode on' : 'Monkey mode off'}
+        onClick={() => onChange(!on)}
+        className={[
+            'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-[transform,background-color,border-color,color]',
+            'active:scale-[0.94] focus:outline-none focus:ring-2 focus:ring-yellow-500/25',
+            on
+                ? 'border-yellow-300 bg-yellow-100 text-yellow-700 shadow-card'
+                : 'border-ink-200 bg-white text-ink-500 hover:border-yellow-200 hover:bg-yellow-50 hover:text-yellow-700',
+        ].join(' ')}
+    >
+        <CleverMonkeyIcon className="h-5 w-5" />
+    </button>
 );
 
 interface AnswerScopeToggleProps {

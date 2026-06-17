@@ -11,7 +11,6 @@ import type { WrongAnswerRecord } from '../services/wrongAnswersService';
 import { supabase } from '../services/supabaseClient';
 import { Quiz } from './Quiz';
 import { InteractionTabs } from './InteractionTabs';
-import { MonkeyModeToggle, AnswerScopeToggle } from './ChatModeToggles';
 import { ChatTabPanel } from './ChatTabPanel';
 import { QuizTabPanel, type QuizView } from './QuizTabPanel';
 import { useDocuments } from '../contexts/DocumentContext';
