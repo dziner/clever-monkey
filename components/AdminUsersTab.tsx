@@ -102,7 +102,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                 <AdminStatCard icon={PeopleIcon} label="활성 사용자" value={totalUsers} color="text-brand-600" bg="bg-brand-50" />
                 <AdminStatCard icon={WorkspacePremiumIcon} label="Pro" value={proUsers} color="text-violet-600" bg="bg-violet-50" />
                 <AdminStatCard icon={AdminPanelIcon} label="관리자" value={adminUsers} color="text-warning-600" bg="bg-warning-50" />
-                <AdminStatCard icon={WarningIcon} label="삭제 대기" value={inactiveUserCount} sub="30일 내 복구 가능" color="text-warning-600" bg="bg-warning-50" warn={inactiveUserCount > 0} />
+                <AdminStatCard icon={WarningIcon} label="삭제 대기" value={inactiveUserCount} sub="만료 후 수동 검토" color="text-warning-600" bg="bg-warning-50" warn={inactiveUserCount > 0} />
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -159,7 +159,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                 <div className="px-4 py-3 border-b border-warning-100 flex items-center justify-between gap-3 bg-warning-50/40">
                     <div>
                         <h2 className="text-sm font-bold text-ink-800">삭제된 계정</h2>
-                        <p className="text-xs text-ink-500">실제 auth/data 삭제 전 inactive 상태로 보관되며 30일 내 복구할 수 있습니다.</p>
+                        <p className="text-xs text-ink-500">inactive 상태로 보관되며 30일 내 복구할 수 있습니다. 만료 후에는 자동 삭제 없이 수동 검토가 필요합니다.</p>
                     </div>
                     <span className="text-xs font-semibold text-warning-700">
                         {filteredInactiveUsers.length}명 표시 / 삭제 대기 {inactiveUserCount}명

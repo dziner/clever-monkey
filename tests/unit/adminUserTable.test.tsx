@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UserRow } from '../../components/AdminUserTable';
 import type { AdminUserRow } from '../../services/adminService';
 
@@ -27,6 +27,15 @@ const user = (overrides: Partial<AdminUserRow> = {}): AdminUserRow => ({
 const noop = vi.fn();
 
 describe('Admin UserRow', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-06-18T00:00:00.000Z'));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it('renders active users with explicit tier/role controls and delete action', () => {
         render(
             <table>
@@ -76,5 +85,30 @@ describe('Admin UserRow', () => {
         expect(screen.getByRole('combobox', { name: /권한/ })).toBeDisabled();
         expect(screen.getByRole('button', { name: /복구/ })).toBeEnabled();
         expect(screen.queryByRole('button', { name: /삭제 처리/ })).not.toBeInTheDocument();
+    });
+
+    it('disables restore after the 30-day recovery window expires', () => {
+        render(
+            <table>
+                <tbody>
+                    <UserRow
+                        user={user({
+                            accountStatus: 'inactive',
+                            deactivatedAt: '2026-05-01T00:00:00.000Z',
+                            restoreUntil: '2026-05-31T00:00:00.000Z',
+                        })}
+                        currentUserId="admin-1"
+                        onTierChange={noop}
+                        onRoleChange={noop}
+                        onDeactivateUser={noop}
+                        onRestoreUser={noop}
+                        isUpdating={false}
+                    />
+                </tbody>
+            </table>,
+        );
+
+        expect(screen.getByText(/복구 만료/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /만료/ })).toBeDisabled();
     });
 });

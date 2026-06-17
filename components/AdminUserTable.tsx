@@ -31,11 +31,15 @@ export const AccountStatusBadge: React.FC<{ status: UserAccountStatus; restoreUn
     restoreUntil,
 }) => {
     if (status === 'inactive') {
-        const daysLeft = getRestoreDaysLeft(restoreUntil);
+        const { daysLeft, isExpired } = getRestoreInfo(restoreUntil);
         return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-warning-50 text-warning-700 border border-warning-100 rounded-full text-xs font-bold">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                isExpired
+                    ? 'bg-danger-50 text-danger-600 border border-danger-100'
+                    : 'bg-warning-50 text-warning-700 border border-warning-100'
+            }`}>
                 <BlockIcon className="text-xs" />
-                삭제 대기{daysLeft !== null ? ` · ${daysLeft}일` : ''}
+                {isExpired ? '복구 만료' : `삭제 대기${daysLeft !== null ? ` · ${daysLeft}일` : ''}`}
             </span>
         );
     }
@@ -46,11 +50,15 @@ export const AccountStatusBadge: React.FC<{ status: UserAccountStatus; restoreUn
     );
 };
 
-function getRestoreDaysLeft(restoreUntil?: string | null): number | null {
-    if (!restoreUntil) return null;
+function getRestoreInfo(restoreUntil?: string | null): { daysLeft: number | null; isExpired: boolean } {
+    if (!restoreUntil) return { daysLeft: null, isExpired: false };
     const deadline = new Date(restoreUntil).getTime();
-    if (!Number.isFinite(deadline)) return null;
-    return Math.max(0, Math.ceil((deadline - Date.now()) / 86_400_000));
+    if (!Number.isFinite(deadline)) return { daysLeft: null, isExpired: false };
+    const diff = deadline - Date.now();
+    return {
+        daysLeft: Math.max(0, Math.ceil(diff / 86_400_000)),
+        isExpired: diff < 0,
+    };
 }
 
 function formatDate(value?: string | null): string {
@@ -82,6 +90,7 @@ export const UserRow: React.FC<UserRowProps> = ({
 }) => {
     const isMe = user.id === currentUserId;
     const isInactive = user.accountStatus === 'inactive';
+    const restoreInfo = getRestoreInfo(user.restoreUntil);
     const aiPct = Math.min(Math.round((user.aiActionsToday / 20) * 100), 100);
     const isNearLimit = user.tier === 'free' && user.aiActionsToday >= 15;
 
@@ -162,9 +171,11 @@ export const UserRow: React.FC<UserRowProps> = ({
                         <button
                             type="button"
                             onClick={() => onRestoreUser(user)}
-                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-success-100 bg-success-50 px-3 text-xs font-bold text-success-700 hover:bg-success-100 transition-colors"
+                            disabled={restoreInfo.isExpired}
+                            title={restoreInfo.isExpired ? '30일 복구 기한이 지나 수동 보존/삭제 검토가 필요합니다' : '계정을 active 상태로 복구합니다'}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-success-100 bg-success-50 px-3 text-xs font-bold text-success-700 hover:bg-success-100 transition-colors disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-success-50"
                         >
-                            <RefreshIcon className="text-sm" /> 복구
+                            <RefreshIcon className="text-sm" /> {restoreInfo.isExpired ? '만료' : '복구'}
                         </button>
                     ) : (
                         <button

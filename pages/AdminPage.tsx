@@ -572,7 +572,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                 title="계정을 삭제 처리할까요?"
                 body={
                     pendingAccountAction
-                        ? `"${pendingAccountAction.user.email}" 계정을 inactive 상태로 전환합니다. auth 계정과 사용자 데이터는 보존되며, 30일 내 삭제된 계정 섹션에서 복구할 수 있습니다.`
+                        ? `"${pendingAccountAction.user.email}" 계정을 inactive 상태로 전환합니다. auth 계정과 사용자 데이터는 보존되며, 30일 내 삭제된 계정 섹션에서 복구할 수 있습니다. 30일이 지나도 자동 영구삭제되지는 않으며 수동 검토 상태로 남습니다.`
                         : undefined
                 }
                 confirmLabel="삭제 처리"

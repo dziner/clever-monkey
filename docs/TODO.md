@@ -22,11 +22,6 @@
 
 ### P2 - Later
 
-- [ ] inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
-  - 배경: 어드민 삭제는 현재 `inactive` 상태 전환 + 30일 복구 기한으로 구현한다.
-  - 남은 결정: 30일 경과 후 자동 hard delete를 둘지, 관리자 수동 삭제만 둘지, 사용자 문서/스토리지/진단 로그 보존 기간을 어떻게 맞출지 정해야 한다.
-  - 주의: `netlify/functions/delete-account.ts`의 사용자 본인 hard delete 경로와 혼동하지 않는다.
-
 - [ ] 이미지 내용 기반 PDF 안내 문구 A/B 또는 문안 정리
   - 배경: "50페이지 제한"만 노출하면 파일 용량, 판형, 정보 밀도에 따른 차이를 설명하지 못해 혼란을 줄 수 있다.
   - 초안: `docs/PDF_UPLOAD_LIMIT_RESEARCH.md`의 Suggested User Copy 참고.
@@ -48,6 +43,13 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-18 inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
+  - 정책: 자동 hard delete 없음. 30일 복구 기한이 지나면 restore UI/RPC를 차단하고, inactive 데이터는 수동 검토 대상으로 보존.
+  - 이유: 자동 삭제는 사용자 자료와 OCR/오류 진단 근거를 비가역적으로 제거하므로 별도 승인된 purge 정책 전까지 금지.
+  - SQL: `supabase/add_admin_retention_policy.sql` 추가. `admin_restore_user`가 만료된 inactive 계정 복구를 거부.
+  - UI: 삭제된 계정 섹션에서 만료 계정은 `복구 만료`로 표시하고 복구 버튼 비활성화.
+  - 문서: `docs/ACCOUNT_RETENTION_POLICY.md`
 
 - [x] 2026-06-18 `InteractionPanel.tsx` / `geminiService.ts` 고위험 분리 설계
   - 배경: 두 파일은 기능 추가 충돌 가능성이 높은 hotspot이지만, 채팅/퀴즈/팟캐스트/OCR 계약이 얽혀 있다.

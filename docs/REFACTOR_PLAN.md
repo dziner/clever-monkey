@@ -74,4 +74,4 @@ Goal: eventually reduce collision risk in OCR/TTS/AI paths.
 
 - Do not refactor OCR chunking, TTS chunk synthesis, or provider routing in this pass.
 - Do not change scanned/image-content PDF limits in this pass.
-- Do not alter Supabase hard-delete/self-delete semantics while admin inactive recovery policy is still being validated.
+- Admin inactive retention policy is now conservative: no automatic hard delete; restore is blocked after 30 days; expired inactive data awaits manual review.
