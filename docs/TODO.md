@@ -21,6 +21,10 @@
 
 ### P2 - Later
 
+- [ ] 이미지 내용 기반 PDF 안내 문구 A/B 또는 문안 정리
+  - 배경: "50페이지 제한"만 노출하면 파일 용량, 판형, 정보 밀도에 따른 차이를 설명하지 못해 혼란을 줄 수 있다.
+  - 초안: `docs/PDF_UPLOAD_LIMIT_RESEARCH.md`의 Suggested User Copy 참고.
+
 - [ ] 페이지 내용이 이미지로 구성된 PDF 60~70페이지 재테스트
   - 배경: 사용자 테스트에서 50페이지 성공, 80/100페이지 실패를 확인해 현재 제한을 50페이지로 보수 조정.
   - 방법: 60~70페이지 파일을 재테스트하고 `supabase/inspect_ocr_boundary_test.sql`로 `progressTrail`, `durationMs`, 마지막 stage 확인.
@@ -43,6 +47,14 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 이미지 내용 기반 PDF 업로드 제한 정책을 다변수 preflight로 개선
+  - 배경: 경쟁/유사 서비스 조사 결과, 스캔한 PDF는 페이지 수만으로 안정성을 설명하기 어렵고 파일 크기, 텍스트 추출 가능 여부, 페이지당 정보 밀도, 시각 처리/OCR 가능 여부가 함께 영향을 준다.
+  - 문서: `docs/PDF_UPLOAD_LIMIT_RESEARCH.md`
+  - 수정: image-content PDF에 50페이지 제한과 별도로 50MB OCR 파일 크기 제한을 추가.
+  - 진단: preflight context에 `fileSizeBytes`, `bytesPerPage`, `riskFlags`, file/page limit 값을 남김.
+  - 문구: 페이지 수만 원인처럼 보이지 않도록 스캔 해상도, 표/그림 밀도, 판형, 파일 용량에 따라 달라질 수 있음을 안내.
+  - 주의: 텍스트 레이어 PDF의 빠른 로컬 추출 경로는 제한하지 않음.
 
 - [x] 2026-06-17 팟캐스트 생성 기본 분량 확대 및 길이 옵션 추가
   - 요청: 기본 생성 분량이 짧으므로 현재 기준 2~3배 정도로 늘린다.

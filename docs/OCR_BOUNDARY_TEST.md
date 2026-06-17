@@ -6,6 +6,7 @@ Purpose: find the practical limit for PDF files whose page content is image-base
 
 - Target: user-provided page-range cuts of the previously failing image-content PDF.
 - Current policy limit: 50 pages for image-content PDFs.
+- Current file-size limit: 50MB for image-content PDFs, matching Gemini PDF understanding limits.
 - Current OCR path: upload to Supabase Storage, trigger `extract-ocr-background`, OCR through Gemini Files API, patch `documents.processing_state` to `ocr_ready`, then client finalizes summary/questions.
 
 ## Current Evidence
@@ -16,7 +17,7 @@ Purpose: find the practical limit for PDF files whose page content is image-base
 | 2026-06-16 | 80 | Failed | User reported no diagnostic log was visible. Treat as an observability bug before changing the limit from this run alone. |
 | 2026-06-16 | 100 | Failed | Confirms the practical boundary for this document is below 100 pages. |
 
-Do not raise the current page policy yet. The 50-page cap is conservative because 50 pages succeeded while 80 and 100 pages failed on the same source document.
+Do not raise the current page policy yet. The 50-page cap is conservative because 50 pages succeeded while 80 and 100 pages failed on the same source document. The 50MB file cap is a separate safety guard: successful storage/File API upload is not the same as successful Gemini PDF understanding.
 
 ## How To Capture Logs
 
@@ -38,8 +39,10 @@ Do not raise the current page policy yet. The 50-page cap is conservative becaus
 
 ## Decision Rules
 
-- If a file above 50 pages repeatedly succeeds with clear headroom, consider raising the policy in small steps.
+- If a file above 50 pages repeatedly succeeds with clear headroom, consider raising the page policy in small steps.
 - If 60-70 pages succeeds but `durationMs` is near the 13-minute background deadline, keep the 50-page policy and prioritize chunk OCR.
+- If a file is near or above 50MB, treat file size as a hard OCR processing risk even when page count is low.
+- If `bytesPerPage` is high, prefer compression/downsampling or smaller page ranges before raising page limits.
 - If it fails before `files_upload_completed`, the boundary is file transfer or Files API upload stability. Page count alone is the wrong limit; add file-size evidence.
 - If it fails during repeated `files_processing_poll`, the boundary is Gemini Files processing. Use page count and MB together when adjusting the policy.
 - If it fails after `ocr_generate_started`, especially with `MAX_TOKENS`, `RECITATION`, empty output, or a very large partial response, the boundary is OCR output generation. Chunk OCR is the right next design.
@@ -52,7 +55,7 @@ Do not raise the current page policy yet. The 50-page cap is conservative becaus
 - Do not raise the 50-page cap from a single successful run.
 - Do not lower the 50-page cap from a single upstream overload/503 unless it repeats.
 - Lower the cap only if the same class of 50-page file repeatedly fails from timeout, Files processing, or OCR output limits.
-- Prefer adding an MB guard only when the failure occurs before OCR generation or the logs show upload/processing time scales with file size more than page count.
+- The MB guard is now explicit for image-content PDFs. Do not remove it unless the OCR provider/path changes and validation proves a higher file-size ceiling safe.
 
 ## Suggested Evidence Table
 

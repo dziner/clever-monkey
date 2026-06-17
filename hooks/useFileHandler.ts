@@ -2,7 +2,14 @@ import * as React from 'react';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
 import { processDocument, BackgroundOcrRequired, triggerBackgroundOcr } from '../services/geminiService';
-import { checkPdfPreflightLimits, SCANNED_PDF_PAGE_LIMIT, type PdfPreflightResult } from '../utils/pdfPreflightCheck';
+import {
+    checkPdfPreflightLimits,
+    SCANNED_PDF_BYTES_PER_PAGE_WARN_BYTES,
+    SCANNED_PDF_FILE_SIZE_LIMIT_BYTES,
+    SCANNED_PDF_FILE_SIZE_WARN_BYTES,
+    SCANNED_PDF_PAGE_LIMIT,
+    type PdfPreflightResult,
+} from '../utils/pdfPreflightCheck';
 import { supabase } from '../services/supabaseClient';
 import { StorageUploadError, uploadFileToStorage } from '../services/storageUpload';
 import { getErrorMessage } from '../utils/errors';
@@ -32,7 +39,14 @@ function pdfPreflightDiagnosticContext(preflight: PdfPreflightResult): Record<st
         numPages: 'numPages' in preflight ? preflight.numPages : undefined,
         pagesScanned: 'pagesScanned' in preflight ? preflight.pagesScanned : undefined,
         textLayerChars: 'textLayerChars' in preflight ? preflight.textLayerChars : undefined,
+        fileSizeBytes: 'fileSizeBytes' in preflight ? preflight.fileSizeBytes : undefined,
+        bytesPerPage: 'bytesPerPage' in preflight ? preflight.bytesPerPage : undefined,
+        riskFlags: 'riskFlags' in preflight ? preflight.riskFlags : undefined,
+        reasonCode: 'reasonCode' in preflight ? preflight.reasonCode : undefined,
         scannedPageLimit: SCANNED_PDF_PAGE_LIMIT,
+        scannedFileSizeLimitBytes: SCANNED_PDF_FILE_SIZE_LIMIT_BYTES,
+        scannedFileSizeWarnBytes: SCANNED_PDF_FILE_SIZE_WARN_BYTES,
+        scannedBytesPerPageWarnBytes: SCANNED_PDF_BYTES_PER_PAGE_WARN_BYTES,
     };
 }
 
@@ -240,10 +254,15 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
             });
             if (preflight.ok === false) {
                 const rejectReason = preflight.reason;
+                const rejectedByFileSize = preflight.reasonCode === 'file_too_large';
                 logUploadDiagnostic({
                     severity: 'warn',
-                    stage: 'upload.rejected.pdf_too_many_pages',
-                    message: 'PDF with image-based page content rejected: exceeds page-count ceiling',
+                    stage: rejectedByFileSize
+                        ? 'upload.rejected.pdf_image_content_file_too_large'
+                        : 'upload.rejected.pdf_image_content_too_many_pages',
+                    message: rejectedByFileSize
+                        ? 'PDF with image-based page content rejected: exceeds OCR file-size ceiling'
+                        : 'PDF with image-based page content rejected: exceeds page-count ceiling',
                     fileType,
                     context: {
                         reason: rejectReason,
@@ -259,6 +278,19 @@ export const useFileHandler = (_onAuthRequired?: () => void) => {
                     errorMessage: rejectReason,
                 }) });
                 return;
+            }
+            if (
+                preflight.classification === 'scanned_or_image'
+                && Array.isArray(preflight.riskFlags)
+                && preflight.riskFlags.length > 0
+            ) {
+                logUploadDiagnostic({
+                    severity: 'warn',
+                    stage: 'upload.pdf_preflight_risky_image_content',
+                    message: 'Image-content PDF is near OCR processing limits; upload continues',
+                    fileType,
+                    context: { pdfPreflight: pdfPreflightContext },
+                });
             }
         }
 
