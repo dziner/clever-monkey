@@ -17,6 +17,8 @@ import {
   summarizeGeminiPayload,
   type GeminiPayload,
 } from './geminiPayload';
+import { buildPodcastScriptPrompt } from './podcastPrompt';
+import type { PodcastScriptLength } from './podcastPrompt';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
@@ -816,16 +818,8 @@ export async function synthesizeSpeech(
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type PodcastScriptLength = 'standard' | 'long';
-
-export const PODCAST_SCRIPT_LENGTH_GUIDE: Record<PodcastScriptLength, { prompt: string }> = {
-  standard: {
-    prompt: 'about 750 words by default, roughly 4-5 minutes of spoken narration',
-  },
-  long: {
-    prompt: 'about 1,200 words by default, roughly 7-8 minutes of spoken narration',
-  },
-};
+export { PODCAST_SCRIPT_LENGTH_GUIDE, buildPodcastScriptPrompt } from './podcastPrompt';
+export type { PodcastScriptLength } from './podcastPrompt';
 
 export async function generatePodcastScript(
   documentContent: string,
@@ -836,41 +830,13 @@ export async function generatePodcastScript(
   onChunk?: (textSoFar: string) => void,
   length: PodcastScriptLength = 'standard',
 ): Promise<string> {
-  const lengthGuide = PODCAST_SCRIPT_LENGTH_GUIDE[length] ?? PODCAST_SCRIPT_LENGTH_GUIDE.standard;
-  const trimmedInstructions = instructions?.trim();
-  const instructionBlock = trimmedInstructions
-    ? `\nUSER DIRECTION (follow scope, tone, emphasis, and length requests; it must NOT override the one-narrator format):
-"""
-${trimmedInstructions}
-"""\n`
-    : '';
-
   // Length rule: the original ~300 words felt too short in real use. The
   // default is now roughly 2-3x longer while still short enough for the
   // existing sequential TTS chunking path. If the user direction specifies a
   // duration or word count, follow that instead — otherwise a "30-second"
   // request conflicts with a hard default word rule and the model burns
   // time trying to reconcile both, which is what caused the 504s.
-  const prompt = `Write an engaging podcast-style audio script based on the DOCUMENT CONTENT.
-A single narrator presents the material in a conversational, educational style.
-
-Rules:
-- Open with a friendly welcome line equivalent to: "Welcome to today's study session. Today we're exploring..." (translated naturally into the target language).
-- Use natural transitions equivalent to: "Moving on to...", "Here's something interesting...", "Let's now look at..." (translated naturally).
-- Explain concepts clearly — assume the listener hasn't read the document.
-- Close with a 2-sentence recap and sign-off.
-- Length preset: ${lengthGuide.prompt}. If the USER DIRECTION specifies a duration (e.g. "30 seconds") or word count, follow that instead — use ~100 words per 30 seconds of audio as a guide.
-- One narrator only. Do not write host/guest dialogue, panel discussions, interviews, speaker labels, role names, stage directions, or back-and-forth turns.
-- If the USER DIRECTION asks for multiple speakers or a dialogue format, convert that request into a single-narrator explanation while preserving the requested topic, tone, and length.
-- Plain prose only — absolutely no markdown, no headers, no bullet points, no speaker labels.
-- ALWAYS finish the closing sentence with proper punctuation; never end mid-sentence.
-
-${languageDirective(language)}
-${instructionBlock}
-DOCUMENT CONTENT:
-"""
-${sampleEvenly(documentContent, CONTENT_BUDGET.podcast)}
-"""`;
+  const prompt = buildPodcastScriptPrompt({ documentContent, language, instructions, length });
   // Stream so the gateway never times out before first byte AND so the UI
   // can render the transcript as it's written. The router falls back
   // Gemini Flash-Lite → Flash → Groq if the upstream stalls before

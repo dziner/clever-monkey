@@ -58,14 +58,14 @@ Goal: reduce `profileService.ts` growth from profile + admin + API stats concern
 Goal: eventually reduce collision risk in OCR/TTS/AI paths.
 
 - Status: start only with pure, testable boundaries. `services/documentMapper.ts` now covers Supabase document/folder row normalization from `DocumentContext.tsx`.
-- `services/geminiService.ts`: payload diagnostics split to `services/geminiPayload.ts`; prompt builders, podcast helpers, extraction, and transport still need separate targeted plans.
+- `services/geminiService.ts`: payload diagnostics split to `services/geminiPayload.ts`; podcast script prompt split to `services/podcastPrompt.ts`; quiz/flashcard/mindmap/slides prompt builders, extraction, transport, and TTS synthesis still need separate targeted plans.
 - `hooks/useFileHandler.ts`: extract upload diagnostics and persistence helpers.
 - `contexts/DocumentContext.tsx`: row mapping split completed; reducer/state actions and Supabase effects still live in the provider.
 - Risk: high. These paths are tied to large file handling, retry recovery, provider routing, and user data persistence. Do not start without targeted tests and rollback notes.
 
 ## Current Execution Plan
 
-1. Commit/push the Gemini payload diagnostics split once full verification is green.
+1. Commit/push the podcast script prompt builder split once full verification is green.
 2. Stop before deeper OCR/TTS/provider/upload movement unless a targeted test/rollback plan exists for that specific path.
 3. Run the full verification bar before each staged commit: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test`.
 
