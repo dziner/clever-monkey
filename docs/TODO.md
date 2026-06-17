@@ -26,6 +26,7 @@
   - 배경: 두 파일은 기능 추가 충돌 가능성이 높은 hotspot이지만, 채팅/퀴즈/팟캐스트/OCR 계약이 얽혀 있다.
   - 방향: prompt builders, generation transport, tab state hooks, quiz persistence를 순차 분리한다.
   - 주의: TTS single-narrator/sequential chunk와 OCR `queued -> ocr_ready -> done/error` 계약을 변경하지 않는다.
+  - 진행: `DocumentContext` row mapper처럼 순수하고 테스트 가능한 경계부터 분리 완료. 실제 generation/upload state machine 분리는 아직 보류.
 
 - [ ] inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
   - 배경: 어드민 삭제는 현재 `inactive` 상태 전환 + 30일 복구 기한으로 구현한다.
@@ -53,6 +54,13 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 리팩토링 4차: DocumentContext row mapper 분리
+  - 배경: `DocumentContext.tsx`의 Supabase row -> `DocumentData` 변환이 provider 내부에 inline으로 있어, reload fallback 동작을 테스트하기 어려웠다.
+  - 수정: `services/documentMapper.ts`에 `mapFolderRow`, `mapDocumentRow`, row 타입을 추가하고 `DocumentContext`는 이를 사용하도록 변경.
+  - 테스트: `tests/unit/documentMapper.test.ts` 추가. legacy chat fallback, processing_state fallback, nullable column normalization, storage uploadState mapping을 고정.
+  - 주의: documents/folders fetch, default folder creation, auth reload guard, background OCR state contract는 변경하지 않음.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, targeted mapper unit test, `npm test`, `npm run build`, `npx playwright test` 통과.
 
 - [x] 2026-06-17 리팩토링 3차: public shell LegalFooter 분리
   - 배경: `IdleStateView.tsx` 안에 법적 링크/footer가 로컬 컴포넌트로 남아 있어 랜딩 화면 책임과 trust footer 책임이 섞여 있었다.
