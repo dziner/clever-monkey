@@ -2,13 +2,21 @@ import type { Part } from '@google/genai';
 import { getSystemInstruction, buildInitialBotMessage } from '../constants';
 import type { Model, ProcessingModel, DocumentProcessingState, QuizData, FRQData, UserAnswer, FRUserAnswer, ChatMessage, MindMapData, SlideData } from '../types';
 import { languageDirective, allCorrectMessage } from './languageService';
+import { supabase } from './supabaseClient';
 import { extractPdfTextDetailsLocally, extractPdfTextLocally } from '../utils/pdfText';
 import { isPasswordProtectedPdfError, PasswordProtectedPdfError } from '../utils/pdfPassword';
 import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBudget';
 import { createDiagnosticErrorInfo } from '../utils/diagnostics';
 import { logDiagnosticEvent } from './diagnostics';
+import { cleanAndParseJSON } from '../utils/jsonRepair';
 import { normalizePodcastScriptForSingleNarrator, splitTextForTts } from '../utils/podcastAudio';
 import { buildQuizAvoidanceBlock } from '../utils/quizMemory';
+import {
+  modelForPayload,
+  storagePathForPayload,
+  summarizeGeminiPayload,
+  type GeminiPayload,
+} from './geminiPayload';
 
 const GEMINI_PROXY_ENDPOINT = '/api/gemini';
 const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
@@ -17,72 +25,6 @@ const GEMINI_STREAM_ENDPOINT = '/api/gemini-stream';
 // byte-identical) — a mid-stream failure can't change the HTTP status
 // anymore, so the server appends this marker followed by the error message.
 const STREAM_ERROR_SENTINEL = '\n[[__GEMINI_STREAM_ERROR__]]\n';
-
-import { cleanAndParseJSON } from '../utils/jsonRepair';
-
-// `task` (when set) routes the call through the multi-provider router
-// server-side (Gemini → Groq → Cerebras fallback per task type).
-type GeminiPayload =
-  | { action: 'countTokens'; model: string; text: string }
-  | { action: 'generateContent'; model: string; contents: unknown; config?: unknown; task?: string }
-  | { action: 'chat'; model: string; systemInstruction: string; history: unknown; message: string }
-  | { action: 'extractText'; model: string; inlineData: unknown }
-  | { action: 'extractTextFromStorage'; model: string; storagePath: string; mimeType: string; fileName: string }
-  | { action: 'tts'; text: string; voice: string };
-
-import { supabase } from './supabaseClient';
-
-function summarizeGeminiPayload(payload: GeminiPayload): Record<string, unknown> {
-  switch (payload.action) {
-    case 'countTokens':
-      return { action: payload.action, model: payload.model, textLength: payload.text.length };
-    case 'generateContent':
-      return {
-        action: payload.action,
-        model: payload.model,
-        task: payload.task,
-        contentsKind: typeof payload.contents,
-        contentsLength: typeof payload.contents === 'string' ? payload.contents.length : undefined,
-        responseMimeType: (payload.config as { responseMimeType?: string } | undefined)?.responseMimeType,
-      };
-    case 'chat':
-      return {
-        action: payload.action,
-        model: payload.model,
-        historyLength: Array.isArray(payload.history) ? payload.history.length : undefined,
-        messageLength: payload.message.length,
-        hasSystemInstruction: Boolean(payload.systemInstruction),
-      };
-    case 'extractText':
-      {
-        const inlineData = payload.inlineData as { data?: unknown; mimeType?: unknown };
-        return {
-          action: payload.action,
-          model: payload.model,
-          mimeType: typeof inlineData.mimeType === 'string' ? inlineData.mimeType : undefined,
-          inlineDataLength: typeof inlineData.data === 'string' ? inlineData.data.length : undefined,
-        };
-      }
-    case 'extractTextFromStorage':
-      return {
-        action: payload.action,
-        model: payload.model,
-        storagePath: payload.storagePath,
-        mimeType: payload.mimeType,
-        fileName: payload.fileName,
-      };
-    case 'tts':
-      return { action: payload.action, textLength: payload.text.length, voice: payload.voice };
-  }
-}
-
-function modelForPayload(payload: GeminiPayload): string | undefined {
-  return payload.action === 'tts' ? undefined : payload.model;
-}
-
-function storagePathForPayload(payload: GeminiPayload): string | undefined {
-  return payload.action === 'extractTextFromStorage' ? payload.storagePath : undefined;
-}
 
 async function getAuthHeader(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
