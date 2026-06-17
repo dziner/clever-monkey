@@ -10,6 +10,8 @@ interface ModalProps {
   title?: React.ReactNode;
   description?: React.ReactNode;
   size?: Size;
+  /** Mobile presentation. Most dialogs stay as sheets; auth reads better as a full-screen flow. */
+  mobilePresentation?: 'sheet' | 'fullscreen';
   /** Lock backdrop click & escape (e.g. mandatory first-time prompts). */
   dismissible?: boolean;
   children: React.ReactNode;
@@ -29,6 +31,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   description,
   size = 'md',
+  mobilePresentation = 'sheet',
   dismissible = true,
   children,
   footer,
@@ -50,9 +53,33 @@ export const Modal: React.FC<ModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isFullscreenMobile = mobilePresentation === 'fullscreen';
+  const containerClassName = isFullscreenMobile
+    ? 'fixed inset-0 flex items-stretch justify-stretch overflow-hidden p-0 sm:items-center sm:justify-center sm:overflow-y-auto sm:p-4'
+    : 'fixed inset-0 flex items-end justify-center overflow-y-auto overscroll-contain p-0 sm:items-center sm:p-4';
+  const dialogSizeClassName = isFullscreenMobile
+    ? {
+        sm: 'max-w-none sm:max-w-sm',
+        md: 'max-w-none sm:max-w-md',
+        lg: 'max-w-none sm:max-w-lg',
+      }[size]
+    : SIZE_CLS[size];
+  const dialogClassName = isFullscreenMobile
+    ? [
+        'relative flex h-dvh max-h-dvh min-h-0 w-full flex-col overflow-hidden bg-white rounded-none shadow-sheet animate-fade-in',
+        'sm:my-auto sm:h-auto sm:max-h-[calc(100dvh_-_2rem)] sm:rounded-2xl sm:animate-scale-in',
+        dialogSizeClassName,
+      ].join(' ')
+    : [
+        'relative mt-auto flex min-h-0 w-full flex-col bg-white rounded-t-3xl sm:my-auto sm:rounded-2xl shadow-sheet',
+        'max-h-[calc(100dvh_-_env(safe-area-inset-top))] sm:max-h-[calc(100dvh_-_2rem)] overflow-hidden animate-slide-in-up sm:animate-scale-in',
+        dialogSizeClassName,
+      ].join(' ');
+  const renderFloatingClose = isFullscreenMobile && dismissible && !title && !description;
+
   return (
     <div
-      className="fixed inset-0 flex items-end justify-center overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:items-center sm:p-4"
+      className={containerClassName}
       style={{ zIndex, WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
     >
       <div
@@ -63,14 +90,24 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        className={[
-          'relative my-auto flex min-h-0 w-full flex-col bg-white rounded-t-3xl sm:rounded-2xl shadow-sheet',
-          'max-h-[calc(100dvh_-_1.5rem_-_env(safe-area-inset-bottom))] sm:max-h-[calc(100dvh_-_2rem)] overflow-hidden animate-scale-in',
-          SIZE_CLS[size],
-        ].join(' ')}
+        className={dialogClassName}
       >
-        {(title || dismissible) && (
-          <div className="flex items-start gap-3 px-5 pt-5 pb-2 sm:px-7 sm:pt-7">
+        {renderFloatingClose && (
+          <IconButton
+            variant="ghost"
+            size="md"
+            aria-label="Close"
+            onClick={onClose}
+            className="absolute right-5 top-[max(1rem,env(safe-area-inset-top))] z-10 sm:right-4 sm:top-4"
+          >
+            <XIcon className="text-xl" />
+          </IconButton>
+        )}
+        {(title || dismissible) && !renderFloatingClose && (
+          <div className={[
+            'flex items-start gap-3 px-5 pb-2 sm:px-7 sm:pt-7',
+            isFullscreenMobile ? 'pt-[max(1rem,env(safe-area-inset-top))]' : 'pt-5',
+          ].join(' ')}>
             <div className="flex-1 min-w-0">
               {title && (
                 <h2 className="text-lg sm:text-xl font-bold text-ink-900 font-display tracking-tight">{title}</h2>

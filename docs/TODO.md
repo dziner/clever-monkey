@@ -18,13 +18,26 @@
 
 ### P1 - Soon
 
-현재 없음.
+- [ ] custom mobile modal/sheet 정리
+  - 출처: `docs/UI_REVIEW_2026-06-18.md`
+  - 대상: `UpgradeModal`, `FileListPanel` delete confirmation, `FlashcardsTab` settings modal.
+  - 이유: 공통 `Modal`은 mobile sheet/fullscreen 기준이 정리됐지만, 일부 custom overlay가 safe-area/정렬/둥근 모서리 패턴을 중복 구현한다.
+  - 주의: 삭제/업그레이드/플래시카드 설정 기능 동작을 바꾸지 않고 presentation만 맞춘다.
 
 ### P2 - Later
 
-현재 없음.
+- [ ] design token consistency drift 정리
+  - 출처: `docs/UI_REVIEW_2026-06-18.md`
+  - 예: 일부 arbitrary shadow class를 `shadow-card`/`shadow-sheet`/`shadow-brand` token으로 교체.
+  - 우선순위: 낮음. 주변 컴포넌트를 만질 때 같이 정리한다.
 
 ## Done
+
+- [x] 2026-06-18 UI/CSS review 1차: mobile auth fullscreen
+  - 문서: `docs/UI_REVIEW_2026-06-18.md`
+  - 현상: 모바일 로그인/가입이 떠 있는 카드처럼 보여 하단/배경이 잘려 보이는 인상을 줌.
+  - 수정: 공통 `Modal`에 `mobilePresentation`을 추가하고 `AuthModal`은 모바일에서 full-screen flow로 표시. 데스크톱은 기존 card sizing 유지.
+  - 검증: Playwright app-shell 테스트에 mobile full-screen auth / desktop card sizing assertion 추가.
 
 - [x] 2026-06-18 IP rate-limit map pruning
   - 출처: `docs/LOAD_TEST_REPORT.md`

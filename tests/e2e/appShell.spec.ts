@@ -41,4 +41,28 @@ test.describe('app shell', () => {
         await expect(page.getByText(/bananas|바나나/i)).toBeVisible();
         await expect(page.getByRole('link', { name: /take me home|홈으로/i })).toBeVisible();
     });
+
+    test('auth uses a full-screen mobile flow and keeps desktop card sizing', async ({ page }, testInfo) => {
+        await page.goto('/');
+        await page.getByRole('button', { name: /sign in/i }).click();
+
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+
+        const rect = await dialog.boundingBox();
+        const viewport = page.viewportSize();
+        expect(rect).not.toBeNull();
+        expect(viewport).not.toBeNull();
+        if (!rect || !viewport) return;
+
+        if (testInfo.project.name.includes('mobile')) {
+            expect(rect.x).toBeLessThanOrEqual(1);
+            expect(rect.y).toBeLessThanOrEqual(1);
+            expect(Math.abs(rect.width - viewport.width)).toBeLessThanOrEqual(1);
+            expect(Math.abs(rect.height - viewport.height)).toBeLessThanOrEqual(1);
+        } else {
+            expect(rect.width).toBeLessThan(viewport.width - 200);
+            expect(rect.x).toBeGreaterThan(100);
+        }
+    });
 });

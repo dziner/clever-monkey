@@ -44,84 +44,86 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onGoogleS
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="md" zIndex={100}>
-            <div className="-mx-5 -mt-2 px-5 pb-1 text-center sm:-mx-7 sm:-mt-3 sm:px-7 sm:pb-2">
-                <div className="mx-auto mb-3 h-16 w-16 sm:mb-4 sm:h-20 sm:w-20">
-                    <CleverMonkeyIcon className="w-full h-full text-brand-500" />
-                </div>
-                <h2 className="text-display-lg">
-                    {mode === 'login' ? '다시 오신 것을 환영합니다' : '계정 만들기'}
-                </h2>
-                <p className="mt-1.5 text-body text-ink-500">
-                    {mode === 'login' ? '학습을 이어서 시작해 보세요.' : 'Clever Monkey와 함께 학습을 시작합니다.'}
-                </p>
-            </div>
-
-            <div className="mt-3 sm:mt-4">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    fullWidth
-                    onClick={onGoogleSignIn}
-                    leftIcon={<GoogleLogo className="w-5 h-5" />}
-                >
-                    Google로 계속하기
-                </Button>
-
-                <div className="relative my-4 sm:my-5">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-ink-200" /></div>
-                    <div className="relative flex justify-center text-[10px] uppercase tracking-[0.16em]">
-                        <span className="bg-white px-3 text-ink-400 font-bold">or with email</span>
+        <Modal isOpen={isOpen} onClose={onClose} size="md" zIndex={100} mobilePresentation="fullscreen">
+            <div className="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center py-2 sm:block sm:min-h-0 sm:max-w-none sm:py-0">
+                <div className="text-center">
+                    <div className="mx-auto mb-3 h-14 w-14 sm:mb-4 sm:h-20 sm:w-20">
+                        <CleverMonkeyIcon className="w-full h-full text-brand-500" />
                     </div>
+                    <h2 className="text-display-lg">
+                        {mode === 'login' ? '다시 오신 것을 환영합니다' : '계정 만들기'}
+                    </h2>
+                    <p className="mt-1.5 text-body-sm text-ink-500 sm:text-body">
+                        {mode === 'login' ? '학습을 이어서 시작해 보세요.' : 'Clever Monkey와 함께 학습을 시작합니다.'}
+                    </p>
                 </div>
 
-                <form className="space-y-3" onSubmit={handleSubmit}>
-                    {mode === 'signup' && (
-                        <Input
-                            label="이름"
-                            type="text"
-                            placeholder="예: 김민준"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            minLength={1}
-                            maxLength={60}
-                        />
-                    )}
-                    <Input
-                        label="이메일"
-                        type="email"
-                        placeholder="name@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                    <Input
-                        label="비밀번호"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                        error={error}
-                    />
-                    <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
-                        {mode === 'login' ? '로그인' : '계정 만들기'}
-                    </Button>
-                </form>
-
-                <p className="mt-4 text-center text-sm text-ink-500 sm:mt-5">
-                    {mode === 'login' ? '아직 계정이 없으신가요?' : '이미 계정이 있으신가요?'}{' '}
-                    <button
+                <div className="mt-5 sm:mt-4">
+                    <Button
                         type="button"
-                        onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); }}
-                        className="font-bold text-brand-600 hover:text-brand-700"
+                        variant="outline"
+                        size="lg"
+                        fullWidth
+                        onClick={onGoogleSignIn}
+                        leftIcon={<GoogleLogo className="w-5 h-5" />}
                     >
-                        {mode === 'login' ? '가입하기' : '로그인하기'}
-                    </button>
-                </p>
+                        Google로 계속하기
+                    </Button>
+
+                    <div className="relative my-4 sm:my-5">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-ink-200" /></div>
+                        <div className="relative flex justify-center text-[10px] uppercase tracking-[0.16em]">
+                            <span className="bg-white px-3 text-ink-400 font-bold">or with email</span>
+                        </div>
+                    </div>
+
+                    <form className="space-y-3" onSubmit={handleSubmit}>
+                        {mode === 'signup' && (
+                            <Input
+                                label="이름"
+                                type="text"
+                                placeholder="예: 김민준"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                minLength={1}
+                                maxLength={60}
+                            />
+                        )}
+                        <Input
+                            label="이메일"
+                            type="email"
+                            placeholder="name@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                        <Input
+                            label="비밀번호"
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            error={error}
+                        />
+                        <Button type="submit" variant="primary" size="lg" fullWidth loading={isSubmitting}>
+                            {mode === 'login' ? '로그인' : '계정 만들기'}
+                        </Button>
+                    </form>
+
+                    <p className="mt-4 text-center text-sm text-ink-500 sm:mt-5">
+                        {mode === 'login' ? '아직 계정이 없으신가요?' : '이미 계정이 있으신가요?'}{' '}
+                        <button
+                            type="button"
+                            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); }}
+                            className="font-bold text-brand-600 hover:text-brand-700"
+                        >
+                            {mode === 'login' ? '가입하기' : '로그인하기'}
+                        </button>
+                    </p>
+                </div>
             </div>
         </Modal>
     );
