@@ -1,7 +1,13 @@
 import * as React from 'react';
 import { useUser } from '../contexts/UserContext';
 import { t, type UiKey } from '../services/uiStrings';
-import { getTourCardLayout, type TourAnchorRect, type TourViewport } from '../utils/tourLayout';
+import {
+    getTourCardLayout,
+    getVisibleTourAnchorRect,
+    isUsableTourAnchor,
+    type TourAnchorRect,
+    type TourViewport,
+} from '../utils/tourLayout';
 
 const STORAGE_KEY = 'cm.tour.completed.v1';
 
@@ -67,23 +73,26 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ isOpen, onClose 
         };
     }, [isOpen]);
 
-    // Measure the anchor (and re-measure on resize / scroll) so the
-    // spotlight follows it. A missing element collapses the spotlight
-    // to "centered card" so the user never gets stuck on a viewport
-    // that doesn't expose this tab.
+    // Measure the visible anchor (and re-measure on resize / scroll) so
+    // desktop/mobile duplicate tour nodes cannot hand us a hidden 0x0 rect.
+    // A missing or hidden element collapses to a centered card.
     React.useEffect(() => {
         if (!isOpen) return;
         if (!step.selector) { setAnchor(null); return; }
         const measure = () => {
-            const el = document.querySelector(step.selector!);
-            if (!el) { setAnchor(null); return; }
-            const r = (el as HTMLElement).getBoundingClientRect();
-            setAnchor({ x: r.left, y: r.top, w: r.width, h: r.height });
+            setAnchor(getVisibleTourAnchorRect(step.selector!, {
+                width: window.innerWidth,
+                height: window.innerHeight,
+            }));
         };
         measure();
+        const frame = window.requestAnimationFrame(measure);
+        const timeout = window.setTimeout(measure, 80);
         window.addEventListener('resize', measure);
         window.addEventListener('scroll', measure, true);
         return () => {
+            window.cancelAnimationFrame(frame);
+            window.clearTimeout(timeout);
             window.removeEventListener('resize', measure);
             window.removeEventListener('scroll', measure, true);
         };
@@ -112,7 +121,8 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ isOpen, onClose 
 
     if (!isOpen) return null;
 
-    const cardStyle: React.CSSProperties = getTourCardLayout(anchor, viewport);
+    const visibleAnchor = isUsableTourAnchor(anchor, viewport) ? anchor : null;
+    const cardStyle: React.CSSProperties = getTourCardLayout(visibleAnchor, viewport);
 
     const progress = t('tour.progress', lang)
         .replace('{n}', String(stepIdx + 1))
@@ -128,14 +138,14 @@ export const OnboardingTour: React.FC<OnboardingTourProps> = ({ isOpen, onClose 
                 aria-hidden="true"
                 onClick={finish}
                 className="fixed inset-0 z-[240]"
-                style={anchor ? {
+                style={visibleAnchor ? {
                     background: 'transparent',
                     boxShadow: `0 0 0 9999px rgba(15, 23, 42, 0.55)`,
                     borderRadius: 12,
-                    left: anchor.x - 6,
-                    top: anchor.y - 6,
-                    width: anchor.w + 12,
-                    height: anchor.h + 12,
+                    left: visibleAnchor.x - 6,
+                    top: visibleAnchor.y - 6,
+                    width: visibleAnchor.w + 12,
+                    height: visibleAnchor.h + 12,
                     position: 'fixed',
                 } : { background: 'rgba(15, 23, 42, 0.55)' }}
             />

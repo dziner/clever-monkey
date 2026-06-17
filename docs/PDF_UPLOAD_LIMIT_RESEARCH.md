@@ -44,6 +44,7 @@ The current 50-page limit is defensible as a conservative operational cap becaus
 Better framing:
 
 - Text-layer PDFs: page count is usually not the meaningful limit. They are extracted locally and should be governed by extracted text size/token budget and browser performance.
+- Product policy: do not add a page-count cap to text-layer PDFs. The user has already validated that text-based PDFs over 600 pages load and analyze quickly.
 - Page content that must be read from images: page count is only one factor. File size, image resolution, page dimensions, dense visual layout, tables, charts, and OCR output length all affect processing.
 - Large image-content PDFs should be treated as a background OCR workload with progress, timeout logging, and split/chunk recommendations.
 

@@ -7,6 +7,7 @@
 - 새 작업 아이디어나 발견된 리스크는 먼저 여기에 등록한다.
 - 처리 순서는 기본적으로 Priority 순서를 따르되, 사용자 테스트 결과와 운영 리스크에 따라 매번 재판단한다.
 - Claude가 만든 메인 구조를 임의로 바꾸지 않는다. 구조 변경이 필요한 항목은 먼저 관측 데이터, 테스트, rollback 기준을 남긴다.
+- 텍스트 레이어 PDF는 600페이지 이상 실제 테스트에서도 빠르게 처리되었으므로 페이지 수 제한을 추가하지 않는다. 페이지/용량 제한은 페이지 내용을 이미지로 읽어야 하는 PDF에만 적용한다.
 - 완료한 항목은 `Done`으로 옮기고, 관련 커밋/검증/주의점을 짧게 적는다.
 
 ## Priority
@@ -47,6 +48,18 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 첫 가이드 투어 3/4 이후 좌상단 고정 버그 수정
+  - 현상: PC에서 첫 가이드 모달이 3번 단계부터 화면 좌상단에 고정되어 보임.
+  - 원인: desktop/mobile 또는 collapsed/full 패널에 같은 `data-tour` anchor가 중복될 때, 숨겨진 0x0 요소가 먼저 측정될 수 있음.
+  - 수정: tour layout이 실제 viewport 안에 보이는 anchor만 선택하고, 0x0/offscreen anchor는 centered fallback으로 처리.
+  - 검증: Playwright fixture로 desktop 1024x768, mobile 390x844, mobile 360x640에서 3/4·4/4 card가 viewport 안에 있고 좌상단 고정이 아님을 확인.
+
+- [x] 2026-06-17 첫 회원가입 이름 입력 모달 모바일 레이아웃 정리
+  - 현상: 가입 직후 프로필 이름 입력 모달이 큰 카드/여백/CTA 높이 때문에 화면에서 깨져 보임.
+  - 수정: `NamePromptModal`만 `sm` modal 폭으로 줄이고, 아이콘/본문/CTA spacing을 compact하게 조정.
+  - 주의: 공통 `Modal`, `Input`, `Button` primitive는 변경하지 않아 다른 화면 영향 범위를 줄임.
+  - 검증: Playwright fixture로 360x640, 390x844, 1024x768 viewport에서 overflow 없음, dialog/button viewport 내 표시 확인.
 
 - [x] 2026-06-17 이미지 내용 기반 PDF 업로드 제한 정책을 다변수 preflight로 개선
   - 배경: 경쟁/유사 서비스 조사 결과, 스캔한 PDF는 페이지 수만으로 안정성을 설명하기 어렵고 파일 크기, 텍스트 추출 가능 여부, 페이지당 정보 밀도, 시각 처리/OCR 가능 여부가 함께 영향을 준다.
