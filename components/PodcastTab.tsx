@@ -1,6 +1,7 @@
 import * as React from 'react';
 import type { DocumentData } from '../types';
 import { generatePodcastScript, synthesizeSpeech } from '../services/geminiService';
+import type { PodcastScriptLength } from '../services/geminiService';
 import {
   buildPodcastAudioPath,
   uploadPodcastAudio,
@@ -34,6 +35,15 @@ interface PodcastTabProps {
 
 const DIRECTION_PLACEHOLDER = '예: 챕터 5~7만 대상으로, 시험 전 복습용 2분 내레이션으로 차분하게 설명해 주세요.';
 
+const SCRIPT_LENGTH_OPTIONS: Array<{
+  id: PodcastScriptLength;
+  label: string;
+  hint: string;
+}> = [
+  { id: 'standard', label: '표준', hint: '기본 분량' },
+  { id: 'long', label: '길게', hint: '더 자세히' },
+];
+
 export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
   const { userProfile, userId } = useUser();
@@ -47,6 +57,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   // Direction textarea is collapsed by default so the empty state stays
   // uncluttered; reopening for a regenerate expands it automatically.
   const [directionOpen, setDirectionOpen] = React.useState(false);
+  const [scriptLength, setScriptLength] = React.useState<PodcastScriptLength>('standard');
 
   const { data, loading, error, generate, cancel } = useAIGeneration<string>(
     React.useCallback(
@@ -56,10 +67,10 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
         // the user visible progress and confirms the function is alive
         // long before the full script finishes.
         return generatePodcastScript(
-          document.documentContent, document.model, signal, instructions, language, onProgress,
+          document.documentContent, document.model, signal, instructions, language, onProgress, scriptLength,
         );
       },
-      [document.documentContent, document.model, instructions, language]
+      [document.documentContent, document.model, instructions, language, scriptLength]
     )
   );
 
@@ -199,6 +210,32 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
           </p>
         </div>
       )}
+
+      <div className="mb-3">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-500">분량</p>
+        <div className="grid grid-cols-2 gap-2">
+          {SCRIPT_LENGTH_OPTIONS.map(option => {
+            const selected = scriptLength === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setScriptLength(option.id)}
+                className={[
+                  'rounded-lg border px-3 py-2 text-left transition-colors',
+                  selected
+                    ? 'border-brand-400 bg-brand-50 text-brand-800'
+                    : 'border-ink-200 bg-white text-ink-600 hover:border-brand-300 hover:bg-brand-50/50',
+                ].join(' ')}
+              >
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className="block text-[11px] text-current/65">{option.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Collapsible direction field */}
       <button

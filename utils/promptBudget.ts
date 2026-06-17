@@ -50,8 +50,8 @@ export function sampleEvenly(content: string, maxChars: number): string {
 }
 
 // Per-feature character budgets for document content embedded in prompts.
-// Sized to what each task actually needs: a 500-word podcast script or a
-// handful of preset questions gains nothing from 250k chars of input,
+// Sized to what each task actually needs: a 750-1200 word podcast script
+// or a handful of preset questions gains nothing from 250k chars of input,
 // while quiz generation must still see enough to spread questions evenly.
 export const CONTENT_BUDGET = {
     documentContent: 250_000, // persisted chat grounding; keeps API/DB payloads bounded
@@ -61,6 +61,6 @@ export const CONTENT_BUDGET = {
     flashcards: 120_000,
     mindmap: 80_000,
     slides: 80_000,
-    podcast: 48_000,         // output is only 400-500 words
+    podcast: 48_000,         // enough document coverage for 750-1200 words
     studyTips: 24_000,       // grounded mostly in the wrong answers
 } as const;

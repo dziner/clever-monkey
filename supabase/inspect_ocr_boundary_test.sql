@@ -1,8 +1,8 @@
 -- ===================================================================
 -- Inspect OCR boundary test logs
 -- ===================================================================
--- Run in Supabase Dashboard > SQL Editor after uploading the 200-page
--- PDF test file. Edit only the params CTE below, then paste the output
+-- Run in Supabase Dashboard > SQL Editor after uploading a page-range
+-- OCR boundary test file. Edit only the params CTE below, then paste the output
 -- back into the working session.
 --
 -- This reads diagnostic metadata only. It does not read uploaded file

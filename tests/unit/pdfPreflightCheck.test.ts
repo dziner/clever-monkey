@@ -14,6 +14,10 @@ function makePdf(name = 'doc.pdf'): File {
 }
 
 describe('checkPdfPreflightLimits', () => {
+    it('uses the current conservative 50-page ceiling for image-content PDFs', () => {
+        expect(SCANNED_PDF_PAGE_LIMIT).toBe(50);
+    });
+
     it('lets non-PDFs through unchecked', async () => {
         const img = new File([new Uint8Array([0xff])], 'a.png', { type: 'image/png' });
         const res = await checkPdfPreflightLimits(img);

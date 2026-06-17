@@ -3,10 +3,10 @@
 // gemini-2.5-flash-preview-tts generation time scales with output audio
 // length, and the whole call has to finish inside Netlify's ~26 s
 // function wall-clock (empirically confirmed when large-PDF OCR timed
-// out at ~26 s). The default podcast script is "~300 words", which after
-// normalization is ~600–1800 chars — comfortably UNDER the old 2200 cap,
-// so the whole script collapsed into ONE chunk and that single giant TTS
-// call regularly blew past 26 s → "오래 기다리다 실패" timeouts.
+// out at ~26 s). Podcast scripts now default to roughly 750 words, so
+// keeping this cap small is even more important: a long script must become
+// many short TTS calls rather than one giant request that hits the
+// function wall-clock.
 //
 // The original working version (2026-05) split by paragraph into 4–6
 // small chunks ("1/6 … 6/6"), each finishing in a few seconds. Restore

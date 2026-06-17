@@ -17,13 +17,14 @@
 
 ### P1 - Soon
 
-- [ ] 페이지 내용이 이미지로 구성된 PDF의 OCR 실패 경계 테스트
-  - 이유: 현재 200페이지 제한은 안정성 정책이며, 실제 실패 경계는 데이터가 부족하다.
-  - 현재 상태: 사용자 테스트에서 50페이지 성공, 100페이지 실패, 80페이지 실패. 80페이지 실패 로그 누락 경로는 보강 완료, 같은 80페이지 재테스트 로그 확인 필요.
-  - 방법: `supabase/inspect_ocr_boundary_test.sql`로 `diagnostic_events.context.progressTrail`과 `documents.processing_state` 확인.
-  - 산출물: 페이지 수, 파일 크기, duration, 마지막 stage, textLength 기준으로 제한값 조정 여부 결정.
+현재 없음.
 
 ### P2 - Later
+
+- [ ] 페이지 내용이 이미지로 구성된 PDF 60~70페이지 재테스트
+  - 배경: 사용자 테스트에서 50페이지 성공, 80/100페이지 실패를 확인해 현재 제한을 50페이지로 보수 조정.
+  - 방법: 60~70페이지 파일을 재테스트하고 `supabase/inspect_ocr_boundary_test.sql`로 `progressTrail`, `durationMs`, 마지막 stage 확인.
+  - 판단: 반복 성공과 충분한 시간 여유가 있을 때만 `SCANNED_PDF_PAGE_LIMIT` 상향 검토.
 
 - [ ] `appShell.spec.ts` e2e 기대값 최신 UI에 맞게 갱신
   - 발견: 파일 리스트 UI 수정 검증 중 `npx playwright test`에서 smoke 2개는 통과했지만 `appShell.spec.ts` 8개가 실패.
@@ -42,6 +43,20 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 팟캐스트 생성 기본 분량 확대 및 길이 옵션 추가
+  - 요청: 기본 생성 분량이 짧으므로 현재 기준 2~3배 정도로 늘린다.
+  - 수정: 기본 `표준` 길이를 약 750단어로 조정하고, `길게` 옵션은 약 1,200단어로 추가.
+  - UI: 팟캐스트 composer에 `분량` segmented option을 추가. 기본값은 `표준`.
+  - 주의: 기존 단일 화자 prompt와 sequential TTS chunk 처리 흐름은 유지.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test tests/e2e/smoke.spec.ts` 통과.
+
+- [x] 2026-06-17 페이지 내용이 이미지로 구성된 PDF 제한값 50페이지로 조정
+  - 근거: 같은 실패 원본을 자른 실제 테스트에서 50페이지는 성공, 80/100페이지는 실패.
+  - 수정: `SCANNED_PDF_PAGE_LIMIT`를 200에서 50으로 낮춤. 텍스트 레이어 PDF는 계속 페이지 제한 없이 로컬 추출 경로를 사용.
+  - 문서: `docs/OCR_BOUNDARY_TEST.md`, `supabase/inspect_ocr_boundary_test.sql`
+  - 주의: 60~70페이지 재테스트 전에는 상향하지 않는다.
+  - 검증: `tests/unit/pdfPreflightCheck.test.ts`에 50페이지 ceiling 고정 테스트 추가.
 
 - [x] 2026-06-16 파일 목록 항목 우측 버튼 예약 여백 제거
   - 현상: 수정/삭제 버튼이 보이지 않을 때도 flex 영역을 차지해 파일명이 지나치게 짧게 잘림.

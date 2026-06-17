@@ -874,14 +874,27 @@ export async function synthesizeSpeech(
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+export type PodcastScriptLength = 'standard' | 'long';
+
+export const PODCAST_SCRIPT_LENGTH_GUIDE: Record<PodcastScriptLength, { prompt: string }> = {
+  standard: {
+    prompt: 'about 750 words by default, roughly 4-5 minutes of spoken narration',
+  },
+  long: {
+    prompt: 'about 1,200 words by default, roughly 7-8 minutes of spoken narration',
+  },
+};
+
 export async function generatePodcastScript(
   documentContent: string,
   model: Model,
   signal?: AbortSignal,
   instructions?: string,
   language?: string | null,
-  onChunk?: (textSoFar: string) => void
+  onChunk?: (textSoFar: string) => void,
+  length: PodcastScriptLength = 'standard',
 ): Promise<string> {
+  const lengthGuide = PODCAST_SCRIPT_LENGTH_GUIDE[length] ?? PODCAST_SCRIPT_LENGTH_GUIDE.standard;
   const trimmedInstructions = instructions?.trim();
   const instructionBlock = trimmedInstructions
     ? `\nUSER DIRECTION (follow scope, tone, emphasis, and length requests; it must NOT override the one-narrator format):
@@ -890,10 +903,11 @@ ${trimmedInstructions}
 """\n`
     : '';
 
-  // Length rule: a default ~300 words keeps generation comfortably under
-  // Netlify's function timeout. If the user direction specifies a
+  // Length rule: the original ~300 words felt too short in real use. The
+  // default is now roughly 2-3x longer while still short enough for the
+  // existing sequential TTS chunking path. If the user direction specifies a
   // duration or word count, follow that instead — otherwise a "30-second"
-  // request conflicts with a hard 400-500-word rule and the model burns
+  // request conflicts with a hard default word rule and the model burns
   // time trying to reconcile both, which is what caused the 504s.
   const prompt = `Write an engaging podcast-style audio script based on the DOCUMENT CONTENT.
 A single narrator presents the material in a conversational, educational style.
@@ -903,7 +917,7 @@ Rules:
 - Use natural transitions equivalent to: "Moving on to...", "Here's something interesting...", "Let's now look at..." (translated naturally).
 - Explain concepts clearly — assume the listener hasn't read the document.
 - Close with a 2-sentence recap and sign-off.
-- Length: about 300 words by default. If the USER DIRECTION specifies a duration (e.g. "30 seconds") or word count, follow that instead — use ~100 words per 30 seconds of audio as a guide.
+- Length preset: ${lengthGuide.prompt}. If the USER DIRECTION specifies a duration (e.g. "30 seconds") or word count, follow that instead — use ~100 words per 30 seconds of audio as a guide.
 - One narrator only. Do not write host/guest dialogue, panel discussions, interviews, speaker labels, role names, stage directions, or back-and-forth turns.
 - If the USER DIRECTION asks for multiple speakers or a dialogue format, convert that request into a single-narrator explanation while preserving the requested topic, tone, and length.
 - Plain prose only — absolutely no markdown, no headers, no bullet points, no speaker labels.

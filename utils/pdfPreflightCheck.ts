@@ -3,17 +3,16 @@
 //
 // Why these numbers:
 // - PDFs whose pages are images are OCR'd by Gemini Files API. The 34MB / 500-page
-//   case took 5+ minutes and still returned a RECITATION block. Empirically,
-//   ~200 pages is the comfortable ceiling where end-to-end OCR succeeds
-//   reliably inside the background function's 15-min budget AND fits
-//   under Gemini's response token cap. Splitting a bigger scan is the
-//   user's job.
+//   case took 5+ minutes and still returned a RECITATION block. Follow-up
+//   real-file cuts showed 50 pages succeeded while 80 and 100 pages failed,
+//   so 50 is the current conservative ceiling until chunk OCR is introduced
+//   or more boundary logs prove a higher value safe.
 // - Text-layer PDFs are extracted client-side and have no equivalent
 //   ceiling — they don't go through Gemini OCR at all.
 
 import { extractPdfTextDetailsLocally } from './pdfText';
 
-export const SCANNED_PDF_PAGE_LIMIT = 200;
+export const SCANNED_PDF_PAGE_LIMIT = 50;
 
 /** Enough text from the first few pages to confidently call a PDF
  *  "text-layer". Same threshold the OCR fallback uses. */
