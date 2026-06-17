@@ -22,12 +22,15 @@
 
 ### P2 - Later
 
-- [ ] IP rate-limit map pruning 검토
-  - 출처: `docs/LOAD_TEST_REPORT.md`
-  - 이유: 고유 IP가 매우 많을 때 웜 인스턴스 메모리가 증가할 수 있다.
-  - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
+현재 없음.
 
 ## Done
+
+- [x] 2026-06-18 IP rate-limit map pruning
+  - 출처: `docs/LOAD_TEST_REPORT.md`
+  - 수정: `tooManyRequestsByIp`가 기존 분당 30회 차단/O(30) 단일 IP 상한은 유지하면서, 60초 window가 지난 유휴 IP entry를 주기적으로 prune하도록 변경.
+  - 성격: 운영 방어 정책 변경이 아니라 장수 웜 인스턴스 메모리 안정화.
+  - 테스트: 새 unit test로 active window 보존/expired idle IP 제거를 고정하고, stress test도 100k unique IP pruning을 확인하도록 보강.
 
 - [x] 2026-06-18 npm audit dependency hygiene
   - 현재 재확인: `npm audit` 결과는 기존 TODO의 4건이 아니라 `@babel/core` low 1건만 남아 있었다.

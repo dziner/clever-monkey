@@ -59,8 +59,10 @@ describe('IP rate limiter under load', () => {
         const grewBy = process.memoryUsage().heapUsed - before;
         console.log(`[ratelimiter] 100k unique IPs: ${elapsed.toFixed(0)}ms, heap +${mb(grewBy)} (~${Math.round(grewBy / 100_000)}B/IP)`);
         expect(elapsed).toBeLessThan(5_000);
-        // The map is never pruned for idle IPs — document the growth rate.
         expect(grewBy).toBeLessThan(200 * 1024 * 1024);
+
+        const pruned = shared.pruneIdleRateLimitEntries(Date.now() + 120_000);
+        expect(pruned).toBeGreaterThanOrEqual(100_000);
     });
 
     it('sustains high call rate on a hot path (single IP, window full)', () => {

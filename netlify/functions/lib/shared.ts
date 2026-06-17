@@ -85,6 +85,7 @@ class KeyPool {
 type ServerCache = typeof globalThis & {
   __cmGeminiKeyPool?: KeyPool;
   __cmRateState?: Map<string, number[]>;
+  __cmRatePrunedAt?: number;
 };
 
 const serverCache = globalThis as ServerCache;
@@ -444,11 +445,36 @@ export async function patchDocument(
 // Fallback IP-based rate limiting (anonymous / unverified users)
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_PRUNE_INTERVAL_MS = RATE_LIMIT_WINDOW_MS;
 const rateState: Map<string, number[]> =
   serverCache.__cmRateState ?? (serverCache.__cmRateState = new Map());
+let ratePrunedAt = serverCache.__cmRatePrunedAt ?? 0;
+
+export function pruneIdleRateLimitEntries(now: number = Date.now()): number {
+  let removed = 0;
+  for (const [ip, timestamps] of rateState) {
+    const active = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    if (active.length === 0) {
+      rateState.delete(ip);
+      removed++;
+    } else if (active.length !== timestamps.length) {
+      rateState.set(ip, active);
+    }
+  }
+  ratePrunedAt = now;
+  serverCache.__cmRatePrunedAt = now;
+  return removed;
+}
+
+export function getRateLimitStateSizeForDiagnostics(): number {
+  return rateState.size;
+}
 
 export function tooManyRequestsByIp(ip: string): boolean {
   const now = Date.now();
+  if (now - ratePrunedAt >= RATE_LIMIT_PRUNE_INTERVAL_MS) {
+    pruneIdleRateLimitEntries(now);
+  }
   const arr = (rateState.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
   // Once the window is full, deny WITHOUT recording the timestamp. Pushing
   // unconditionally let a single spamming IP grow this array without bound,
