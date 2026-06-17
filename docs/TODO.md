@@ -18,10 +18,7 @@
 
 ### P1 - Soon
 
-- [ ] Public shell / presentational UI boundary cleanup
-  - 배경: app shell과 route 주변에 아직 한 파일 안에 남은 순수 표시용 조각이 있어, 기능 변경 없이 충돌면을 줄일 수 있다.
-  - 방향: 데이터 흐름이 없는 작은 컴포넌트부터 분리하고, 라우팅/auth/document state 계약은 변경하지 않는다.
-  - 검증: full app-shell Playwright와 전체 unit/build suite를 유지한다.
+현재 없음.
 
 ### P2 - Later
 
@@ -56,6 +53,12 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 리팩토링 3차: public shell LegalFooter 분리
+  - 배경: `IdleStateView.tsx` 안에 법적 링크/footer가 로컬 컴포넌트로 남아 있어 랜딩 화면 책임과 trust footer 책임이 섞여 있었다.
+  - 수정: `components/LegalFooter.tsx`를 추가하고 `IdleStateView`는 이를 import하도록 변경.
+  - 영향: 표시 문구, 링크, `useUser` 기반 언어 선택은 그대로 유지. 라우팅/auth/document state 변경 없음.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npm test`, `npm run build`, `npx playwright test` 통과.
 
 - [x] 2026-06-17 리팩토링 2차: admin service boundary split
   - 배경: `profileService.ts`가 일반 프로필, admin user management, API/DB stats/recent error RPC를 함께 들고 있어 계속 커지고 있었다.
