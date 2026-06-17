@@ -9,9 +9,10 @@ test.describe('app shell', () => {
     test('idle landing renders the hero, upload card, and footer', async ({ page }) => {
         await page.goto('/');
         await expect(page).toHaveTitle(/Clever Monkey|Study/i);
-        // Hero copy carries the brand voice; if it disappears, the
-        // landing page composition has regressed.
-        await expect(page.getByText(/cleverer than yours/i)).toBeVisible();
+        // Hero copy carries the brand voice; assert on stable text pieces
+        // because the headline is split across styled inline elements.
+        await expect(page.getByRole('heading', { name: /my monkey is/i })).toBeVisible();
+        await expect(page.getByText(/cleverer/i)).toBeVisible();
         // Privacy assurance is part of the trust framing.
         await expect(page.getByText(/본인만 볼 수 있습니다|files are private/i)).toBeVisible();
         // Trust footer with both legal links.
@@ -35,9 +36,8 @@ test.describe('app shell', () => {
 
     test('unknown route renders the friendly 404, not the empty workspace', async ({ page }) => {
         await page.goto('/this-route-does-not-exist');
-        // The 404 page uses the "bananas" copy — a silent redirect back
-        // to /admin or /study would lose this and we want the test to
-        // fail loudly if that regression ever returns.
+        // The 404 page uses the "bananas" copy. A silent fallback to the
+        // empty workspace would lose this and should fail loudly.
         await expect(page.getByText(/bananas|바나나/i)).toBeVisible();
         await expect(page.getByRole('link', { name: /take me home|홈으로/i })).toBeVisible();
     });

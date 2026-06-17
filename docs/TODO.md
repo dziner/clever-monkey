@@ -18,9 +18,17 @@
 
 ### P1 - Soon
 
-현재 없음.
+- [ ] Admin service boundary split
+  - 배경: `profileService.ts`가 일반 프로필, admin user management, API/DB stats RPC를 함께 들고 있어 계속 커지고 있다.
+  - 방향: `services/adminService.ts`로 admin-only RPC/types를 분리하되, 기존 import 호환성 또는 작은 단계별 import 변경을 유지한다.
+  - 선행조건: 현재 `AdminUsersTab` 분리와 app shell E2E 복구가 main에 안정화된 뒤 진행.
 
 ### P2 - Later
+
+- [ ] `InteractionPanel.tsx` / `geminiService.ts` 고위험 분리 설계
+  - 배경: 두 파일은 기능 추가 충돌 가능성이 높은 hotspot이지만, 채팅/퀴즈/팟캐스트/OCR 계약이 얽혀 있다.
+  - 방향: prompt builders, generation transport, tab state hooks, quiz persistence를 순차 분리한다.
+  - 주의: TTS single-narrator/sequential chunk와 OCR `queued -> ocr_ready -> done/error` 계약을 변경하지 않는다.
 
 - [ ] inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
   - 배경: 어드민 삭제는 현재 `inactive` 상태 전환 + 30일 복구 기한으로 구현한다.
@@ -36,11 +44,6 @@
   - 방법: 60~70페이지 파일을 재테스트하고 `supabase/inspect_ocr_boundary_test.sql`로 `progressTrail`, `durationMs`, 마지막 stage 확인.
   - 판단: 반복 성공과 충분한 시간 여유가 있을 때만 `SCANNED_PDF_PAGE_LIMIT` 상향 검토.
 
-- [ ] `appShell.spec.ts` e2e 기대값 최신 UI에 맞게 갱신
-  - 발견: 파일 리스트 UI 수정 검증 중 `npx playwright test`에서 smoke 2개는 통과했지만 `appShell.spec.ts` 8개가 실패.
-  - 원인 후보: 현재 랜딩/법적 페이지/404 카피 또는 라우팅과 테스트 기대 문자열이 맞지 않음.
-  - 주의: 이번 파일 리스트 hover overlay 변경과 직접 관련 없는 기존 테스트 정합성 문제로 분리.
-
 - [ ] npm audit dependency hygiene
   - 현재 상태: `npm audit` reports 4 vulnerabilities in dev/build tooling (`vite`, `@vitejs/plugin-react`, `esbuild`, `@babel/core`).
   - 판단: 배포 런타임 즉시 취약점보다는 build-time/supply-chain 잠재 리스크로 분류.
@@ -53,6 +56,14 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 리팩토링 1차: app shell 안전망 복구 및 admin/user shell 경계 분리
+  - 분석: 최근 히스토리와 handoff 기준으로 OCR/TTS/upload는 고위험 hotspot이므로 이번 패스에서는 건드리지 않음.
+  - 문서: `docs/REFACTOR_PLAN.md`에 구조 진단, 위험 경계, 단계별 그룹(A-D), deferral 기준 기록.
+  - Group A: Supabase env가 없는 dev/test에서도 public shell이 빈 화면이 되지 않도록 fallback client를 두고, production에서는 env 누락을 계속 fail-fast 처리.
+  - Group A: `/privacy`, `/terms`, unknown route가 게스트 empty workspace에 막히지 않도록 public full-screen route guard를 추가하고 `appShell.spec.ts`를 최신 UI에 맞춤.
+  - Group B: `InactiveAccountScreen`, `AdminStatCard`, `AdminUsersTab`을 분리해 `App.tsx`와 `AdminPage.tsx` 책임을 축소.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npm test`, `npm run build`, `npx playwright test` 통과.
 
 - [x] 2026-06-17 어드민 회원 관리 soft-delete/restore 및 대시보드형 권한 관리
   - 요청: 관리자가 회원을 삭제할 수 있되, 실제 hard delete가 아니라 `inactive` 상태로 전환하고 30일 내 복구할 수 있게 한다.

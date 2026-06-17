@@ -6,6 +6,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 const hasSupabaseUrl = Boolean(supabaseUrl)
 const hasSupabaseAnonKey = Boolean(supabaseAnonKey)
+export const isSupabaseConfigured = hasSupabaseUrl && hasSupabaseAnonKey
 
 if (import.meta.env.DEV) {
     console.info('[supabase] env presence', {
@@ -14,14 +15,23 @@ if (import.meta.env.DEV) {
     })
 }
 
-if (!hasSupabaseUrl || !hasSupabaseAnonKey) {
+if (!isSupabaseConfigured && import.meta.env.PROD) {
     throw new Error(
         'Missing Supabase env vars. Expected VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local (see .env.local.sample).'
     )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-export const supabaseProjectUrl = supabaseUrl
+if (!isSupabaseConfigured && import.meta.env.DEV) {
+    console.warn(
+        'Missing Supabase env vars. Public app shell will render, but auth, sync, and storage calls will fail until VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.'
+    )
+}
+
+const effectiveSupabaseUrl = isSupabaseConfigured ? supabaseUrl : 'http://127.0.0.1:54321'
+const effectiveSupabaseAnonKey = isSupabaseConfigured ? supabaseAnonKey : 'missing-local-supabase-anon-key'
+
+export const supabase = createClient(effectiveSupabaseUrl, effectiveSupabaseAnonKey)
+export const supabaseProjectUrl = effectiveSupabaseUrl
 
 export const signInWithGoogle = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
