@@ -1,0 +1,80 @@
+import * as React from 'react';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { UserRow } from '../../components/AdminUserTable';
+import type { AdminUserRow } from '../../services/profileService';
+
+const user = (overrides: Partial<AdminUserRow> = {}): AdminUserRow => ({
+    id: 'user-1',
+    email: 'student@example.com',
+    displayName: null,
+    role: 'user',
+    tier: 'free',
+    tierExpiresAt: null,
+    accountStatus: 'active',
+    deactivatedAt: null,
+    deactivatedBy: null,
+    deactivationReason: null,
+    restoreUntil: null,
+    aiActionsToday: 3,
+    aiActionsDate: '2026-06-17',
+    createdAt: '2026-06-01T00:00:00.000Z',
+    language: null,
+    documentCount: 2,
+    ...overrides,
+});
+
+const noop = vi.fn();
+
+describe('Admin UserRow', () => {
+    it('renders active users with explicit tier/role controls and delete action', () => {
+        render(
+            <table>
+                <tbody>
+                    <UserRow
+                        user={user()}
+                        currentUserId="admin-1"
+                        onTierChange={noop}
+                        onRoleChange={noop}
+                        onDeactivateUser={noop}
+                        onRestoreUser={noop}
+                        isUpdating={false}
+                    />
+                </tbody>
+            </table>,
+        );
+
+        expect(screen.getByText('활성')).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: /요금제/ })).toBeEnabled();
+        expect(screen.getByRole('combobox', { name: /권한/ })).toBeEnabled();
+        expect(screen.getByRole('button', { name: /삭제 처리/ })).toBeEnabled();
+    });
+
+    it('renders inactive users as restore-only rows', () => {
+        render(
+            <table>
+                <tbody>
+                    <UserRow
+                        user={user({
+                            accountStatus: 'inactive',
+                            deactivatedAt: '2026-06-17T00:00:00.000Z',
+                            restoreUntil: '2026-07-17T00:00:00.000Z',
+                        })}
+                        currentUserId="admin-1"
+                        onTierChange={noop}
+                        onRoleChange={noop}
+                        onDeactivateUser={noop}
+                        onRestoreUser={noop}
+                        isUpdating={false}
+                    />
+                </tbody>
+            </table>,
+        );
+
+        expect(screen.getByText(/삭제 대기/)).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: /요금제/ })).toBeDisabled();
+        expect(screen.getByRole('combobox', { name: /권한/ })).toBeDisabled();
+        expect(screen.getByRole('button', { name: /복구/ })).toBeEnabled();
+        expect(screen.queryByRole('button', { name: /삭제 처리/ })).not.toBeInTheDocument();
+    });
+});

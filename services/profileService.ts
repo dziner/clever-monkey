@@ -1,5 +1,21 @@
 import { supabase } from './supabaseClient';
-import type { UserProfile, UserTier, UserRole } from '../types';
+import type { UserProfile, UserTier, UserRole, UserAccountStatus } from '../types';
+
+const PROFILE_COLUMNS =
+    'id, email, display_name, role, tier, tier_expires_at, account_status, deactivated_at, deactivated_by, deactivation_reason, restore_until, ai_actions_today, ai_actions_date, created_at, language';
+
+const LEGACY_PROFILE_COLUMNS =
+    'id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at, language';
+
+function isMissingAccountStatusColumn(error: unknown): boolean {
+    const e = error as { code?: string; message?: string } | null;
+    const msg = `${e?.code ?? ''} ${e?.message ?? ''}`.toLowerCase();
+    return msg.includes('42703') || msg.includes('account_status') || msg.includes('restore_until');
+}
+
+function asAccountStatus(value: unknown): UserAccountStatus {
+    return value === 'inactive' ? 'inactive' : 'active';
+}
 
 function mapRow(d: Record<string, unknown>): UserProfile {
     return {
@@ -9,6 +25,11 @@ function mapRow(d: Record<string, unknown>): UserProfile {
         role: d.role as UserRole,
         tier: d.tier as UserTier,
         tierExpiresAt: (d.tier_expires_at as string | null) ?? null,
+        accountStatus: asAccountStatus(d.account_status),
+        deactivatedAt: (d.deactivated_at as string | null) ?? null,
+        deactivatedBy: (d.deactivated_by as string | null) ?? null,
+        deactivationReason: (d.deactivation_reason as string | null) ?? null,
+        restoreUntil: (d.restore_until as string | null) ?? null,
         aiActionsToday: (d.ai_actions_today as number) ?? 0,
         aiActionsDate: d.ai_actions_date as string,
         createdAt: d.created_at as string,
@@ -29,11 +50,20 @@ export async function getMyProfile(): Promise<UserProfile | null> {
 
     const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at, language')
+        .select(PROFILE_COLUMNS)
         .eq('id', user.id)
         .maybeSingle();
 
     if (error) {
+        if (isMissingAccountStatusColumn(error)) {
+            const { data: legacyData, error: legacyError } = await supabase
+                .from('profiles')
+                .select(LEGACY_PROFILE_COLUMNS)
+                .eq('id', user.id)
+                .maybeSingle();
+            if (!legacyError && legacyData) return mapRow(legacyData as Record<string, unknown>);
+            if (legacyError) console.error('[profile] legacy select failed for uid', user.id, ':', legacyError);
+        }
         console.error('[profile] select failed for uid', user.id, ':', error);
         return null;
     }
@@ -140,7 +170,37 @@ export async function adminUpdateProfile(
         .from('profiles')
         .update(updates)
         .eq('id', userId);
+    if (error) console.error('[admin] adminUpdateProfile failed:', error);
     return !error;
+}
+
+export interface AdminAccountActionResult {
+    ok: boolean;
+    error: string | null;
+}
+
+export async function adminDeactivateUser(
+    userId: string,
+    reason: string = 'admin_soft_delete'
+): Promise<AdminAccountActionResult> {
+    const { error } = await supabase.rpc('admin_soft_delete_user', {
+        p_user_id: userId,
+        p_reason: reason,
+    });
+    if (error) {
+        console.error('[admin] admin_soft_delete_user failed:', error);
+        return { ok: false, error: error.message };
+    }
+    return { ok: true, error: null };
+}
+
+export async function adminRestoreUser(userId: string): Promise<AdminAccountActionResult> {
+    const { error } = await supabase.rpc('admin_restore_user', { p_user_id: userId });
+    if (error) {
+        console.error('[admin] admin_restore_user failed:', error);
+        return { ok: false, error: error.message };
+    }
+    return { ok: true, error: null };
 }
 
 // ─── Admin Stats ──────────────────────────────────────────────────────────────

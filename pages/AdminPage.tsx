@@ -2,14 +2,15 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import {
-    adminGetUserStats, adminUpdateProfile, adminGetApiStats, adminGetApiCategoryStats, adminGetDbStats,
+    adminDeactivateUser, adminGetUserStats, adminRestoreUser, adminUpdateProfile,
+    adminGetApiStats, adminGetApiCategoryStats, adminGetDbStats,
     fetchKeyMeta,
     type AdminUserRow, type ApiStats, type ApiCategoryStats, type DbStats, type KeyMeta,
 } from '../services/profileService';
 import {
     AdminPanelIcon, PeopleIcon, WorkspacePremiumIcon, DocumentIcon, BoltIcon,
-    ChevronLeftIcon, SearchIcon, RefreshIcon, CheckIcon, StarIcon, TrashIcon,
-    ErrorOutlineIcon, KeyIcon, StorageIcon, BarChartIcon, WarningIcon,
+    ChevronLeftIcon, SearchIcon, RefreshIcon, CheckIcon,
+    ErrorOutlineIcon, StorageIcon, WarningIcon,
     QuizIcon, FolderOpenIcon, CloudIcon,
 } from '../components/icons';
 import { Spinner } from '../components/Spinner';
@@ -17,6 +18,7 @@ import { UserRow, TierBadge } from '../components/AdminUserTable';
 import { MiniBarChart, StorageGauge } from '../components/AdminCharts';
 import { AdminCapacityPanel } from '../components/AdminCapacityPanel';
 import { AdminRecentErrors } from '../components/AdminRecentErrors';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { getUserStats } from '../utils/adminStats';
 import { isAdminUser } from '../services/adminConfig';
 import { ROUTES } from '../routes';
@@ -66,6 +68,11 @@ interface AdminPageProps {
 
 type TabId = 'overview' | 'usage' | 'users';
 
+type PendingAccountAction = {
+    type: 'deactivate' | 'restore';
+    user: AdminUserRow;
+};
+
 export const AdminPage: React.FC<AdminPageProps> = () => {
     const navigate = useNavigate();
     const { userId, userEmail, userProfile, refreshProfile } = useUser();
@@ -81,8 +88,10 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     const [search, setSearch] = React.useState('');
     const [filterTier, setFilterTier] = React.useState<'all' | UserTier>('all');
     const [activeTab, setActiveTab] = React.useState<TabId>('overview');
+    const [accountActionError, setAccountActionError] = React.useState<string | null>(null);
+    const [pendingAccountAction, setPendingAccountAction] = React.useState<PendingAccountAction | null>(null);
 
-    const isAdmin = isAdminUser(userProfile?.role, userEmail);
+    const isAdmin = isAdminUser(userProfile?.role, userEmail, userProfile?.accountStatus);
 
     // Re-entry guard: prevents the refresh button from firing concurrent
     // batches if the user mashes it. Plain isLoading state would lag a
@@ -126,21 +135,46 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     }, [isAdmin, loadAll]);
 
     const handleTierChange = React.useCallback(async (targetUserId: string, tier: UserTier) => {
+        setAccountActionError(null);
         setUpdatingId(targetUserId);
         const ok = await adminUpdateProfile(targetUserId, { tier });
         if (ok) {
             setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, tier } : u));
             if (targetUserId === userId) await refreshProfile();
+        } else {
+            setAccountActionError('요금제 변경에 실패했습니다. 관리자 권한 또는 Supabase 정책을 확인하세요.');
         }
         setUpdatingId(null);
     }, [userId, refreshProfile]);
 
     const handleRoleChange = React.useCallback(async (targetUserId: string, role: UserRole) => {
+        setAccountActionError(null);
         setUpdatingId(targetUserId);
         const ok = await adminUpdateProfile(targetUserId, { role });
         if (ok) setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, role } : u));
+        else setAccountActionError('권한 변경에 실패했습니다. 관리자 권한 또는 Supabase 정책을 확인하세요.');
         setUpdatingId(null);
     }, []);
+
+    const handleConfirmAccountAction = React.useCallback(async () => {
+        if (!pendingAccountAction) return;
+        const target = pendingAccountAction.user;
+        setAccountActionError(null);
+        setUpdatingId(target.id);
+        const result = pendingAccountAction.type === 'deactivate'
+            ? await adminDeactivateUser(target.id, 'admin_soft_delete')
+            : await adminRestoreUser(target.id);
+
+        if (result.ok) {
+            setPendingAccountAction(null);
+            await loadAll();
+            if (target.id === userId) await refreshProfile();
+        } else {
+            setAccountActionError(result.error ?? '계정 상태 변경에 실패했습니다.');
+            setPendingAccountAction(null);
+        }
+        setUpdatingId(null);
+    }, [loadAll, pendingAccountAction, refreshProfile, userId]);
 
     // ── Access guard ──────────────────────────────────────────────────────────
     // Render the diagnostic even when userProfile is null. Otherwise a failed
@@ -166,6 +200,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                     <p>email: <span className="text-ink-900">{userEmail || '(none)'}</span></p>
                     <p>profile.role: <span className="text-ink-900">{userProfile?.role || '(no profile row)'}</span></p>
                     <p>profile.tier: <span className="text-ink-900">{userProfile?.tier || '(none)'}</span></p>
+                    <p>profile.status: <span className="text-ink-900">{userProfile?.accountStatus || '(legacy/no status)'}</span></p>
                     <p>profile.id: <span className="text-ink-900 break-all">{userProfile?.id || '(none)'}</span></p>
                     <p>auth uid: <span className="text-ink-900 break-all">{userId || '(none)'}</span></p>
                 </div>
@@ -190,19 +225,30 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
     // Single-pass tier/role tally; see utils/adminStats. `admins` is the
     // actual list so the JSX can render it without re-filtering.
+    const activeUsers = React.useMemo(
+        () => users.filter(u => u.accountStatus !== 'inactive'),
+        [users],
+    );
+    const inactiveUsers = React.useMemo(
+        () => users.filter(u => u.accountStatus === 'inactive'),
+        [users],
+    );
     const { totalUsers, freeUsers, proUsers, adminUsers, admins, freePct, proPct } =
-        React.useMemo(() => getUserStats(users), [users]);
+        React.useMemo(() => getUserStats(activeUsers), [activeUsers]);
+    const inactiveUserCount = inactiveUsers.length;
 
-    const filteredUsers = users.filter(u => {
+    const filterUser = React.useCallback((u: AdminUserRow) => {
         const matchSearch = !search || u.email.toLowerCase().includes(search.toLowerCase());
         const matchTier   = filterTier === 'all' || u.tier === filterTier;
         return matchSearch && matchTier;
-    });
+    }, [filterTier, search]);
+    const filteredActiveUsers = activeUsers.filter(filterUser);
+    const filteredInactiveUsers = inactiveUsers.filter(filterUser);
 
     const tabs: Array<{ id: TabId; label: string }> = [
         { id: 'overview', label: '개요' },
         { id: 'usage',    label: 'API · DB 현황' },
-        { id: 'users',    label: `사용자 (${totalUsers})` },
+        { id: 'users',    label: `사용자 (${users.length})` },
     ];
 
     return (
@@ -271,7 +317,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                             <section>
                                 <h2 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-3">사용자 현황</h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <StatCard icon={PeopleIcon}           label="전체 사용자"  value={totalUsers}  color="text-brand-600"   bg="bg-brand-50" />
+                                    <StatCard icon={PeopleIcon}           label="활성 사용자"  value={totalUsers}  sub={`삭제 대기 ${inactiveUserCount}명`} color="text-brand-600"   bg="bg-brand-50" />
                                     <StatCard icon={WorkspacePremiumIcon} label="Pro 사용자"   value={proUsers}    sub={`Free ${freeUsers}명`} color="text-violet-600" bg="bg-violet-50" />
                                     <StatCard icon={DocumentIcon}         label="전체 문서"    value={dbStats?.documentCount ?? '—'} color="text-success-600" bg="bg-success-50" />
                                     <StatCard icon={BoltIcon}             label="오늘 AI 호출" value={apiStats?.totalActionsToday ?? '—'} color="text-warning-600" bg="bg-warning-50" />
@@ -398,7 +444,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                 </div>
 
                                 {/* Top users today */}
-                                {users.filter(u => u.aiActionsToday > 0).length > 0 && (
+                                {activeUsers.filter(u => u.aiActionsToday > 0).length > 0 && (
                                     <div className="bg-white rounded-xl border border-ink-200 overflow-hidden mt-4">
                                         <div className="px-4 py-3 border-b border-ink-100">
                                             <p className="text-sm font-semibold text-ink-700">오늘 상위 AI 사용자</p>
@@ -413,7 +459,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {[...users]
+                                                {[...activeUsers]
                                                     .filter(u => u.aiActionsToday > 0)
                                                     .sort((a, b) => b.aiActionsToday - a.aiActionsToday)
                                                     .slice(0, 10)
@@ -509,7 +555,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                     </div>
                                     <div className="divide-y divide-ink-50">
                                         {[
-                                            { label: 'profiles',      value: totalUsers,                  icon: '👤' },
+                                            { label: 'profiles',      value: users.length,                icon: '👤' },
                                             { label: 'documents',     value: dbStats?.documentCount ?? 0, icon: '📄' },
                                             { label: 'folders',       value: dbStats?.folders ?? 0,       icon: '📁' },
                                             { label: 'quiz_sessions', value: dbStats?.quizSessions ?? 0,  icon: '📝' },
@@ -539,9 +585,16 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
                     {/* ══ 사용자 탭 ═════════════════════════════════════════ */}
                     {activeTab === 'users' && (
-                        <div className="p-4 max-w-5xl mx-auto w-full">
+                        <div className="p-4 max-w-6xl mx-auto w-full space-y-5">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                <StatCard icon={PeopleIcon}           label="활성 사용자" value={totalUsers} color="text-brand-600" bg="bg-brand-50" />
+                                <StatCard icon={WorkspacePremiumIcon} label="Pro"        value={proUsers}   color="text-violet-600" bg="bg-violet-50" />
+                                <StatCard icon={AdminPanelIcon}       label="관리자"     value={adminUsers} color="text-warning-600" bg="bg-warning-50" />
+                                <StatCard icon={WarningIcon}          label="삭제 대기"  value={inactiveUserCount} sub="30일 내 복구 가능" color="text-warning-600" bg="bg-warning-50" warn={inactiveUserCount > 0} />
+                            </div>
+
                             {/* Filters */}
-                            <div className="flex items-center gap-2 mb-4 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <div className="flex-1 min-w-0 relative">
                                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400 text-base pointer-events-none" />
                                     <input
@@ -563,48 +616,138 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
                                 </select>
                             </div>
 
-                            <div className="bg-white rounded-xl border border-ink-200 overflow-hidden">
+                            {accountActionError && (
+                                <div className="bg-danger-50 border border-danger-500/30 rounded-xl p-4 text-sm">
+                                    <p className="font-bold text-danger-600">계정 상태 변경 실패</p>
+                                    <p className="mt-1 font-mono text-xs text-ink-600 break-all">{accountActionError}</p>
+                                    <p className="mt-2 text-xs text-ink-500">
+                                        Supabase SQL Editor에서 <code className="font-mono">supabase/add_admin_soft_delete.sql</code>을 실행했는지 확인하세요.
+                                    </p>
+                                </div>
+                            )}
+
+                            <section className="bg-white rounded-xl border border-ink-200 overflow-hidden">
+                                <div className="px-4 py-3 border-b border-ink-100 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 className="text-sm font-bold text-ink-800">활성 계정</h2>
+                                        <p className="text-xs text-ink-400">요금제, 권한, 삭제 처리를 명시적으로 관리합니다.</p>
+                                    </div>
+                                    <span className="text-xs font-semibold text-ink-500">
+                                        {filteredActiveUsers.length}명 표시 / 활성 {totalUsers}명
+                                    </span>
+                                </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
                                         <thead>
                                             <tr className="bg-ink-50 border-b border-ink-200">
                                                 <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">사용자</th>
-                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">플랜</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">상태</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">요금제</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">권한</th>
                                                 <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">문서</th>
                                                 <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider min-w-[120px]">오늘 AI</th>
-                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">관리</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider text-right">작업</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {filteredUsers.length === 0 ? (
+                                            {filteredActiveUsers.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-ink-400">
-                                                        검색 결과가 없습니다
+                                                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-ink-400">
+                                                        활성 계정 검색 결과가 없습니다
                                                     </td>
                                                 </tr>
-                                            ) : filteredUsers.map(user => (
+                                            ) : filteredActiveUsers.map(user => (
                                                 <UserRow
                                                     key={user.id}
                                                     user={user}
                                                     currentUserId={userId}
                                                     onTierChange={handleTierChange}
                                                     onRoleChange={handleRoleChange}
+                                                    onDeactivateUser={user => setPendingAccountAction({ type: 'deactivate', user })}
+                                                    onRestoreUser={user => setPendingAccountAction({ type: 'restore', user })}
                                                     isUpdating={updatingId === user.id}
                                                 />
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
-                                {filteredUsers.length > 0 && (
-                                    <div className="px-4 py-3 bg-ink-50 border-t border-ink-100 text-xs text-ink-400">
-                                        {filteredUsers.length}명 표시 / 전체 {totalUsers}명
+                            </section>
+
+                            <section className="bg-white rounded-xl border border-warning-100 overflow-hidden">
+                                <div className="px-4 py-3 border-b border-warning-100 flex items-center justify-between gap-3 bg-warning-50/40">
+                                    <div>
+                                        <h2 className="text-sm font-bold text-ink-800">삭제된 계정</h2>
+                                        <p className="text-xs text-ink-500">실제 auth/data 삭제 전 inactive 상태로 보관되며 30일 내 복구할 수 있습니다.</p>
                                     </div>
-                                )}
-                            </div>
+                                    <span className="text-xs font-semibold text-warning-700">
+                                        {filteredInactiveUsers.length}명 표시 / 삭제 대기 {inactiveUserCount}명
+                                    </span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="bg-ink-50 border-b border-ink-200">
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">사용자</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">상태</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">요금제</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">권한</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider">문서</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider min-w-[120px]">오늘 AI</th>
+                                                <th className="px-4 py-3 text-xs font-bold text-ink-500 uppercase tracking-wider text-right">작업</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredInactiveUsers.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-ink-400">
+                                                        삭제된 계정이 없습니다
+                                                    </td>
+                                                </tr>
+                                            ) : filteredInactiveUsers.map(user => (
+                                                <UserRow
+                                                    key={user.id}
+                                                    user={user}
+                                                    currentUserId={userId}
+                                                    onTierChange={handleTierChange}
+                                                    onRoleChange={handleRoleChange}
+                                                    onDeactivateUser={user => setPendingAccountAction({ type: 'deactivate', user })}
+                                                    onRestoreUser={user => setPendingAccountAction({ type: 'restore', user })}
+                                                    isUpdating={updatingId === user.id}
+                                                />
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
                         </div>
                     )}
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={pendingAccountAction?.type === 'deactivate'}
+                onClose={() => setPendingAccountAction(null)}
+                onConfirm={handleConfirmAccountAction}
+                title="계정을 삭제 처리할까요?"
+                body={
+                    pendingAccountAction
+                        ? `"${pendingAccountAction.user.email}" 계정을 inactive 상태로 전환합니다. auth 계정과 사용자 데이터는 보존되며, 30일 내 삭제된 계정 섹션에서 복구할 수 있습니다.`
+                        : undefined
+                }
+                confirmLabel="삭제 처리"
+                destructive
+            />
+            <ConfirmDialog
+                isOpen={pendingAccountAction?.type === 'restore'}
+                onClose={() => setPendingAccountAction(null)}
+                onConfirm={handleConfirmAccountAction}
+                title="계정을 복구할까요?"
+                body={
+                    pendingAccountAction
+                        ? `"${pendingAccountAction.user.email}" 계정을 다시 active 상태로 전환합니다.`
+                        : undefined
+                }
+                confirmLabel="복구"
+            />
         </div>
     );
 };

@@ -194,6 +194,7 @@ export interface DocumentState {
 
 export type UserTier = 'free' | 'pro';
 export type UserRole = 'user' | 'admin';
+export type UserAccountStatus = 'active' | 'inactive';
 
 export interface UserProfile {
   id: string;
@@ -202,6 +203,11 @@ export interface UserProfile {
   role: UserRole;
   tier: UserTier;
   tierExpiresAt: string | null;
+  accountStatus: UserAccountStatus;
+  deactivatedAt: string | null;
+  deactivatedBy: string | null;
+  deactivationReason: string | null;
+  restoreUntil: string | null;
   aiActionsToday: number;
   aiActionsDate: string;
   createdAt: string;

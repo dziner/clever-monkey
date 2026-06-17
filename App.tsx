@@ -5,7 +5,7 @@ import { IdleStateView } from './components/IdleStateView';
 import { FileListPanel } from './components/FileListPanel';
 import { useFileHandler } from './hooks/useFileHandler';
 import { useBackgroundProcessing } from './hooks/useBackgroundProcessing';
-import { PanelLeftCloseIcon, CleverMonkeyIcon, AdminPanelIcon } from './components/icons';
+import { PanelLeftCloseIcon, CleverMonkeyIcon, AdminPanelIcon, WarningIcon } from './components/icons';
 import { UpgradeModal, useUpgradeModal } from './components/UpgradeModal';
 import { AuthModal } from './components/AuthModal';
 import { NamePromptModal } from './components/NamePromptModal';
@@ -29,6 +29,36 @@ const PageLoader: React.FC = () => (
     <div className="w-7 h-7 border-2 border-ink-200 border-t-brand-600 rounded-full animate-spin" />
   </div>
 );
+
+const InactiveAccountScreen: React.FC<{
+    email: string | null;
+    restoreUntil?: string | null;
+    onSignOut: () => void;
+}> = ({ email, restoreUntil, onSignOut }) => {
+    const restoreDate = restoreUntil ? new Date(restoreUntil).toLocaleDateString('ko-KR') : null;
+    return (
+        <div className="min-h-dvh bg-ink-50 flex items-center justify-center p-5">
+            <div className="w-full max-w-md bg-white border border-warning-100 rounded-2xl shadow-sheet p-6 text-center">
+                <div className="mx-auto w-14 h-14 rounded-full bg-warning-50 flex items-center justify-center">
+                    <WarningIcon className="text-3xl text-warning-600" />
+                </div>
+                <h1 className="mt-5 text-xl font-bold text-ink-900">계정이 비활성화되었습니다</h1>
+                <p className="mt-2 text-sm leading-relaxed text-ink-500">
+                    이 계정은 관리자에 의해 삭제 대기 상태로 전환되었습니다.
+                    {restoreDate ? ` ${restoreDate}까지 관리자 화면에서 복구할 수 있습니다.` : ' 관리자에게 복구를 요청하세요.'}
+                </p>
+                {email && <p className="mt-4 text-xs font-mono text-ink-400 break-all">{email}</p>}
+                <button
+                    type="button"
+                    onClick={onSignOut}
+                    className="mt-6 h-11 w-full rounded-lg bg-ink-900 text-white text-sm font-bold hover:bg-ink-800 transition-colors"
+                >
+                    로그아웃
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const formatBytes = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0 B';
@@ -57,6 +87,7 @@ const App: React.FC = () => {
     const [isPanelCollapsed, setIsPanelCollapsed] = React.useState(false);
     const { userEmail, userProfile, isAuthLoading, refreshProfile } = useUser();
     const { isOpen: isUpgradeOpen, reason: upgradeReason, openUpgrade, closeUpgrade } = useUpgradeModal();
+    const isInactiveAccount = userProfile?.accountStatus === 'inactive';
 
     useKeyboardShortcuts([
         { key: 'Escape', handler: () => setIsPanelCollapsed(true) },
@@ -111,19 +142,19 @@ const App: React.FC = () => {
         [state.documents],
     );
     React.useEffect(() => {
-        if (!userEmail || !hasFinishedDoc || tourCompleted()) return;
+        if (!userEmail || isInactiveAccount || !hasFinishedDoc || tourCompleted()) return;
         // Give the layout a beat to settle so anchor measurements land
         // on the rendered tab buttons, not the pre-mount placeholder.
         const id = window.setTimeout(() => setIsTourOpen(true), 600);
         return () => window.clearTimeout(id);
-    }, [userEmail, hasFinishedDoc]);
+    }, [userEmail, isInactiveAccount, hasFinishedDoc]);
 
     const fileCount = state.documents.length;
     const totalFileSize = state.documents.reduce((acc, doc) => acc + (doc.fileSize || 0), 0);
     const storageUsage = formatBytes(totalFileSize);
     const planName = userProfile?.tier === 'pro' ? 'Pro' : 'Free';
 
-    const needsName = !!userProfile && !userProfile.displayName;
+    const needsName = !!userProfile && !userProfile.displayName && !isInactiveAccount;
 
     const authUI = (
         <>
@@ -144,11 +175,28 @@ const App: React.FC = () => {
                 confirmKey="signout.confirm"
             />
             <OnboardingTour
-                isOpen={isTourOpen}
+                isOpen={isTourOpen && !isInactiveAccount}
                 onClose={() => { markTourCompleted(); setIsTourOpen(false); }}
             />
         </>
     );
+
+    if (isInactiveAccount) {
+        return (
+            <React.Fragment>
+                {authUI}
+                <InactiveAccountScreen
+                    email={userEmail}
+                    restoreUntil={userProfile.restoreUntil}
+                    onSignOut={async () => {
+                        const { error } = await signOut();
+                        if (error) console.error('Sign out failed', error);
+                        navigate(ROUTES.STUDY);
+                    }}
+                />
+            </React.Fragment>
+        );
+    }
 
     // Admin page — full screen, no sidebar
     if (location.pathname === ROUTES.ADMIN) {
@@ -212,7 +260,7 @@ const App: React.FC = () => {
         );
     }
 
-    const isAdmin = isAdminUser(userProfile?.role, userEmail);
+    const isAdmin = isAdminUser(userProfile?.role, userEmail, userProfile?.accountStatus);
 
     // Main layout with sidebar + routed content
     return (

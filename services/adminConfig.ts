@@ -38,6 +38,8 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 export function isAdminUser(
     role: string | null | undefined,
     email: string | null | undefined,
+    accountStatus: string | null | undefined = 'active',
 ): boolean {
+    if (accountStatus === 'inactive') return false;
     return role === 'admin' || isAdminEmail(email);
 }

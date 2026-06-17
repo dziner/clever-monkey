@@ -22,6 +22,11 @@
 
 ### P2 - Later
 
+- [ ] inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
+  - 배경: 어드민 삭제는 현재 `inactive` 상태 전환 + 30일 복구 기한으로 구현한다.
+  - 남은 결정: 30일 경과 후 자동 hard delete를 둘지, 관리자 수동 삭제만 둘지, 사용자 문서/스토리지/진단 로그 보존 기간을 어떻게 맞출지 정해야 한다.
+  - 주의: `netlify/functions/delete-account.ts`의 사용자 본인 hard delete 경로와 혼동하지 않는다.
+
 - [ ] 이미지 내용 기반 PDF 안내 문구 A/B 또는 문안 정리
   - 배경: "50페이지 제한"만 노출하면 파일 용량, 판형, 정보 밀도에 따른 차이를 설명하지 못해 혼란을 줄 수 있다.
   - 초안: `docs/PDF_UPLOAD_LIMIT_RESEARCH.md`의 Suggested User Copy 참고.
@@ -48,6 +53,14 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 어드민 회원 관리 soft-delete/restore 및 대시보드형 권한 관리
+  - 요청: 관리자가 회원을 삭제할 수 있되, 실제 hard delete가 아니라 `inactive` 상태로 전환하고 30일 내 복구할 수 있게 한다.
+  - DB: `supabase/add_admin_soft_delete.sql` 추가. `profiles.account_status`, `deactivated_at`, `deactivated_by`, `deactivation_reason`, `restore_until` 컬럼과 `admin_soft_delete_user`, `admin_restore_user` RPC를 추가.
+  - UI: 어드민 사용자 탭을 활성 계정/삭제된 계정 섹션으로 분리하고, Pro/Admin 토글 버튼을 요금제/권한 select + 명시적 삭제 처리/복구 action으로 교체.
+  - 보호: inactive 계정은 클라이언트에서 차단 화면을 보고, 새 SQL 적용 후 DB admin gate와 AI action increment도 active 계정만 통과.
+  - 주의: 30일 경과 후 자동 hard delete/purge는 아직 정책 미확정이므로 P2로 분리.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test tests/e2e/smoke.spec.ts` 통과. `npx playwright test` 전체는 기존 `appShell.spec.ts` 기대값 불일치 8건으로 실패, smoke 2건은 통과.
 
 - [x] 2026-06-17 첫 가이드 투어 3/4 이후 좌상단 고정 버그 수정
   - 현상: PC에서 첫 가이드 모달이 3번 단계부터 화면 좌상단에 고정되어 보임.

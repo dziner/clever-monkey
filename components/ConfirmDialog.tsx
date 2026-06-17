@@ -12,8 +12,12 @@ interface ConfirmDialogProps {
     body?: React.ReactNode;
     /** UI key for the confirm button label. Falls back to common.confirm. */
     confirmKey?: UiKey;
+    /** Direct confirm label for one-off admin actions. */
+    confirmLabel?: React.ReactNode;
     /** UI key for the cancel button label. Falls back to common.cancel. */
     cancelKey?: UiKey;
+    /** Direct cancel label for one-off admin actions. */
+    cancelLabel?: React.ReactNode;
     /** Render the confirm action as destructive (red) instead of brand. */
     destructive?: boolean;
 }
@@ -25,7 +29,9 @@ interface ConfirmDialogProps {
  */
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     isOpen, onClose, onConfirm, title, body,
-    confirmKey = 'common.confirm', cancelKey = 'common.cancel', destructive,
+    confirmKey = 'common.confirm', confirmLabel,
+    cancelKey = 'common.cancel', cancelLabel,
+    destructive,
 }) => {
     const { userProfile } = useUser();
     const language = userProfile?.language;
@@ -50,14 +56,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             footer={
                 <div className="flex justify-end gap-2">
                     <Button variant="ghost" onClick={onClose} disabled={busy}>
-                        {t(cancelKey, language)}
+                        {cancelLabel ?? t(cancelKey, language)}
                     </Button>
                     <Button
                         variant={destructive ? 'danger' : 'primary'}
                         onClick={handleConfirm}
                         loading={busy}
                     >
-                        {t(confirmKey, language)}
+                        {confirmLabel ?? t(confirmKey, language)}
                     </Button>
                 </div>
             }
