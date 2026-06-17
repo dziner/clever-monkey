@@ -469,7 +469,7 @@ export const PdfViewer: React.FC<PdfViewerProps> = ({ file, imageUrl, currentPag
     return (
         <div className="flex-1 min-h-0 w-full flex flex-col bg-ink-100 relative">
             {/* Toolbar */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-ink-200 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] z-20 relative">
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-ink-200 shadow-card z-20 relative">
                 <div className="flex items-center">
                     <div className="flex items-center bg-ink-100 rounded-lg p-0.5 border border-ink-200">
                         <button type="button" onClick={zoomOut} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-ink-500 hover:text-ink-700 transition-all active:scale-95" title="Zoom Out">

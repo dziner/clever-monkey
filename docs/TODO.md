@@ -22,12 +22,18 @@
 
 ### P2 - Later
 
-- [ ] design token consistency drift 정리
+- [ ] legacy shadow token audit
   - 출처: `docs/UI_REVIEW_2026-06-18.md`
-  - 예: 일부 arbitrary shadow class를 `shadow-card`/`shadow-sheet`/`shadow-brand` token으로 교체.
-  - 우선순위: 낮음. 주변 컴포넌트를 만질 때 같이 정리한다.
+  - 범위: `shadow-sm`/`shadow-md`/`shadow-lg`가 퀴즈, 마인드맵, PDF page rendering, 작은 컨트롤에 남아 있음.
+  - 판단: 광범위하게 일괄 교체하면 학습 도구 내부 hierarchy가 달라질 수 있으므로, 화면별 visual comparison이 있을 때만 진행.
+  - 우선순위: 낮음.
 
 ## Done
+
+- [x] 2026-06-18 UI/CSS review 3차: high-signal arbitrary shadow tokenization
+  - 출처: `docs/UI_REVIEW_2026-06-18.md`
+  - 수정: desktop sidebar와 PDF toolbar의 arbitrary shadow를 `shadow-card` token으로 교체.
+  - 보류: 전체 `shadow-sm`/`shadow-md`/`shadow-lg` 일괄 교체는 시각 hierarchy 변화 위험이 있어 별도 P2로 남김.
 
 - [x] 2026-06-18 UI/CSS review 2차: custom mobile sheet alignment
   - 출처: `docs/UI_REVIEW_2026-06-18.md`
