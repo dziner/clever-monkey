@@ -25,6 +25,22 @@ export const SCANNED_PDF_BYTES_PER_PAGE_WARN_BYTES = 1024 * 1024;
 const MIN_TEXT_LAYER_CHARS = 200;
 
 const formatMb = (bytes: number): string => (bytes / (1024 * 1024)).toFixed(1);
+const imageContentPdfLabel = '페이지의 내용이 이미지로 구성된 PDF 파일';
+
+function buildImageContentPdfLimitMessage(params: {
+    reasonCode: PdfPreflightRejectReason;
+    numPages: number;
+    fileSizeBytes: number;
+}): string {
+    const detected = `감지값: ${params.numPages}페이지, ${formatMb(params.fileSizeBytes)}MB.`;
+    const criteria = `현재 안정 처리 기준은 ${SCANNED_PDF_PAGE_LIMIT}페이지 이하, ${formatMb(SCANNED_PDF_FILE_SIZE_LIMIT_BYTES)}MB 이하입니다.`;
+    const variability = '같은 페이지 수라도 스캔 해상도, 표/그림 밀도, 판형, 파일 용량에 따라 처리 시간이 크게 달라질 수 있어요.';
+    const action = params.reasonCode === 'file_too_large'
+        ? '파일을 압축하거나 단원/장 단위로 나눠서 다시 업로드해 주세요.'
+        : '단원/장 단위로 나눠서 다시 업로드해 주세요.';
+
+    return `${imageContentPdfLabel}은 페이지 이미지를 읽어야 해서 OCR 처리량이 큽니다. ${detected} ${criteria} ${variability} ${action}`;
+}
 
 export type PdfPreflightClassification =
     | 'not_pdf'
@@ -120,7 +136,11 @@ export async function checkPdfPreflightLimits(file: File): Promise<PdfPreflightR
     if (file.size > SCANNED_PDF_FILE_SIZE_LIMIT_BYTES) {
         return {
             ok: false,
-            reason: `페이지의 내용이 이미지로 구성된 PDF 파일은 OCR 처리량이 커서 현재 ${formatMb(SCANNED_PDF_FILE_SIZE_LIMIT_BYTES)}MB 이하만 안정적으로 처리할 수 있어요. 이 파일은 ${formatMb(file.size)}MB, ${probe.numPages}페이지예요. 파일을 압축하거나 단원/장 단위로 나눠서 다시 업로드해 주세요.`,
+            reason: buildImageContentPdfLimitMessage({
+                reasonCode: 'file_too_large',
+                numPages: probe.numPages,
+                fileSizeBytes: file.size,
+            }),
             reasonCode: 'file_too_large',
             classification: 'scanned_or_image',
             numPages: probe.numPages,
@@ -135,7 +155,11 @@ export async function checkPdfPreflightLimits(file: File): Promise<PdfPreflightR
     if (probe.numPages > SCANNED_PDF_PAGE_LIMIT) {
         return {
             ok: false,
-            reason: `페이지의 내용이 이미지로 구성된 PDF 파일은 페이지 이미지를 분석해야 해서 처리량이 큽니다. 현재 안정적인 처리를 위해 ${SCANNED_PDF_PAGE_LIMIT}페이지 이하로 나누어 업로드해 주세요. 이 파일은 ${probe.numPages}페이지, ${formatMb(file.size)}MB예요. 같은 페이지 수라도 스캔 해상도, 표/그림 밀도, 판형, 파일 용량에 따라 처리 시간이 크게 달라질 수 있습니다.`,
+            reason: buildImageContentPdfLimitMessage({
+                reasonCode: 'too_many_pages',
+                numPages: probe.numPages,
+                fileSizeBytes: file.size,
+            }),
             reasonCode: 'too_many_pages',
             classification: 'scanned_or_image',
             numPages: probe.numPages,

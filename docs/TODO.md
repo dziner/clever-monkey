@@ -22,10 +22,6 @@
 
 ### P2 - Later
 
-- [ ] 이미지 내용 기반 PDF 안내 문구 A/B 또는 문안 정리
-  - 배경: "50페이지 제한"만 노출하면 파일 용량, 판형, 정보 밀도에 따른 차이를 설명하지 못해 혼란을 줄 수 있다.
-  - 초안: `docs/PDF_UPLOAD_LIMIT_RESEARCH.md`의 Suggested User Copy 참고.
-
 - [ ] 페이지 내용이 이미지로 구성된 PDF 60~70페이지 재테스트
   - 배경: 사용자 테스트에서 50페이지 성공, 80/100페이지 실패를 확인해 현재 제한을 50페이지로 보수 조정.
   - 방법: 60~70페이지 파일을 재테스트하고 `supabase/inspect_ocr_boundary_test.sql`로 `progressTrail`, `durationMs`, 마지막 stage 확인.
@@ -43,6 +39,13 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-18 이미지 내용 기반 PDF 안내 문구 정리
+  - 배경: "50페이지 제한"만 노출하면 파일 용량, 판형, 정보 밀도에 따른 차이를 설명하지 못해 혼란을 줄 수 있었다.
+  - 수정: `utils/pdfPreflightCheck.ts`에 이미지 내용 기반 PDF 제한 안내 copy builder를 추가.
+  - 문구 구조: 파일 성격 설명 -> 감지값(페이지/MB) -> 현재 안정 처리 기준(페이지/MB) -> 변동 요인 -> 권장 행동.
+  - 주의: 제한값, OCR 경로, text-layer PDF 우회 정책은 변경하지 않음.
+  - 검증: `tests/unit/pdfPreflightCheck.test.ts`에서 감지값/기준/권장 행동 포함 여부 고정.
 
 - [x] 2026-06-18 inactive 계정 30일 경과 후 영구삭제/보존 정책 확정
   - 정책: 자동 hard delete 없음. 30일 복구 기한이 지나면 restore UI/RPC를 차단하고, inactive 데이터는 수동 검토 대상으로 보존.

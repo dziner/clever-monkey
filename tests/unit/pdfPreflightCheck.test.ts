@@ -63,6 +63,8 @@ describe('checkPdfPreflightLimits', () => {
             expect(res.reason).toContain('500');
             expect(res.reason).toContain('스캔 해상도');
             expect(res.reason).toContain('35.0MB');
+            expect(res.reason).toContain('감지값: 500페이지, 35.0MB');
+            expect(res.reason).toContain('현재 안정 처리 기준');
             expect(res.reasonCode).toBe('too_many_pages');
             expect(res.classification).toBe('scanned_or_image');
             expect(res.numPages).toBe(500);
@@ -80,6 +82,8 @@ describe('checkPdfPreflightLimits', () => {
             expect(res.reason).toContain('페이지의 내용이 이미지로 구성된 PDF 파일');
             expect(res.reason).toContain('50.0MB');
             expect(res.reason).toContain('10페이지');
+            expect(res.reason).toContain('감지값: 10페이지, 50.0MB');
+            expect(res.reason).toContain('파일을 압축하거나 단원/장 단위');
             expect(res.reasonCode).toBe('file_too_large');
             expect(res.fileSizeBytes).toBe(fileSize);
             expect(res.bytesPerPage).toBe(Math.ceil(fileSize / 10));
