@@ -22,11 +22,6 @@
 
 ### P2 - Later
 
-- [ ] 페이지 내용이 이미지로 구성된 PDF 60~70페이지 재테스트
-  - 배경: 사용자 테스트에서 50페이지 성공, 80/100페이지 실패를 확인해 현재 제한을 50페이지로 보수 조정.
-  - 방법: 60~70페이지 파일을 재테스트하고 `supabase/inspect_ocr_boundary_test.sql`로 `progressTrail`, `durationMs`, 마지막 stage 확인.
-  - 판단: 반복 성공과 충분한 시간 여유가 있을 때만 `SCANNED_PDF_PAGE_LIMIT` 상향 검토.
-
 - [ ] npm audit dependency hygiene
   - 현재 상태: `npm audit` reports 4 vulnerabilities in dev/build tooling (`vite`, `@vitejs/plugin-react`, `esbuild`, `@babel/core`).
   - 판단: 배포 런타임 즉시 취약점보다는 build-time/supply-chain 잠재 리스크로 분류.
@@ -39,6 +34,12 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-18 페이지 내용이 이미지로 구성된 PDF 60~70페이지 재테스트 보류
+  - 요청: P2 항목을 순차 진행하되, 진행 중 위험이 감지되면 해당 작업은 취소 및 기록 후 다음 작업으로 넘어간다.
+  - 판단: 현재 로컬 repo에는 실제 60~70페이지 테스트 PDF와 Supabase `diagnostic_events`/`documents` 로그가 없어 재테스트를 검증 가능하게 수행할 수 없다.
+  - 결정: synthetic PDF나 임의 파일로 기준을 바꾸는 것은 오판 위험이 커서 실행을 보류하고, `SCANNED_PDF_PAGE_LIMIT=50`은 유지.
+  - 다음 조건: 사용자가 실제 60~70페이지 파일 업로드 후 `supabase/inspect_ocr_boundary_test.sql` 결과를 제공하면 상향 여부를 재검토.
 
 - [x] 2026-06-18 이미지 내용 기반 PDF 안내 문구 정리
   - 배경: "50페이지 제한"만 노출하면 파일 용량, 판형, 정보 밀도에 따른 차이를 설명하지 못해 혼란을 줄 수 있었다.

@@ -16,6 +16,7 @@ Purpose: find the practical limit for PDF files whose page content is image-base
 | 2026-06-16 | 50 | Success | First known successful cut from the previously failing document. |
 | 2026-06-16 | 80 | Failed | User reported no diagnostic log was visible. Treat as an observability bug before changing the limit from this run alone. |
 | 2026-06-16 | 100 | Failed | Confirms the practical boundary for this document is below 100 pages. |
+| 2026-06-18 | 60-70 | Not run | Canceled in Codex P2 pass because no real sample upload/log evidence was available in the repo. Keep the 50-page policy unchanged. |
 
 Do not raise the current page policy yet. The 50-page cap is conservative because 50 pages succeeded while 80 and 100 pages failed on the same source document. The 50MB file cap is a separate safety guard: successful storage/File API upload is not the same as successful Gemini PDF understanding.
 
@@ -56,6 +57,7 @@ Do not raise the current page policy yet. The 50-page cap is conservative becaus
 - Do not lower the 50-page cap from a single upstream overload/503 unless it repeats.
 - Lower the cap only if the same class of 50-page file repeatedly fails from timeout, Files processing, or OCR output limits.
 - The MB guard is now explicit for image-content PDFs. Do not remove it unless the OCR provider/path changes and validation proves a higher file-size ceiling safe.
+- Do not use synthetic or unrelated PDFs to decide the 60-70 page boundary. The useful evidence must come from the same class of real image-content PDFs and include Supabase diagnostic rows.
 
 ## Suggested Evidence Table
 
@@ -70,3 +72,4 @@ Do not raise the current page policy yet. The 50-page cap is conservative becaus
 - This test intentionally relies on real diagnostic logs, not synthetic PDFs.
 - The current instrumentation already records the useful trail in `diagnostic_events.context.progressTrail`.
 - `SCANNED_PDF_PAGE_LIMIT` is now 50. Avoid raising it until 60-70 page retests produce usable logs.
+- 2026-06-18 Codex P2 pass did not run a 60-70 page upload because there was no controlled test file or live Supabase log in the workspace. This is a deliberate cancellation, not evidence for or against raising the limit.
