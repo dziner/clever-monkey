@@ -12,7 +12,8 @@ Improve maintainability and verification confidence without changing Claude's co
 - Route-level shells live in `App.tsx`, with auth/profile/document contexts mounted globally.
 - Document state is centralized in `contexts/DocumentContext.tsx`; upload and processing orchestration lives mostly in `hooks/useFileHandler.ts` and `hooks/useBackgroundProcessing.ts`.
 - AI client functions are concentrated in `services/geminiService.ts`; server routing/key limits are in `netlify/functions/lib/*`.
-- Admin observability and user management are concentrated in `pages/AdminPage.tsx` plus `components/Admin*`.
+- Admin UI state ownership remains in `pages/AdminPage.tsx` plus `components/Admin*`; admin RPC/type wrappers now live in `services/adminService.ts`.
+- Current-user profile CRUD lives in `services/profileService.ts`, with row mapping shared through `services/profileMapper.ts`.
 - Shared UI primitives live in `components/ui`, but several route pages still define local presentational pieces.
 
 ## Recently Learned Risk Boundaries
@@ -47,8 +48,9 @@ Goal: reduce large route files without changing data contracts.
 
 Goal: reduce `profileService.ts` growth from profile + admin + API stats concerns.
 
-- Move admin-only RPC wrappers/types into an admin service module after UI split stabilizes.
-- Keep exported types backward-compatible during transition.
+- Status: completed on 2026-06-17 after Group B stabilized.
+- Admin-only RPC wrappers/types now live in `services/adminService.ts`.
+- `services/profileMapper.ts` shares profile row mapping without introducing a `profileService` <-> `adminService` import cycle.
 - Risk: medium. Many imports touch admin/profile data; perform only after Group B is green.
 
 ### Group D - High-Risk Domain Hotspots
@@ -62,10 +64,10 @@ Goal: eventually reduce collision risk in OCR/TTS/AI paths.
 
 ## Current Execution Plan
 
-1. Complete Group A.
-2. Do one small Group B extraction and verify.
-3. Record findings in `SESSION_HANDOFF.md` and `docs/TODO.md`.
-4. Run the full verification bar before commit: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test`.
+1. Commit/push Group C service split once full verification is green.
+2. Continue with a low-risk public shell/presentational boundary cleanup.
+3. Keep Group D OCR/TTS/provider/upload splits deferred until targeted tests and rollback notes exist.
+4. Run the full verification bar before each staged commit: `git diff --check`, `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npx playwright test`.
 
 ## Deferrals
 

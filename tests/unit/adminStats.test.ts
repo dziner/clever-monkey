@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getUserStats } from '../../utils/adminStats';
-import type { AdminUserRow } from '../../services/profileService';
+import type { AdminUserRow } from '../../services/adminService';
 
 const u = (overrides: Partial<AdminUserRow>): AdminUserRow => ({
     id: 'u-1', email: 'a@b.c', displayName: null,

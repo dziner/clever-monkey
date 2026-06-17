@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { AdminUserRow } from '../services/profileService';
+import type { AdminUserRow } from '../services/adminService';
 import type { UserRole, UserTier } from '../types';
 import {
     AdminPanelIcon,

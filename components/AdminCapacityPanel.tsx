@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { ApiCategoryStats, ApiCategoryUsage, KeyMeta } from '../services/profileService';
+import type { ApiCategoryStats, ApiCategoryUsage, KeyMeta } from '../services/adminService';
 
 // Per-feature capacity dashboard. Aggregates per-category usage rows
 // returned by admin_get_api_category_stats() into one card per feature

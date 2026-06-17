@@ -6,7 +6,7 @@ import {
     adminGetApiStats, adminGetApiCategoryStats, adminGetDbStats,
     fetchKeyMeta,
     type AdminUserRow, type ApiStats, type ApiCategoryStats, type DbStats, type KeyMeta,
-} from '../services/profileService';
+} from '../services/adminService';
 import {
     AdminPanelIcon, PeopleIcon, WorkspacePremiumIcon, DocumentIcon, BoltIcon,
     ChevronLeftIcon, RefreshIcon, CheckIcon,

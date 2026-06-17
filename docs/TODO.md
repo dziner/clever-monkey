@@ -18,10 +18,10 @@
 
 ### P1 - Soon
 
-- [ ] Admin service boundary split
-  - 배경: `profileService.ts`가 일반 프로필, admin user management, API/DB stats RPC를 함께 들고 있어 계속 커지고 있다.
-  - 방향: `services/adminService.ts`로 admin-only RPC/types를 분리하되, 기존 import 호환성 또는 작은 단계별 import 변경을 유지한다.
-  - 선행조건: 현재 `AdminUsersTab` 분리와 app shell E2E 복구가 main에 안정화된 뒤 진행.
+- [ ] Public shell / presentational UI boundary cleanup
+  - 배경: app shell과 route 주변에 아직 한 파일 안에 남은 순수 표시용 조각이 있어, 기능 변경 없이 충돌면을 줄일 수 있다.
+  - 방향: 데이터 흐름이 없는 작은 컴포넌트부터 분리하고, 라우팅/auth/document state 계약은 변경하지 않는다.
+  - 검증: full app-shell Playwright와 전체 unit/build suite를 유지한다.
 
 ### P2 - Later
 
@@ -56,6 +56,13 @@
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-17 리팩토링 2차: admin service boundary split
+  - 배경: `profileService.ts`가 일반 프로필, admin user management, API/DB stats/recent error RPC를 함께 들고 있어 계속 커지고 있었다.
+  - 수정: `services/adminService.ts`를 추가해 admin-only RPC/types를 분리하고, `services/profileMapper.ts`로 row mapper를 공유해 service 간 순환 import를 피함.
+  - 영향: `profileService.ts`는 현재 로그인 사용자 profile CRUD만 담당. `AdminPage`, `Admin*` components, `utils/adminStats`, 관련 unit tests는 `adminService` type/function을 직접 참조.
+  - 주의: Supabase SQL/RPC 계약, admin UI state ownership, soft-delete/restore 정책은 변경하지 않음.
+  - 검증: `git diff --check`, `npx tsc --noEmit`, targeted admin unit tests, `npm test`, `npm run build`, `npx playwright test` 통과.
 
 - [x] 2026-06-17 리팩토링 1차: app shell 안전망 복구 및 admin/user shell 경계 분리
   - 분석: 최근 히스토리와 handoff 기준으로 OCR/TTS/upload는 고위험 hotspot이므로 이번 패스에서는 건드리지 않음.

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { AdminUserRow } from '../services/profileService';
+import type { AdminUserRow } from '../services/adminService';
 import type { UserTier, UserRole, UserAccountStatus } from '../types';
 import { BlockIcon, KeyIcon, RefreshIcon, StarIcon, TrashIcon } from './icons';
 import { Spinner } from './Spinner';

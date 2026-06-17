@@ -1,4 +1,4 @@
-import type { AdminUserRow } from '../services/profileService';
+import type { AdminUserRow } from '../services/adminService';
 
 // Pure stat derivation for the admin overview. Replaces the old pattern
 // of running users.filter(...) once per count — three passes for the

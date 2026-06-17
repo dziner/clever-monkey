@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { adminGetRecentErrors, type AdminErrorRow } from '../services/profileService';
+import { adminGetRecentErrors, type AdminErrorRow } from '../services/adminService';
 import { formatRelativeTimeKo } from '../utils/relativeTime';
 import { ErrorOutlineIcon, RefreshIcon } from './icons';
 import { Spinner } from './Spinner';

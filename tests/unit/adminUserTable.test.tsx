@@ -2,7 +2,7 @@ import * as React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { UserRow } from '../../components/AdminUserTable';
-import type { AdminUserRow } from '../../services/profileService';
+import type { AdminUserRow } from '../../services/adminService';
 
 const user = (overrides: Partial<AdminUserRow> = {}): AdminUserRow => ({
     id: 'user-1',
