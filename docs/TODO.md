@@ -22,18 +22,18 @@
 
 ### P2 - Later
 
-- [ ] npm audit dependency hygiene
-  - 현재 상태: `npm audit` reports 4 vulnerabilities in dev/build tooling (`vite`, `@vitejs/plugin-react`, `esbuild`, `@babel/core`).
-  - 판단: 배포 런타임 즉시 취약점보다는 build-time/supply-chain 잠재 리스크로 분류.
-  - 처리: `npm audit fix --force`는 Vite major upgrade를 유도하므로 별도 작업으로 `vite`, `@vitejs/plugin-react`, `vitest` 호환성을 함께 검증한다.
-  - 검증: `npx tsc --noEmit`, `npx vitest run`, `npm run build`, 필요한 e2e.
-
 - [ ] IP rate-limit map pruning 검토
   - 출처: `docs/LOAD_TEST_REPORT.md`
   - 이유: 고유 IP가 매우 많을 때 웜 인스턴스 메모리가 증가할 수 있다.
   - 우선순위: 낮음. Netlify 콜드스타트 특성상 즉시 위험은 낮다.
 
 ## Done
+
+- [x] 2026-06-18 npm audit dependency hygiene
+  - 현재 재확인: `npm audit` 결과는 기존 TODO의 4건이 아니라 `@babel/core` low 1건만 남아 있었다.
+  - 처리: `npm audit fix`만 실행해 Babel transitive dev dependencies를 patch 업데이트했다. `npm audit fix --force`와 Vite major upgrade는 사용하지 않음.
+  - 결과: `npm audit --json` 기준 vulnerabilities total 0.
+  - 주의: `package.json` 직접 의존성은 변경하지 않았고 `package-lock.json`만 갱신됨.
 
 - [x] 2026-06-18 페이지 내용이 이미지로 구성된 PDF 60~70페이지 재테스트 보류
   - 요청: P2 항목을 순차 진행하되, 진행 중 위험이 감지되면 해당 작업은 취소 및 기록 후 다음 작업으로 넘어간다.
