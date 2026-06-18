@@ -30,6 +30,14 @@
 
 ## Done
 
+- [x] 2026-06-18 AI 생성 작업 동시 실행 방지
+  - 현상: 팟캐스트 생성 중 퀴즈 생성을 시작하면 순간 요청 부하가 몰리며 오류가 발생할 수 있었다.
+  - 원인: 각 탭이 자기 loading만 관리해 채팅/퀴즈/마인드맵/플래시카드/팟캐스트/학습 팁/서술형 채점이 서로의 실행 상태를 몰랐다.
+  - 수정: `AiJobProvider`를 추가해 InteractionPanel 아래 사용자 주도 AI 생성 작업을 한 번에 하나만 실행하도록 조율.
+  - 추가: FRQ 채점 `Promise.all`과 TTS split-half fallback 병렬 요청을 순차화해 순간 요청 피크를 낮춤.
+  - 문서: `docs/AI_CONCURRENCY_REVIEW_2026-06-18.md`
+  - 한계: 같은 브라우저 세션 안의 충돌 방지이며, multi-tab/multi-device까지 막으려면 Supabase 기반 durable job lock이 필요.
+
 - [x] 2026-06-18 chat controls and file active-state polish
   - 수정: Monkey mode를 switch가 아닌 아이콘 토글(`aria-pressed`)로 변경하고 채팅 입력창 좌상단에 배치.
   - 수정: Monkey mode 활성 시 채팅 입력창 border/focus ring을 yellow tone으로 전환.

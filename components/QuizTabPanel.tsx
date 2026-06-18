@@ -30,6 +30,7 @@ interface QuizTabPanelProps {
     // Quiz state + handlers
     isGeneratingQuiz: boolean;
     quizError: string | null;
+    quizNotice: string | null;
     quizTabData: { quizContent: QuizData | FRQData; quizState: QuizTabState; studyTips?: string } | null | undefined;
     onGenerate: (type: 'mcq' | 'frq', count: number) => void;
     onStartNewQuiz: () => void;
@@ -51,7 +52,7 @@ interface QuizTabPanelProps {
 export const QuizTabPanel: React.FC<QuizTabPanelProps> = ({
     document, active, isGuest, onSignInClick,
     quizView, setQuizView,
-    isGeneratingQuiz, quizError, quizTabData,
+    isGeneratingQuiz, quizError, quizNotice, quizTabData,
     onGenerate, onStartNewQuiz, onQuizTabStateChange,
     onRestartWithNewData, onStudyTipsGenerated,
     wrongAnswers, isLoadingWA, isLoggedInWA,
@@ -102,7 +103,13 @@ export const QuizTabPanel: React.FC<QuizTabPanelProps> = ({
                                 <button onClick={onStartNewQuiz} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700">Try Again</button>
                             </div>
                         )}
-                        {!isGeneratingQuiz && !quizTabData && !quizError && (
+                        {!isGeneratingQuiz && quizNotice && (
+                            <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-ink-50 rounded-lg border border-ink-100">
+                                <p className="font-semibold text-ink-700">잠시만 기다려 주세요</p>
+                                <p className="text-ink-500 mt-2 text-sm">{quizNotice}</p>
+                            </div>
+                        )}
+                        {!isGeneratingQuiz && !quizTabData && !quizError && !quizNotice && (
                             <QuizGenerator onGenerate={onGenerate} />
                         )}
                         {!isGeneratingQuiz && quizTabData && (
@@ -110,6 +117,7 @@ export const QuizTabPanel: React.FC<QuizTabPanelProps> = ({
                                 {quizTabData.quizState.type === 'mcq' ? (
                                     <Quiz
                                         data={quizTabData.quizContent as QuizData}
+                                        documentId={document.id}
                                         onCreateAnotherQuiz={onStartNewQuiz}
                                         quizState={quizTabData.quizState}
                                         onStateChange={onQuizTabStateChange}
@@ -121,6 +129,7 @@ export const QuizTabPanel: React.FC<QuizTabPanelProps> = ({
                                 ) : (
                                     <FRQuiz
                                         data={quizTabData.quizContent as FRQData}
+                                        documentId={document.id}
                                         model={document.model}
                                         onCreateAnotherQuiz={onStartNewQuiz}
                                         quizState={quizTabData.quizState}

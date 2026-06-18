@@ -7,9 +7,11 @@ import { Spinner } from './Spinner';
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { t } from '../services/uiStrings';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 
 interface FRQuizProps {
     data: FRQData;
+    documentId: string;
     model: Model;
     onCreateAnotherQuiz: () => void;
     quizState: FRQQuizState;
@@ -20,23 +22,46 @@ interface FRQuizProps {
     onStudyTipsGenerated?: (tips: string) => void;
 }
 
-export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
+export const FRQuiz: React.FC<FRQuizProps> = ({ data, documentId, model, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
     const { userProfile } = useUser();
+    const aiJobGate = useAiJobGate();
     const language = userProfile?.language ?? null;
     const { userAnswers, currentQuestionIndex, isFinished, isGrading } = quizState;
     
     const [localAnswerText, setLocalAnswerText] = React.useState('');
     const [isGeneratingTips, setIsGeneratingTips] = React.useState(false);
+    const [gradingGateError, setGradingGateError] = React.useState<string | null>(null);
+    const [tipsGateMessage, setTipsGateMessage] = React.useState<string | null>(null);
+    const tipsStartedRef = React.useRef(false);
 
 
     React.useEffect(() => {
         const savedAnswer = userAnswers.find(a => a.questionIndex === currentQuestionIndex)?.userAnswerText || '';
         setLocalAnswerText(savedAnswer);
     }, [currentQuestionIndex, userAnswers]);
+
+    React.useEffect(() => {
+        if (!isFinished) {
+            tipsStartedRef.current = false;
+            setTipsGateMessage(null);
+            setGradingGateError(null);
+        }
+    }, [isFinished]);
     
     React.useEffect(() => {
-        if (isFinished && !isGrading && documentContent && userAnswers.length > 0 && !studyTips) {
+        if (isFinished && !isGrading && documentContent && userAnswers.length > 0 && !studyTips && !isGeneratingTips && !tipsStartedRef.current) {
             const fetchTips = async () => {
+                const aiJobLease = aiJobGate.tryStartJob({
+                    kind: 'study_tips',
+                    documentId,
+                    label: '학습 팁 생성',
+                });
+                if (aiJobLease.ok === false) {
+                    setTipsGateMessage(aiJobBusyMessage(aiJobLease.activeJob));
+                    return;
+                }
+                tipsStartedRef.current = true;
+                setTipsGateMessage(null);
                 setIsGeneratingTips(true);
                 try {
                     const tips = await generateStudyTips(documentContent, data, userAnswers, model, language);
@@ -46,11 +71,12 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                     onStudyTipsGenerated?.(t('studyTips.error', language));
                 } finally {
                     setIsGeneratingTips(false);
+                    aiJobLease.finish();
                 }
             };
             fetchTips();
         }
-    }, [isFinished, isGrading, documentContent, data, userAnswers, model, studyTips, onStudyTipsGenerated]);
+    }, [isFinished, isGrading, documentContent, data, userAnswers, model, studyTips, onStudyTipsGenerated, aiJobGate, documentId, isGeneratingTips, language]);
 
     const commitLocalAnswer = () => {
         const updatedAnswers = [...userAnswers];
@@ -86,21 +112,35 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
     
     const handleFinishAndGrade = async () => {
         const finalAnswers = commitLocalAnswer();
-        onStateChange({ ...quizState, userAnswers: finalAnswers, isFinished: true, isGrading: true });
-
-        const gradingPromises = finalAnswers.map(answer => {
-            const question = data.questions[answer.questionIndex];
-            return evaluateFRQAnswer(question.questionText, question.explanation, answer.userAnswerText, model, language)
-                .then(result => ({ ...answer, ...result }))
-                .catch(error => {
-                    console.error("Failed to grade answer:", error);
-                    return { ...answer, score: 0, feedback: t('frq.gradeError', language) };
-                });
+        const aiJobLease = aiJobGate.tryStartJob({
+            kind: 'frq_grading',
+            documentId,
+            label: '서술형 채점',
         });
+        if (aiJobLease.ok === false) {
+            setGradingGateError(aiJobBusyMessage(aiJobLease.activeJob));
+            return;
+        }
+        setGradingGateError(null);
+        try {
+            onStateChange({ ...quizState, userAnswers: finalAnswers, isFinished: true, isGrading: true });
 
-        const results = await Promise.all(gradingPromises);
-        results.sort((a, b) => a.questionIndex - b.questionIndex);
-        onStateChange({ ...quizState, userAnswers: results, isFinished: true, isGrading: false });
+            const results: FRUserAnswer[] = [];
+            for (const answer of finalAnswers) {
+                const question = data.questions[answer.questionIndex];
+                try {
+                    const result = await evaluateFRQAnswer(question.questionText, question.explanation, answer.userAnswerText, model, language);
+                    results.push({ ...answer, ...result });
+                } catch (error) {
+                    console.error("Failed to grade answer:", error);
+                    results.push({ ...answer, score: 0, feedback: t('frq.gradeError', language) });
+                }
+            }
+            results.sort((a, b) => a.questionIndex - b.questionIndex);
+            onStateChange({ ...quizState, userAnswers: results, isFinished: true, isGrading: false });
+        } finally {
+            aiJobLease.finish();
+        }
     };
 
     const handleRetryAll = () => {
@@ -205,6 +245,10 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                             <Spinner />
                             <p className="mt-2 text-sm font-semibold text-ink-700">Generating study tips...</p>
                         </div>
+                    ) : tipsGateMessage ? (
+                        <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 text-center text-sm font-medium text-ink-500">
+                            {tipsGateMessage}
+                        </div>
                     ) : studyTips && (
                         <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 animate-fade-in-up text-ink-800">
                             <MarkdownRenderer content={studyTips} />
@@ -274,6 +318,11 @@ export const FRQuiz: React.FC<FRQuizProps> = ({ data, model, onCreateAnotherQuiz
                         </button>
                     )}
                 </div>
+                {gradingGateError && (
+                    <p className="text-sm font-medium text-ink-500 text-center">
+                        {gradingGateError}
+                    </p>
+                )}
                 
                 <div className="pt-2 text-center">
                      <button

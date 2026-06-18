@@ -2,9 +2,10 @@
 import * as React from 'react';
 import { renderInline } from './MarkdownRenderer';
 import { AssignmentIcon, ChevronDownIcon, LightbulbIcon } from './icons';
+import { normalizePresetQuestions, stripLeadingPresetQuestionIcon } from '../utils/presetQuestions';
 
 interface PresetQuestionsProps {
-    questions: string[];
+    questions: unknown;
     onQuestionClick: (question: string) => void;
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
@@ -13,6 +14,9 @@ interface PresetQuestionsProps {
 const BRAIN_EMOJI_MARKER = '\u{1F9E0}';
 
 export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQuestionClick, isOpen, setIsOpen }) => {
+    const safeQuestions = React.useMemo(() => normalizePresetQuestions(questions) ?? [], [questions]);
+
+    if (safeQuestions.length === 0) return null;
     
     // Collapsed "FAB" state
     if (!isOpen) {
@@ -47,8 +51,8 @@ export const PresetQuestions: React.FC<PresetQuestionsProps> = ({ questions, onQ
             </button>
             
             <div className="p-3 pt-0 grid grid-cols-1 gap-2">
-                {questions.map((q, i) => {
-                    const text = q.replace(/^[\p{Extended_Pictographic}\uFE0F]+\s*/u, '').trim();
+                {safeQuestions.map((q, i) => {
+                    const text = stripLeadingPresetQuestionIcon(q) || q;
                     const quizKeywords = ['quiz', '퀴즈'];
                     const isQuizQuestion = q.includes(BRAIN_EMOJI_MARKER) || quizKeywords.some(kw => text.toLowerCase().includes(kw));
                     const QuestionIcon = isQuizQuestion ? AssignmentIcon : LightbulbIcon;

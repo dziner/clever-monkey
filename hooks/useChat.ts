@@ -6,10 +6,12 @@ import { estimateTokens } from '../utils/promptBudget';
 import { getSystemInstruction } from '../constants';
 import { t } from '../services/uiStrings';
 import type { DocumentData, ChatMessage } from '../types';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 
 export const useChat = (document: DocumentData, onChatHistoryChange: (history: ChatMessage[]) => void) => {
   const { dispatch } = useDocuments();
   const { userProfile } = useUser();
+  const aiJobGate = useAiJobGate();
   const [isBotTyping, setIsBotTyping] = React.useState(false);
 
   // Keep a stable ref so callbacks don't need to re-create on every doc state update
@@ -23,11 +25,27 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
       if (!text || isBotTyping) return;
       if (!doc.documentContent) return;
 
+      const aiJobLease = aiJobGate.tryStartJob({
+        kind: 'chat',
+        documentId: doc.id,
+        label: '채팅 답변 생성',
+      });
+      if (aiJobLease.ok === false) {
+        const busyMessage: ChatMessage = {
+          sender: 'bot',
+          text: aiJobBusyMessage(aiJobLease.activeJob),
+          wasMonkeyMode: doc.monkeyMode,
+          isError: true,
+        };
+        onChatHistoryChange([...doc.chatHistory, busyMessage]);
+        return;
+      }
+
       setIsBotTyping(true);
       const historyWithUserMessage: ChatMessage[] = [...doc.chatHistory, { sender: 'user', text }];
-      onChatHistoryChange(historyWithUserMessage);
 
       try {
+        onChatHistoryChange(historyWithUserMessage);
         const botResponseText = await geminiProxy.sendChatMessage({
           model: doc.model,
           systemInstruction: getSystemInstruction(doc.answerScope, doc.monkeyMode),
@@ -71,9 +89,10 @@ export const useChat = (document: DocumentData, onChatHistoryChange: (history: C
         onChatHistoryChange([...historyWithUserMessage, errorMessage]);
       } finally {
         setIsBotTyping(false);
+        aiJobLease.finish();
       }
     },
-    [isBotTyping, onChatHistoryChange, dispatch, userProfile?.language]
+    [aiJobGate, isBotTyping, onChatHistoryChange, dispatch, userProfile?.language]
   );
 
   const changeChatContext = React.useCallback(

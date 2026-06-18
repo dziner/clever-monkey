@@ -1,4 +1,5 @@
 import type { ChatMessage, DocumentData, Folder } from '../types';
+import { normalizePresetQuestions } from '../utils/presetQuestions';
 
 export interface FolderRow {
   id: string;
@@ -18,7 +19,7 @@ export interface DocumentRow {
   storage_path: string | null;
   summary: string | null;
   chat_history: DocumentData['chatHistory'] | null;
-  preset_questions: string[] | null;
+  preset_questions: unknown;
   token_count: number | null;
   processing_state: DocumentData['processingState'] | null;
   error_message: string | null;
@@ -44,6 +45,7 @@ export function mapDocumentRow(doc: DocumentRow, fallbackWelcome: ChatMessage): 
   const chatHistory = Array.isArray(doc.chat_history) && doc.chat_history.length > 0
     ? doc.chat_history
     : [fallbackWelcome];
+  const presetQuestions = normalizePresetQuestions(doc.preset_questions);
 
   return {
     id: doc.id,
@@ -57,7 +59,7 @@ export function mapDocumentRow(doc: DocumentRow, fallbackWelcome: ChatMessage): 
     summary: doc.summary ?? '',
     chat: null,
     chatHistory,
-    presetQuestions: doc.preset_questions ?? undefined,
+    presetQuestions,
     tokenCount: doc.token_count ?? undefined,
     processingState: doc.processing_state ?? (doc.summary ? 'done' : 'error'),
     errorMessage: doc.error_message ?? undefined,

@@ -4,6 +4,7 @@ import { generateMindMap } from '../services/geminiService';
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 import { AccountTreeIcon, AutoAwesomeIcon, ZoomInIcon, ZoomOutIcon, FitScreenIcon } from './icons';
 import { Spinner } from './Spinner';
 import { t } from '../services/uiStrings';
@@ -451,10 +452,12 @@ interface MindMapTabProps {
 export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
   const { userProfile } = useUser();
+  const aiJobGate = useAiJobGate();
   const language = userProfile?.language ?? null;
   const canvasRef = React.useRef<CanvasHandle>(null);
   const [zoomPct, setZoomPct] = React.useState(100);
   const [touchGestureHint, setTouchGestureHint] = React.useState(false);
+  const [gateError, setGateError] = React.useState<string | null>(null);
 
   const { data, loading, error, generate, cancel } = useAIGeneration<MindMapData>(
     React.useCallback(
@@ -477,6 +480,23 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
   }, [data, document.id, dispatch]);
 
   const displayData = data ?? document.mindMapData ?? null;
+  const activeAiJob = aiJobGate.activeJob;
+  const isBlockedByAiJob = Boolean(activeAiJob);
+  const activeAiJobMessage = activeAiJob ? aiJobBusyMessage(activeAiJob) : null;
+
+  const handleGenerate = React.useCallback(() => {
+    const aiJobLease = aiJobGate.tryStartJob({
+      kind: 'mindmap',
+      documentId: document.id,
+      label: '마인드맵 생성',
+    });
+    if (aiJobLease.ok === false) {
+      setGateError(aiJobBusyMessage(aiJobLease.activeJob));
+      return;
+    }
+    setGateError(null);
+    void generate().finally(aiJobLease.finish);
+  }, [aiJobGate, document.id, generate]);
 
   // Re-fit the canvas whenever the tree content changes (e.g. Regenerate).
   React.useEffect(() => {
@@ -524,8 +544,10 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
           ) : (
             <button
               type="button"
-              onClick={generate}
-              className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+              onClick={handleGenerate}
+              disabled={isBlockedByAiJob}
+              title={activeAiJobMessage ?? undefined}
+              className="flex items-center gap-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <AutoAwesomeIcon className="text-sm" />
               {displayData ? 'Regenerate' : 'Generate'}
@@ -533,6 +555,11 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
           )}
         </div>
       </div>
+      {gateError && displayData && !loading && !error && (
+        <div className="flex-shrink-0 border-b border-ink-100 bg-ink-50 px-4 py-2 text-center text-xs font-medium text-ink-500">
+          {gateError}
+        </div>
+      )}
 
       {/* Body */}
       <div className="flex-1 relative min-h-0">
@@ -545,6 +572,10 @@ export const MindMapTab: React.FC<MindMapTabProps> = ({ document }) => {
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-danger-500 text-sm max-w-sm mx-auto px-6">
             <p className="font-semibold mb-1">Generation failed</p>
             <p>{error}</p>
+          </div>
+        ) : gateError && !displayData ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-ink-500 text-sm max-w-sm mx-auto px-6">
+            <p>{gateError}</p>
           </div>
         ) : !displayData ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-ink-400 max-w-xs mx-auto p-4">

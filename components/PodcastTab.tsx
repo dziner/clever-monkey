@@ -11,6 +11,7 @@ import {
 import { useAIGeneration } from '../hooks/useAIGeneration';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useUser } from '../contexts/UserContext';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 import { HeadphonesIcon, AutoAwesomeIcon, ChevronDownIcon, ChevronRightIcon, RefreshIcon } from './icons';
 import { Spinner } from './Spinner';
 import { t } from '../services/uiStrings';
@@ -47,6 +48,7 @@ const SCRIPT_LENGTH_OPTIONS: Array<{
 export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const { dispatch } = useDocuments();
   const { userProfile, userId } = useUser();
+  const aiJobGate = useAiJobGate();
   const language = userProfile?.language ?? null;
 
   const [instructions, setInstructions] = React.useState('');
@@ -80,6 +82,8 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
   const [audioRestoring, setAudioRestoring] = React.useState(false);
   const [audioProgress, setAudioProgress] = React.useState<{ done: number; total: number } | null>(null);
   const [audioError, setAudioError] = React.useState<string | null>(null);
+  const [audioGateMessage, setAudioGateMessage] = React.useState<string | null>(null);
+  const [scriptGateError, setScriptGateError] = React.useState<string | null>(null);
   const audioAbortRef = React.useRef<AbortController | null>(null);
   // The storage path currently represented by `audioUrl`, so the restore
   // effect doesn't re-download audio we already have in memory.
@@ -132,10 +136,20 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
   const handleGenerateAudio = React.useCallback(async () => {
     if (!displayScript) return;
+    const aiJobLease = aiJobGate.tryStartJob({
+      kind: 'podcast_audio',
+      documentId: document.id,
+      label: '팟캐스트 음성 합성',
+    });
+    if (aiJobLease.ok === false) {
+      setAudioGateMessage(aiJobBusyMessage(aiJobLease.activeJob));
+      return;
+    }
     audioAbortRef.current?.abort();
     audioAbortRef.current = new AbortController();
     setAudioLoading(true);
     setAudioError(null);
+    setAudioGateMessage(null);
     setAudioProgress(null);
     try {
       const blob = await synthesizeSpeech(displayScript, voice, (done, total) => {
@@ -175,13 +189,24 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
     } finally {
       setAudioLoading(false);
       setAudioProgress(null);
+      aiJobLease.finish();
     }
-  }, [displayScript, voice, userId, document.id, document.podcastData?.audioPath, dispatch]);
+  }, [aiJobGate, displayScript, voice, userId, document.id, document.podcastData?.audioPath, dispatch]);
 
   const handleGenerateScript = React.useCallback(() => {
+    const aiJobLease = aiJobGate.tryStartJob({
+      kind: 'podcast_script',
+      documentId: document.id,
+      label: '팟캐스트 스크립트 생성',
+    });
+    if (aiJobLease.ok === false) {
+      setScriptGateError(aiJobBusyMessage(aiJobLease.activeJob));
+      return;
+    }
+    setScriptGateError(null);
     setComposerOpen(false);
-    generate();
-  }, [generate]);
+    void generate().finally(aiJobLease.finish);
+  }, [aiJobGate, document.id, generate]);
 
   const openComposer = React.useCallback(() => {
     setDirectionOpen(true);
@@ -199,6 +224,9 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
   // Composer = the direction field + "generate" button. Shown for the
   // first script, or when the user reopens it to regenerate.
+  const activeAiJob = aiJobGate.activeJob;
+  const isBlockedByAiJob = Boolean(activeAiJob);
+  const activeAiJobMessage = activeAiJob ? aiJobBusyMessage(activeAiJob) : null;
   const composer = (
     <div className="bg-white rounded-xl border border-ink-200 p-4">
       {!displayScript && (
@@ -271,7 +299,7 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
         <button
           type="button"
           onClick={handleGenerateScript}
-          disabled={audioLoading}
+          disabled={audioLoading || isBlockedByAiJob}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
         >
           <AutoAwesomeIcon className="text-sm" />
@@ -287,6 +315,11 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
           </button>
         )}
       </div>
+      {activeAiJobMessage && (
+        <p className="mt-2 text-xs font-medium text-ink-500 text-center">
+          {activeAiJobMessage}
+        </p>
+      )}
     </div>
   );
 
@@ -320,6 +353,11 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
               <div className="text-center text-danger-500 text-sm max-w-sm mx-auto mt-2">
                 <p className="font-semibold mb-1">생성에 실패했어요</p>
                 <p>{error}</p>
+              </div>
+            )}
+            {scriptGateError && (
+              <div className="text-center text-ink-500 text-sm max-w-sm mx-auto mt-2">
+                <p>{scriptGateError}</p>
               </div>
             )}
 
@@ -361,7 +399,8 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
                       <button
                         type="button"
                         onClick={handleGenerateAudio}
-                        className="flex-shrink-0 flex items-center gap-1.5 h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm"
+                        disabled={isBlockedByAiJob}
+                        className="flex-shrink-0 flex items-center gap-1.5 h-10 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <HeadphonesIcon className="text-sm" />
                         {audioUrl ? '재생성' : '생성'}
@@ -410,6 +449,12 @@ export const PodcastTab: React.FC<PodcastTabProps> = ({ document }) => {
 
                   {audioError && (
                     <p className="mt-2 text-xs text-danger-500 text-center">{audioError}</p>
+                  )}
+                  {audioGateMessage && (
+                    <p className="mt-2 text-xs font-medium text-ink-500 text-center">{audioGateMessage}</p>
+                  )}
+                  {activeAiJobMessage && !audioLoading && !audioGateMessage && (
+                    <p className="mt-2 text-xs font-medium text-ink-500 text-center">{activeAiJobMessage}</p>
                   )}
 
                   {audioUrl && !audioLoading && (

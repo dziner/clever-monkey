@@ -102,4 +102,32 @@ describe('documentMapper', () => {
         expect(doc.documentContent).toBeUndefined();
         expect(doc.folderId).toBeNull();
     });
+
+    it('normalizes malformed persisted preset question payloads', () => {
+        const doc = mapDocumentRow(row({
+            preset_questions: [
+                { emoji: '❓', question: ' What changed in the update? ' },
+                null,
+                { text: 'Summarize the risk' },
+                42,
+                { label: '' },
+            ],
+        }), fallbackWelcome);
+
+        expect(doc.presetQuestions).toEqual([
+            '❓ What changed in the update?',
+            'Summarize the risk',
+        ]);
+    });
+
+    it('parses stringified legacy preset question arrays', () => {
+        const doc = mapDocumentRow(row({
+            preset_questions: '[{"question":"Explain the main idea"},{"text":"List the examples"}]',
+        }), fallbackWelcome);
+
+        expect(doc.presetQuestions).toEqual([
+            'Explain the main idea',
+            'List the examples',
+        ]);
+    });
 });

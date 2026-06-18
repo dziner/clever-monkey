@@ -4,6 +4,7 @@ import { Spinner } from './Spinner';
 import { supabase } from '../services/supabaseClient';
 import { generateFlashcards } from '../services/geminiService';
 import { useUser } from '../contexts/UserContext';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 import {
   fetchDecks, fetchDueCards, fetchAllCards, reviewCard, createDeck, deleteDeck, previewIntervalLabel,
 } from '../services/flashcardsService';
@@ -212,6 +213,7 @@ const GenerateModal: React.FC<{
   onCreated: (deck: FlashcardDeck) => void;
 }> = ({ document, onClose, onCreated }) => {
   const { userProfile } = useUser();
+  const aiJobGate = useAiJobGate();
   const language = userProfile?.language ?? null;
   const [cardCount, setCardCount] = React.useState(15);
   const [deckTitle, setDeckTitle] = React.useState('');
@@ -226,6 +228,15 @@ const GenerateModal: React.FC<{
 
   const handleGenerate = async () => {
     if (!document.documentContent) { setError('문서 내용을 불러올 수 없습니다.'); return; }
+    const aiJobLease = aiJobGate.tryStartJob({
+      kind: 'flashcards',
+      documentId: document.id,
+      label: '플래시카드 생성',
+    });
+    if (aiJobLease.ok === false) {
+      setError(aiJobBusyMessage(aiJobLease.activeJob));
+      return;
+    }
     setError(null);
     setIsGenerating(true);
     try {
@@ -238,6 +249,7 @@ const GenerateModal: React.FC<{
       setError((e as { message?: string })?.message || '생성에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setIsGenerating(false);
+      aiJobLease.finish();
     }
   };
 
@@ -330,11 +342,16 @@ const GenerateModal: React.FC<{
               {error}
             </p>
           )}
+          {aiJobGate.activeJob && !isGenerating && !error && (
+            <p className="text-sm text-ink-500 bg-ink-50 border border-ink-100 rounded-lg px-3 py-2">
+              {aiJobBusyMessage(aiJobGate.activeJob)}
+            </p>
+          )}
 
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={isGenerating}
+            disabled={isGenerating || Boolean(aiJobGate.activeJob)}
             className="w-full inline-flex items-center justify-center gap-2 px-4 h-11 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-lg font-semibold text-sm transition-[transform,background-color] duration-200 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 shadow-soft"
           >
             {isGenerating ? <><Spinner /> 생성 중...</> : <><AddIcon className="text-lg" /> 덱 만들기</>}

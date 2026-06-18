@@ -10,6 +10,7 @@ import { createDiagnosticErrorInfo } from '../utils/diagnostics';
 import { logDiagnosticEvent } from './diagnostics';
 import { cleanAndParseJSON } from '../utils/jsonRepair';
 import { normalizePodcastScriptForSingleNarrator, splitTextForTts } from '../utils/podcastAudio';
+import { normalizePresetQuestions } from '../utils/presetQuestions';
 import { buildQuizAvoidanceBlock } from '../utils/quizMemory';
 import {
   modelForPayload,
@@ -490,9 +491,7 @@ export async function summarizeExtractedText(
   let presetQuestions: string[];
   try {
     const parsedQuestions = cleanAndParseJSON(questionsText);
-    presetQuestions = Array.isArray(parsedQuestions) && parsedQuestions.length > 0
-      ? parsedQuestions
-      : FALLBACK_PRESET_QUESTIONS;
+    presetQuestions = normalizePresetQuestions(parsedQuestions) ?? FALLBACK_PRESET_QUESTIONS;
   } catch (e) {
     console.error('Failed to parse preset questions:', e, questionsText);
     presetQuestions = FALLBACK_PRESET_QUESTIONS;
@@ -790,7 +789,8 @@ export async function synthesizeSpeech(
       const halves = splitHalfOnSentence(chunk);
       if (!halves) throw lastErr ?? new Error('TTS failed');
       const [a, b] = halves;
-      const [pa, pb] = await Promise.all([requestChunk(a), requestChunk(b)]);
+      const pa = await requestChunk(a);
+      const pb = await requestChunk(b);
       pcm = concatPcmBuffers([pa, pb]);
     }
     pcmBuffers.push(pcm);

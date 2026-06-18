@@ -22,6 +22,7 @@ import { generateQuiz } from '../services/geminiService';
 import { saveQuizSession } from '../services/wrongAnswersService';
 import { fetchRecentQuestions, recordSeenQuestions } from '../services/quizMemoryService';
 import { getErrorMessage } from '../utils/errors';
+import { AiJobProvider, aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 
 export type ActiveTab = 'overview' | 'chat' | 'quiz' | 'mindmap' | 'flashcards' | 'podcast';
 
@@ -48,7 +49,13 @@ interface InteractionPanelProps {
 
 // ─────────────────────────────────────────────────────────────
 
-export const InteractionPanel: React.FC<InteractionPanelProps> = ({
+export const InteractionPanel: React.FC<InteractionPanelProps> = (props) => (
+    <AiJobProvider>
+        <InteractionPanelContent {...props} />
+    </AiJobProvider>
+);
+
+const InteractionPanelContent: React.FC<InteractionPanelProps> = ({
     document,
     onMenuClick,
     onPreviewClick,
@@ -63,6 +70,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 }) => {
     const { dispatch } = useDocuments();
     const { userProfile, userId } = useUser();
+    const aiJobGate = useAiJobGate();
     const language = userProfile?.language ?? null;
     // activeTab is controlled by prop from StudyPage
 
@@ -82,6 +90,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
     // State for quiz generation status in the quiz tab
     const [isGeneratingQuiz, setIsGeneratingQuiz] = React.useState(false);
     const [quizError, setQuizError] = React.useState<string | null>(null);
+    const [quizNotice, setQuizNotice] = React.useState<string | null>(null);
 
     // New state for the initial conversational flow
     const [isPreparingSuggestions, setIsPreparingSuggestions] = React.useState(false);
@@ -105,12 +114,17 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
 
     React.useEffect(() => {
         setQuizError(null);
+        setQuizNotice(null);
         setChatSearch('');
         setIsChatSearchOpen(false);
         setQuizView('quiz');
         waLoadedRef.current = false;
         setWrongAnswers([]);
     }, [document.id]);
+
+    React.useEffect(() => {
+        if (!aiJobGate.activeJob) setQuizNotice(null);
+    }, [aiJobGate.activeJob]);
 
     const loadWrongAnswers = React.useCallback(async () => {
         if (waLoadedRef.current) return;
@@ -223,8 +237,19 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
             setQuizError(t('quiz.docMissing', language));
             return;
         }
+        const aiJobLease = aiJobGate.tryStartJob({
+            kind: 'quiz',
+            documentId: document.id,
+            label: '퀴즈 생성',
+        });
+        if (aiJobLease.ok === false) {
+            setQuizError(null);
+            setQuizNotice(aiJobBusyMessage(aiJobLease.activeJob));
+            return;
+        }
         setIsGeneratingQuiz(true);
         setQuizError(null);
+        setQuizNotice(null);
         dispatch({ type: 'UPDATE_DOCUMENT', payload: { docId: document.id, updates: { quizTabData: null } } });
 
         try {
@@ -267,6 +292,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
             setQuizError(getErrorMessage(error));
         } finally {
             setIsGeneratingQuiz(false);
+            aiJobLease.finish();
         }
     };
 
@@ -415,6 +441,7 @@ export const InteractionPanel: React.FC<InteractionPanelProps> = ({
                     setQuizView={setQuizView}
                     isGeneratingQuiz={isGeneratingQuiz}
                     quizError={quizError}
+                    quizNotice={quizNotice}
                     quizTabData={quizTabData}
                     onGenerate={handleGenerateQuiz}
                     onStartNewQuiz={handleStartNewQuizInTab}

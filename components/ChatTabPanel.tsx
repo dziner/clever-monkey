@@ -7,6 +7,7 @@ import { Quiz } from './Quiz';
 import { ChatInput } from './ChatInput';
 import { PresetQuestions } from './PresetQuestions';
 import { MonkeyModeToggle, AnswerScopeToggle } from './ChatModeToggles';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 
 // Chat tab content. Lifted from InteractionPanel so the parent file
 // stops needing to render ~130 lines of chat-specific JSX inline. The
@@ -54,6 +55,9 @@ export const ChatTabPanel: React.FC<ChatTabPanelProps> = ({
     canShowPresetQuestions, isPresetQuestionsOpen, setIsPresetQuestionsOpen,
     onMonkeyModeChange, onScopeChange,
 }) => {
+    const { activeJob } = useAiJobGate();
+    const busyWithOtherAiJob = activeJob && activeJob.kind !== 'chat' ? activeJob : null;
+    const hasPresetQuestions = Array.isArray(document.presetQuestions) && document.presetQuestions.length > 0;
     const matchCount = chatSearch
         ? document.chatHistory.filter(m => m.text.toLowerCase().includes(chatSearch.toLowerCase())).length
         : 0;
@@ -163,7 +167,7 @@ export const ChatTabPanel: React.FC<ChatTabPanelProps> = ({
                         <ChatBubble message={{ sender: 'bot', text: '...', wasMonkeyMode: document.monkeyMode }} />
                     </div>
                 )}
-                {document.presetQuestions && canShowPresetQuestions && (
+                {hasPresetQuestions && canShowPresetQuestions && (
                     <PresetQuestions
                         isOpen={isPresetQuestionsOpen}
                         setIsOpen={setIsPresetQuestionsOpen}
@@ -184,6 +188,8 @@ export const ChatTabPanel: React.FC<ChatTabPanelProps> = ({
                     <ChatInput
                         isBotTyping={isBotTyping}
                         isMonkeyMode={document.monkeyMode}
+                        isDisabled={Boolean(busyWithOtherAiJob)}
+                        disabledReason={busyWithOtherAiJob ? aiJobBusyMessage(busyWithOtherAiJob) : null}
                         onSendMessage={(message) => {
                             onSendMessage(message);
                             setIsPresetQuestionsOpen(false);

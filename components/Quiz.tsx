@@ -8,11 +8,13 @@ import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 import { Spinner } from './Spinner';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { aiJobBusyMessage, useAiJobGate } from '../contexts/AiJobContext';
 
 type LegacyQuizState = MCQQuizState & { showResults?: boolean };
 
 interface QuizProps {
     data: QuizData;
+    documentId?: string;
     onCreateAnotherQuiz: () => void;
     quizState: MCQQuizState;
     onStateChange: (newState: MCQQuizState) => void;
@@ -22,8 +24,9 @@ interface QuizProps {
     onStudyTipsGenerated?: (tips: string) => void;
 }
 
-export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
+export const Quiz: React.FC<QuizProps> = ({ data, documentId, onCreateAnotherQuiz, quizState, onStateChange, documentContent, onRestartWithNewData, studyTips, onStudyTipsGenerated }) => {
     const { userProfile } = useUser();
+    const aiJobGate = useAiJobGate();
     const language = userProfile?.language ?? null;
     const { userAnswers, currentQuestionIndex } = quizState;
     // Handle legacy state from chat history which might use `showResults`.
@@ -33,6 +36,8 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
     const [selectedOption, setSelectedOption] = React.useState<number | undefined>(undefined);
     const [isChecked, setIsChecked] = React.useState(false);
     const [isGeneratingTips, setIsGeneratingTips] = React.useState(false);
+    const [tipsGateMessage, setTipsGateMessage] = React.useState<string | null>(null);
+    const tipsStartedRef = React.useRef(false);
 
 
     const totalQuestions = data.questions.length;
@@ -49,10 +54,28 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
             setIsChecked(false);
         }
     }, [currentQuestionIndex, userAnswers]);
+
+    React.useEffect(() => {
+        if (!isFinished) {
+            tipsStartedRef.current = false;
+            setTipsGateMessage(null);
+        }
+    }, [isFinished]);
     
     React.useEffect(() => {
-        if (isFinished && documentContent && userAnswers.length > 0 && !studyTips) {
+        if (isFinished && documentContent && userAnswers.length > 0 && !studyTips && !isGeneratingTips && !tipsStartedRef.current) {
             const fetchTips = async () => {
+                const aiJobLease = aiJobGate.tryStartJob({
+                    kind: 'study_tips',
+                    documentId: documentId ?? 'quiz',
+                    label: '학습 팁 생성',
+                });
+                if (aiJobLease.ok === false) {
+                    setTipsGateMessage(aiJobBusyMessage(aiJobLease.activeJob));
+                    return;
+                }
+                tipsStartedRef.current = true;
+                setTipsGateMessage(null);
                 setIsGeneratingTips(true);
                 try {
                     const tips = await generateStudyTips(documentContent, data, userAnswers, 'gemini-2.5-flash', language);
@@ -62,13 +85,14 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                     onStudyTipsGenerated?.(t('studyTips.error', language));
                 } finally {
                     setIsGeneratingTips(false);
+                    aiJobLease.finish();
                 }
             };
             fetchTips();
         }
     // language is in the dep array so a profile language change between
     // finishing the quiz and the tips fetch regenerates in the new language.
-    }, [isFinished, documentContent, data, userAnswers, studyTips, onStudyTipsGenerated, language]);
+    }, [isFinished, documentContent, data, userAnswers, studyTips, onStudyTipsGenerated, language, aiJobGate, documentId, isGeneratingTips]);
 
     // Browser-level guard against accidental refresh / tab close while a
     // quiz is mid-progress. Browsers ignore the custom message text (a
@@ -199,6 +223,10 @@ export const Quiz: React.FC<QuizProps> = ({ data, onCreateAnotherQuiz, quizState
                         <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 flex flex-col items-center justify-center min-h-[10rem]">
                             <Spinner />
                             <p className="mt-2 text-sm font-semibold text-ink-700">Generating study tips...</p>
+                        </div>
+                    ) : tipsGateMessage ? (
+                        <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 text-center text-sm font-medium text-ink-500">
+                            {tipsGateMessage}
                         </div>
                     ) : studyTips && (
                         <div className="bg-white border border-ink-200 rounded-xl shadow-md p-4 animate-fade-in-up text-ink-800">
