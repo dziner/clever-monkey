@@ -9,10 +9,11 @@ test.describe('app shell', () => {
     test('idle landing renders the hero, upload card, and footer', async ({ page }) => {
         await page.goto('/');
         await expect(page).toHaveTitle(/Clever Monkey|Study/i);
-        // Hero copy carries the brand voice; assert on stable text pieces
+        // Hero copy carries the product promise; assert on stable text pieces
         // because the headline is split across styled inline elements.
-        await expect(page.getByRole('heading', { name: /my monkey is/i })).toBeVisible();
-        await expect(page.getByText(/cleverer/i)).toBeVisible();
+        await expect(page.getByRole('heading', { name: /문서를 올리면/i })).toBeVisible();
+        await expect(page.getByText(/공부 흐름이 바로 생깁니다/i)).toBeVisible();
+        await expect(page.getByText(/요약에서 퀴즈, 플래시카드, 마인드맵, 팟캐스트/i)).toBeVisible();
         // Privacy assurance is part of the trust framing.
         await expect(page.getByText(/본인만 볼 수 있습니다|files are private/i)).toBeVisible();
         // Trust footer with both legal links.
