@@ -25,10 +25,11 @@ export async function adminUpdateProfile(
     userId: string,
     updates: { tier?: UserTier; role?: UserRole }
 ): Promise<boolean> {
-    const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId);
+    const { error } = await supabase.rpc('admin_update_user_profile', {
+        p_user_id: userId,
+        p_tier: updates.tier ?? null,
+        p_role: updates.role ?? null,
+    });
     if (error) console.error('[admin] adminUpdateProfile failed:', error);
     return !error;
 }

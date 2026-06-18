@@ -5,6 +5,8 @@ import type { AdminUserRow } from '../../services/adminService';
 const u = (overrides: Partial<AdminUserRow>): AdminUserRow => ({
     id: 'u-1', email: 'a@b.c', displayName: null,
     role: 'user', tier: 'free', tierExpiresAt: null,
+    stripeCustomerId: null, stripeSubscriptionId: null, stripeSubscriptionStatus: null,
+    stripePriceId: null, stripeCurrentPeriodEnd: null, stripeCancelAtPeriodEnd: false,
     accountStatus: 'active', deactivatedAt: null, deactivatedBy: null,
     deactivationReason: null, restoreUntil: null,
     aiActionsToday: 0, aiActionsDate: '2026-06-12',

@@ -203,6 +203,12 @@ export interface UserProfile {
   role: UserRole;
   tier: UserTier;
   tierExpiresAt: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripeSubscriptionStatus: string | null;
+  stripePriceId: string | null;
+  stripeCurrentPeriodEnd: string | null;
+  stripeCancelAtPeriodEnd: boolean;
   accountStatus: UserAccountStatus;
   deactivatedAt: string | null;
   deactivatedBy: string | null;

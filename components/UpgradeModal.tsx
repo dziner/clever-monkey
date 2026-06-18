@@ -1,9 +1,11 @@
 import * as React from 'react';
 import { XIcon, WorkspacePremiumIcon, BoltIcon, CheckIcon } from './icons';
+import { createCheckoutSessionUrl } from '../services/billingService';
 
 interface UpgradeModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onSignInRequired?: () => void;
     reason?: 'documents' | 'ai_actions' | 'generic';
 }
 
@@ -30,17 +32,40 @@ const REASON_COPY = {
     },
 };
 
-export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, reason = 'generic' }) => {
+export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onSignInRequired, reason = 'generic' }) => {
     const copy = REASON_COPY[reason];
+    const [isStartingCheckout, setIsStartingCheckout] = React.useState(false);
+    const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         if (!isOpen) return;
+        setCheckoutError(null);
+        setIsStartingCheckout(false);
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = previousOverflow; };
     }, [isOpen]);
 
     if (!isOpen) return null;
+
+    const handleUpgrade = async () => {
+        setCheckoutError(null);
+        setIsStartingCheckout(true);
+        const result = await createCheckoutSessionUrl();
+        setIsStartingCheckout(false);
+
+        if (result.error) {
+            if (result.error === 'NO_SESSION') {
+                onSignInRequired?.();
+                setCheckoutError('로그인 후 Pro 결제를 진행할 수 있습니다.');
+                return;
+            }
+            setCheckoutError(result.error);
+            return;
+        }
+
+        window.location.assign(result.url);
+    };
 
     return (
         <div
@@ -89,14 +114,18 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, rea
                     <div className="mt-6 space-y-2">
                         <button
                             type="button"
-                            onClick={() => {
-                                window.open('mailto:support@clevermonkey.app?subject=Pro Plan Upgrade', '_blank');
-                            }}
-                            className="w-full inline-flex items-center justify-center gap-2 h-14 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-2xl font-bold text-base transition-[transform,background-color] duration-200 active:scale-[0.98] shadow-brand"
+                            onClick={handleUpgrade}
+                            disabled={isStartingCheckout}
+                            className="w-full inline-flex items-center justify-center gap-2 h-14 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-2xl font-bold text-base transition-[transform,background-color] duration-200 active:scale-[0.98] shadow-brand disabled:opacity-60 disabled:cursor-wait disabled:active:scale-100"
                         >
                             <BoltIcon className="text-base" />
-                            Pro로 업그레이드
+                            {isStartingCheckout ? '결제 페이지로 이동 중...' : 'Pro로 업그레이드'}
                         </button>
+                        {checkoutError && (
+                            <p className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-center text-xs font-medium text-danger-700">
+                                {checkoutError}
+                            </p>
+                        )}
                         <button
                             type="button"
                             onClick={onClose}

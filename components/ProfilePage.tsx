@@ -17,6 +17,7 @@ import { AccountSecurityCard } from './AccountSecurityCard';
 import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 import { useToast } from './Toast';
+import { createBillingPortalSessionUrl } from '../services/billingService';
 
 interface ProfilePageProps {
     userEmail: string | null;
@@ -50,6 +51,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const langPref = userProfile?.language;
     const { showToast } = useToast();
     const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+    const [isOpeningBilling, setIsOpeningBilling] = React.useState(false);
 
     const [isEditing, setIsEditing] = React.useState(false);
     const [draftName, setDraftName] = React.useState(displayName ?? '');
@@ -85,6 +87,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         setIsSavingLanguage(false);
         if (!ok) { setLanguageError('언어 설정을 저장하지 못했습니다.'); return; }
         await onLanguageSaved();
+    };
+
+    const handleManageBilling = async () => {
+        setIsOpeningBilling(true);
+        const result = await createBillingPortalSessionUrl();
+        setIsOpeningBilling(false);
+        if (result.error) {
+            showToast(result.error === 'NO_SESSION' ? '로그인 후 결제 관리를 열 수 있습니다.' : result.error, 'error');
+            return;
+        }
+        window.location.assign(result.url);
     };
 
     const startEdit = () => {
@@ -227,7 +240,32 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
 
                 {/* Upgrade promo (only if free) */}
-                {!isPro && (
+                {isPro ? (
+                    <div className="relative rounded-2xl bg-white border border-ink-200 p-6 shadow-card overflow-hidden">
+                        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-50 rounded-full blur-3xl pointer-events-none" />
+                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <Badge tone="brand" variant="soft" size="md">
+                                    <WorkspacePremiumIcon className="text-sm" />
+                                    Pro
+                                </Badge>
+                                <h3 className="mt-3 text-xl font-display font-bold tracking-tight text-ink-900">Pro 플랜 사용 중</h3>
+                                <p className="mt-1 text-sm text-ink-500">
+                                    결제 수단, 인보이스, 구독 변경은 Stripe 보안 포털에서 관리됩니다.
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="md"
+                                onClick={handleManageBilling}
+                                loading={isOpeningBilling}
+                                className="self-start sm:self-center"
+                            >
+                                결제 관리
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
                     <div className="relative rounded-2xl bg-ink-900 text-white p-6 md:p-8 shadow-card overflow-hidden">
                         <div className="absolute -top-24 -right-24 w-72 h-72 bg-brand-500/30 rounded-full blur-3xl pointer-events-none" />
                         <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-400/20 rounded-full blur-3xl pointer-events-none" />
