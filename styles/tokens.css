@@ -86,7 +86,8 @@
                system-ui, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   /* Display = same Pretendard; weight carries hierarchy (per guideline §2.2). */
   --font-display: var(--font-sans);
-  /* Legacy landing accent. Treat as a single-page accent, not a system font. */
+  /* Kept ONLY for the landing hero "My monkey is cleverer than yours." line.
+     Treat as a single-page accent, not a system font. */
   --font-handwritten: 'Gaegu', var(--font-sans);
 
   /* ── Radii (guideline §4.1) ───────────────────────────────────────────── */
