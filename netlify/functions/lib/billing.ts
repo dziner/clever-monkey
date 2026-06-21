@@ -159,6 +159,11 @@ export function subscriptionPriceId(subscription: Stripe.Subscription): string |
   return typeof price?.id === 'string' ? price.id : null;
 }
 
+export function subscriptionMetadataUserId(subscription: Stripe.Subscription): string | null {
+  const userId = subscription.metadata?.userId;
+  return typeof userId === 'string' && userId.length > 0 ? userId : null;
+}
+
 export function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
   const legacySubscription = (invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null }).subscription;
   if (typeof legacySubscription === 'string') return legacySubscription;
@@ -184,7 +189,10 @@ export async function syncSubscriptionToProfile(
   userIdHint?: string | null,
 ): Promise<boolean> {
   const customerId = subscriptionCustomerId(subscription);
-  if (!customerId) return false;
+  if (!customerId) {
+    console.error('[billing] subscription has no customer id', { subscriptionId: subscription.id });
+    return false;
+  }
 
   const tier = subscriptionAllowsPro(subscription.status) ? 'pro' : 'free';
   const patch = {
@@ -198,16 +206,39 @@ export async function syncSubscriptionToProfile(
     stripe_cancel_at_period_end: subscription.cancel_at_period_end,
   };
 
-  let query = admin.from('profiles').update(patch);
-  query = userIdHint ? query.eq('id', userIdHint) : query.eq('stripe_customer_id', customerId);
+  const updateBy = async (column: 'id' | 'stripe_customer_id', value: string): Promise<boolean> => {
+    const { data, error } = await admin
+      .from('profiles')
+      .update(patch)
+      .eq(column, value)
+      .select('id')
+      .maybeSingle();
 
-  const { error } = await query;
-  if (error) {
-    console.error('[billing] failed to sync subscription', error);
-    return false;
-  }
+    if (error) {
+      console.error('[billing] failed to sync subscription', {
+        error,
+        subscriptionId: subscription.id,
+        customerId,
+        lookup: column,
+      });
+      return false;
+    }
 
-  return true;
+    return Boolean(data);
+  };
+
+  const userId = userIdHint ?? subscriptionMetadataUserId(subscription);
+  if (userId && await updateBy('id', userId)) return true;
+  if (await updateBy('stripe_customer_id', customerId)) return true;
+
+  console.error('[billing] no profile matched Stripe subscription sync', {
+    subscriptionId: subscription.id,
+    customerId,
+    userId,
+    status: subscription.status,
+  });
+
+  return false;
 }
 
 export function rawBodyBuffer(event: HandlerEvent): Buffer {

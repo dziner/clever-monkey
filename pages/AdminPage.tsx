@@ -112,12 +112,12 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     const handleTierChange = React.useCallback(async (targetUserId: string, tier: UserTier) => {
         setAccountActionError(null);
         setUpdatingId(targetUserId);
-        const ok = await adminUpdateProfile(targetUserId, { tier });
-        if (ok) {
+        const result = await adminUpdateProfile(targetUserId, { tier });
+        if (result.ok) {
             setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, tier } : u));
             if (targetUserId === userId) await refreshProfile();
         } else {
-            setAccountActionError('요금제 변경에 실패했습니다. 관리자 권한 또는 Supabase 정책을 확인하세요.');
+            setAccountActionError(`요금제 변경에 실패했습니다: ${result.error ?? '관리자 권한 또는 Supabase 정책을 확인하세요.'}`);
         }
         setUpdatingId(null);
     }, [userId, refreshProfile]);
@@ -125,9 +125,9 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
     const handleRoleChange = React.useCallback(async (targetUserId: string, role: UserRole) => {
         setAccountActionError(null);
         setUpdatingId(targetUserId);
-        const ok = await adminUpdateProfile(targetUserId, { role });
-        if (ok) setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, role } : u));
-        else setAccountActionError('권한 변경에 실패했습니다. 관리자 권한 또는 Supabase 정책을 확인하세요.');
+        const result = await adminUpdateProfile(targetUserId, { role });
+        if (result.ok) setUsers(prev => prev.map(u => u.id === targetUserId ? { ...u, role } : u));
+        else setAccountActionError(`권한 변경에 실패했습니다: ${result.error ?? '관리자 권한 또는 Supabase 정책을 확인하세요.'}`);
         setUpdatingId(null);
     }, []);
 
