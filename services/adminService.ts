@@ -6,11 +6,6 @@ export interface AdminUserRow extends UserProfile {
     documentCount: number;
 }
 
-export interface AdminAccountActionResult {
-    ok: boolean;
-    error: string | null;
-}
-
 export async function adminGetUserStats(): Promise<{ rows: AdminUserRow[]; error: string | null }> {
     const { data, error } = await supabase.rpc('admin_get_user_stats');
     if (error) {
@@ -29,17 +24,19 @@ export async function adminGetUserStats(): Promise<{ rows: AdminUserRow[]; error
 export async function adminUpdateProfile(
     userId: string,
     updates: { tier?: UserTier; role?: UserRole }
-): Promise<AdminAccountActionResult> {
+): Promise<boolean> {
     const { error } = await supabase.rpc('admin_update_user_profile', {
         p_user_id: userId,
         p_tier: updates.tier ?? null,
         p_role: updates.role ?? null,
     });
-    if (error) {
-        console.error('[admin] adminUpdateProfile failed:', error);
-        return { ok: false, error: error.message };
-    }
-    return { ok: true, error: null };
+    if (error) console.error('[admin] adminUpdateProfile failed:', error);
+    return !error;
+}
+
+export interface AdminAccountActionResult {
+    ok: boolean;
+    error: string | null;
 }
 
 export async function adminDeactivateUser(

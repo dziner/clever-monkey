@@ -10,17 +10,6 @@ import {
   syncSubscriptionToProfile,
 } from './lib/billing';
 
-async function syncSubscriptionOrThrow(
-  admin: ReturnType<typeof getSupabaseAdmin>,
-  subscription: Stripe.Subscription,
-  userIdHint?: string | null,
-) {
-  const synced = await syncSubscriptionToProfile(admin, subscription, userIdHint);
-  if (!synced) {
-    throw new Error(`Failed to sync Stripe subscription ${subscription.id} to a profile`);
-  }
-}
-
 async function syncInvoiceSubscription(stripe: Stripe, admin = getSupabaseAdmin(), invoice: Stripe.Invoice) {
   const subscriptionId = invoiceSubscriptionId(invoice);
   if (!subscriptionId) return;
@@ -28,7 +17,7 @@ async function syncInvoiceSubscription(stripe: Stripe, admin = getSupabaseAdmin(
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
     expand: ['items.data.price'],
   });
-  await syncSubscriptionOrThrow(admin, subscription);
+  await syncSubscriptionToProfile(admin, subscription);
 }
 
 export const handler: Handler = async (event) => {
@@ -60,14 +49,14 @@ export const handler: Handler = async (event) => {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
             expand: ['items.data.price'],
           });
-          await syncSubscriptionOrThrow(admin, subscription, session.metadata?.userId ?? session.client_reference_id);
+          await syncSubscriptionToProfile(admin, subscription, session.metadata?.userId ?? session.client_reference_id);
         }
         break;
       }
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        await syncSubscriptionOrThrow(admin, stripeEvent.data.object as Stripe.Subscription);
+        await syncSubscriptionToProfile(admin, stripeEvent.data.object as Stripe.Subscription);
         break;
       }
       case 'invoice.paid':
