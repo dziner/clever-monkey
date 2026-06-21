@@ -18,19 +18,19 @@ export interface DocumentRow {
   file_type: 'pdf' | 'image' | 'text';
   storage_path: string | null;
   summary: string | null;
-  chat_history: DocumentData['chatHistory'] | null;
-  preset_questions: unknown;
+  chat_history?: DocumentData['chatHistory'] | null;
+  preset_questions?: unknown;
   token_count: number | null;
   processing_state: DocumentData['processingState'] | null;
   error_message: string | null;
   model: DocumentData['model'] | null;
   answer_scope: 'document' | 'general' | null;
   monkey_mode: boolean | null;
-  document_content: string | null;
-  quiz_tab_data: DocumentData['quizTabData'] | null;
-  mind_map_data: DocumentData['mindMapData'] | null;
-  slides_data: DocumentData['slidesData'] | null;
-  podcast_data: DocumentData['podcastData'] | null;
+  document_content?: string | null;
+  quiz_tab_data?: DocumentData['quizTabData'] | null;
+  mind_map_data?: DocumentData['mindMapData'] | null;
+  slides_data?: DocumentData['slidesData'] | null;
+  podcast_data?: DocumentData['podcastData'] | null;
   created_at: string;
 }
 
@@ -41,7 +41,11 @@ export function mapFolderRow(folder: FolderRow): Folder {
   };
 }
 
-export function mapDocumentRow(doc: DocumentRow, fallbackWelcome: ChatMessage): DocumentData {
+export function mapDocumentRow(
+  doc: DocumentRow,
+  fallbackWelcome: ChatMessage,
+  options: { detailsLoaded?: boolean } = {},
+): DocumentData {
   const chatHistory = Array.isArray(doc.chat_history) && doc.chat_history.length > 0
     ? doc.chat_history
     : [fallbackWelcome];
@@ -73,5 +77,6 @@ export function mapDocumentRow(doc: DocumentRow, fallbackWelcome: ChatMessage): 
     slidesData: doc.slides_data ?? undefined,
     podcastData: doc.podcast_data ?? undefined,
     currentPage: 1,
+    detailsLoaded: options.detailsLoaded ?? true,
   };
 }

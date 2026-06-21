@@ -62,6 +62,28 @@ describe('documentMapper', () => {
         expect(doc.documentContent).toBe('Full extracted text');
         expect(doc.folderId).toBe('folder-1');
         expect(doc.currentPage).toBe(1);
+        expect(doc.detailsLoaded).toBe(true);
+    });
+
+    it('maps lightweight list rows before active-document hydration', () => {
+        const doc = mapDocumentRow(row({
+            chat_history: undefined,
+            preset_questions: undefined,
+            document_content: undefined,
+            quiz_tab_data: undefined,
+            mind_map_data: undefined,
+            slides_data: undefined,
+            podcast_data: undefined,
+        }), fallbackWelcome, { detailsLoaded: false });
+
+        expect(doc.chatHistory).toEqual([fallbackWelcome]);
+        expect(doc.presetQuestions).toBeUndefined();
+        expect(doc.documentContent).toBeUndefined();
+        expect(doc.quizTabData).toBeUndefined();
+        expect(doc.mindMapData).toBeUndefined();
+        expect(doc.slidesData).toBeUndefined();
+        expect(doc.podcastData).toBeUndefined();
+        expect(doc.detailsLoaded).toBe(false);
     });
 
     it('uses the fallback welcome for legacy rows with empty chat history', () => {

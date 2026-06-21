@@ -4,6 +4,37 @@ import type { DocumentData, DocumentState, DocumentAction } from '../types';
 import { buildInitialBotMessage } from '../constants';
 import { supabase } from '../services/supabaseClient';
 import { mapDocumentRow, mapFolderRow, type DocumentRow, type FolderRow } from '../services/documentMapper';
+import { normalizePresetQuestions } from '../utils/presetQuestions';
+
+const DOCUMENT_LIST_COLUMNS = [
+  'id',
+  'user_id',
+  'folder_id',
+  'file_name',
+  'file_size',
+  'file_mime',
+  'file_type',
+  'storage_path',
+  'summary',
+  'token_count',
+  'processing_state',
+  'error_message',
+  'model',
+  'answer_scope',
+  'monkey_mode',
+  'created_at',
+].join(', ');
+
+const DOCUMENT_DETAIL_COLUMNS = [
+  'id',
+  'chat_history',
+  'preset_questions',
+  'document_content',
+  'quiz_tab_data',
+  'mind_map_data',
+  'slides_data',
+  'podcast_data',
+].join(', ');
 
 const DocumentContext = React.createContext<{
   state: DocumentState;
@@ -131,6 +162,11 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     podcastData: DocumentData['podcastData'];
   }>>({});
   const contentSyncInitializedRef = React.useRef(false);
+  const downloadingStoragePathsRef = React.useRef<Set<string>>(new Set());
+  const activeDocument = state.documents.find(doc => doc.id === state.activeDocumentId);
+  const activeDetailsLoaded = activeDocument?.detailsLoaded;
+  const activeStoragePath = activeDocument?.storagePath;
+  const activeHasFile = Boolean(activeDocument?.file);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -165,7 +201,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         const { data: documentRows, error: documentError } = await supabase
           .from('documents')
-          .select('*')
+          .select(DOCUMENT_LIST_COLUMNS)
           .eq('user_id', userId)
           .order('created_at', { ascending: false });
 
@@ -178,8 +214,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // welcome via useFileHandler. Falling back to the browser language
         // here keeps the UI consistent without needing a UserContext dep.
         const fallbackWelcome = buildInitialBotMessage(null);
-        const documents: DocumentData[] = (documentRows as DocumentRow[] || [])
-          .map(doc => mapDocumentRow(doc, fallbackWelcome));
+        const documents: DocumentData[] = ((documentRows ?? []) as unknown as DocumentRow[])
+          .map(doc => mapDocumentRow(doc, fallbackWelcome, { detailsLoaded: false }));
 
         const activeDocumentId = documents[0]?.id ?? null;
         const activeFolderId = folders[0]?.id ?? null;
@@ -240,11 +276,69 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   React.useEffect(() => {
-    const activeDoc = state.documents.find(doc => doc.id === state.activeDocumentId);
+    const activeDoc = activeDocument;
+    if (!activeDoc || activeDoc.detailsLoaded !== false) return;
+
+    let isActive = true;
+    const fallbackWelcome = buildInitialBotMessage(null);
+
+    const hydrateActiveDocument = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('documents')
+          .select(DOCUMENT_DETAIL_COLUMNS)
+          .eq('id', activeDoc.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('문서 상세 데이터를 불러오지 못했습니다:', error);
+          return;
+        }
+        if (!isActive || !data) return;
+
+        const detail = data as Partial<DocumentRow>;
+        const chatHistory = Array.isArray(detail.chat_history) && detail.chat_history.length > 0
+          ? detail.chat_history
+          : [fallbackWelcome];
+
+        dispatch({
+          type: 'UPDATE_DOCUMENT',
+          payload: {
+            docId: activeDoc.id,
+            updates: {
+              chatHistory,
+              presetQuestions: detail.preset_questions === undefined
+                ? activeDoc.presetQuestions
+                : normalizePresetQuestions(detail.preset_questions),
+              documentContent: detail.document_content ?? undefined,
+              quizTabData: detail.quiz_tab_data ?? undefined,
+              mindMapData: detail.mind_map_data ?? undefined,
+              slidesData: detail.slides_data ?? undefined,
+              podcastData: detail.podcast_data ?? undefined,
+              detailsLoaded: true,
+            },
+          },
+        });
+      } catch (error) {
+        console.error('문서 상세 데이터 로딩 중 오류가 발생했습니다:', error);
+      }
+    };
+
+    hydrateActiveDocument();
+
+    return () => {
+      isActive = false;
+    };
+  }, [state.activeDocumentId, activeDetailsLoaded]);
+
+  React.useEffect(() => {
+    const activeDoc = activeDocument;
     if (!activeDoc || activeDoc.file || !activeDoc.storagePath) return;
+    if (downloadingStoragePathsRef.current.has(activeDoc.storagePath)) return;
 
     let isActive = true;
     const downloadFile = async () => {
+      downloadingStoragePathsRef.current.add(activeDoc.storagePath!);
       try {
         const { data, error } = await supabase.storage
           .from('docs')
@@ -268,6 +362,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       } catch (error) {
         console.error('파일 다운로드 중 오류가 발생했습니다:', error);
+      } finally {
+        downloadingStoragePathsRef.current.delete(activeDoc.storagePath!);
       }
     };
 
@@ -276,7 +372,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       isActive = false;
     };
-  }, [state.activeDocumentId, state.documents]);
+  }, [state.activeDocumentId, activeStoragePath, activeHasFile]);
 
   // Persist generated content (quiz, mindmap, slides, podcast) to Supabase when changed
   React.useEffect(() => {

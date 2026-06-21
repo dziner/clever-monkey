@@ -122,6 +122,8 @@ export interface DocumentData {
     /** Voice the saved audio was synthesized with (restores the picker). */
     voice?: string;
   } | null;
+  /** False for lightweight list rows; active documents hydrate heavy fields lazily. */
+  detailsLoaded?: boolean;
 }
 
 /**
