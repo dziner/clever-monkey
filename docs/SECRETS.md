@@ -12,7 +12,6 @@ This project uses these external services, each with their own secrets:
 | **Groq** *(optional)* | Fallback / overflow AI provider (OpenAI-wire compatible) | `GROQ_API_KEY` (server-only) |
 | **Cerebras** *(optional)* | Extra fallback AI provider (OpenAI-wire compatible) | `CEREBRAS_API_KEY` (server-only) |
 | **Supabase** | Auth, database, file storage | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (client), `SUPABASE_SERVICE_ROLE_KEY` (server) |
-| **Stripe** | Pro subscription checkout, billing portal, webhook sync | `STRIPE_SECRET_KEY`, `STRIPE_PRO_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `APP_BASE_URL` |
 | **Google OAuth** | "Continue with Google" sign-in | Configured **inside Supabase**, not in app code |
 
 ### Multi-provider AI routing
@@ -44,10 +43,6 @@ edit the `TASK_ROUTES` table in `netlify/functions/lib/router.ts`.
 | `SUPABASE_SERVICE_ROLE_KEY` | Full-access Supabase admin | **Server-only** | Supabase dashboard → Project Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | Supabase public client | OK to expose | Same place — *anon public* key |
 | `VITE_SUPABASE_URL` | Supabase project endpoint | OK to expose | Same place — Project URL |
-| `STRIPE_SECRET_KEY` | Creates Checkout and Billing Portal sessions | **Server-only** | Stripe dashboard → Developers → API keys |
-| `STRIPE_PRO_PRICE_ID` | Recurring Pro subscription price used by Checkout | **Server-only** | Stripe dashboard → Product catalog → Price |
-| `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhook signatures | **Server-only** | Stripe dashboard → Webhooks or `stripe listen` |
-| `APP_BASE_URL` | Absolute app URL used for Stripe redirects | **Server-only** | Your production origin, e.g. `https://clevermonkey.app` |
 
 ### Gemini key rotation pool
 
@@ -112,11 +107,6 @@ redeployed, the live site breaks.
 
   SUPABASE_SERVICE_ROLE_KEY=...
   SUPABASE_URL=...
-
-  STRIPE_SECRET_KEY=sk_test_...
-  STRIPE_PRO_PRICE_ID=price_...
-  STRIPE_WEBHOOK_SECRET=whsec_...
-  APP_BASE_URL=http://localhost:8888
   ```
 - [ ] `.env.local` is gitignored — never commit it.
 - [ ] Restart the dev server (`npm run dev` / `netlify dev`) — env is
@@ -227,8 +217,6 @@ app runs on must be allow-listed:
 | Adding more Gemini keys (rotation pool) | ❌ | ✅ append to `GEMINI_API_KEYS` | ✅ same | ❌ | ❌ |
 | Supabase keys rotated | ❌ | ✅ anon + service_role | ✅ anon + service_role | ❌ | ❌ |
 | Supabase project URL changed | ❌ | ✅ `VITE_SUPABASE_URL` + `SUPABASE_URL` | ✅ same | Update Site URL / Redirect URLs | Update Authorized redirect URI to new `<PROJECT_REF>.supabase.co/auth/v1/callback` |
-| Stripe key or webhook secret rotated | ❌ | ✅ Stripe server envs | ✅ same | ❌ | ❌ |
-| Stripe Pro price changed | ❌ | ✅ `STRIPE_PRO_PRICE_ID` | ✅ same | ❌ | ❌ |
 | Google OAuth client rotated | ❌ | ❌ | ❌ | ✅ Providers → Google: Client ID + Secret | ✅ new OAuth client + redirect URI |
 
 **The app code never needs changes for any of these rotations** —

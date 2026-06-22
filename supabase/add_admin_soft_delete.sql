@@ -115,7 +115,7 @@ begin
 end; $$;
 
 -- Keep the tier/role update RPC in this migration too. The Users tab needs
--- this function even when Stripe checkout has not been enabled yet.
+-- this function even when no payment-provider automation is enabled.
 create or replace function public.admin_update_user_profile(
   p_user_id uuid,
   p_tier text default null,

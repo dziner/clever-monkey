@@ -1,12 +1,12 @@
 import * as React from 'react';
 import { XIcon, WorkspacePremiumIcon, BoltIcon, CheckIcon } from './icons';
-import { createCheckoutSessionUrl } from '../services/billingService';
+import { openProRequestEmail, type ProRequestReason } from '../services/proRequest';
 
 interface UpgradeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSignInRequired?: () => void;
-    reason?: 'documents' | 'ai_actions' | 'generic';
+    userEmail?: string | null;
+    reason?: ProRequestReason;
 }
 
 const PRO_FEATURES = [
@@ -20,27 +20,23 @@ const PRO_FEATURES = [
 const REASON_COPY = {
     documents: {
         title: '문서 한도에 도달했습니다',
-        desc: 'Free 플랜은 최대 5개의 문서를 지원합니다. Pro로 업그레이드하면 무제한으로 업로드할 수 있습니다.',
+        desc: 'Free 플랜은 최대 5개의 문서를 지원합니다. Pro 전환이 필요하면 메일로 요청해 주세요.',
     },
     ai_actions: {
         title: '오늘의 AI 사용량을 모두 썼습니다',
-        desc: 'Free 플랜은 하루 20회 AI 기능을 사용할 수 있습니다. Pro로 업그레이드하면 제한 없이 사용할 수 있습니다.',
+        desc: 'Free 플랜은 하루 20회 AI 기능을 사용할 수 있습니다. Pro 전환이 필요하면 메일로 요청해 주세요.',
     },
     generic: {
-        title: 'Pro 플랜으로 업그레이드',
-        desc: '더 많은 기능과 무제한 사용을 원한다면 Pro를 이용하세요.',
+        title: 'Pro 플랜 전환 요청',
+        desc: '더 많은 기능과 무제한 사용이 필요하면 Pro 전환을 메일로 요청하세요.',
     },
 };
 
-export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onSignInRequired, reason = 'generic' }) => {
+export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, userEmail, reason = 'generic' }) => {
     const copy = REASON_COPY[reason];
-    const [isStartingCheckout, setIsStartingCheckout] = React.useState(false);
-    const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         if (!isOpen) return;
-        setCheckoutError(null);
-        setIsStartingCheckout(false);
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = previousOverflow; };
@@ -48,24 +44,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onS
 
     if (!isOpen) return null;
 
-    const handleUpgrade = async () => {
-        setCheckoutError(null);
-        setIsStartingCheckout(true);
-        const result = await createCheckoutSessionUrl();
-        setIsStartingCheckout(false);
-
-        if (result.error) {
-            if (result.error === 'NO_SESSION') {
-                onSignInRequired?.();
-                setCheckoutError('로그인 후 Pro 결제를 진행할 수 있습니다.');
-                return;
-            }
-            setCheckoutError(result.error);
-            return;
-        }
-
-        window.location.assign(result.url);
-    };
+    const handleUpgrade = () => openProRequestEmail({ reason, userEmail });
 
     return (
         <div
@@ -115,17 +94,11 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onS
                         <button
                             type="button"
                             onClick={handleUpgrade}
-                            disabled={isStartingCheckout}
-                            className="w-full inline-flex items-center justify-center gap-2 h-14 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-2xl font-bold text-base transition-[transform,background-color] duration-200 active:scale-[0.98] shadow-brand disabled:opacity-60 disabled:cursor-wait disabled:active:scale-100"
+                            className="w-full inline-flex items-center justify-center gap-2 h-14 bg-brand-500 hover:bg-brand-600 active:bg-brand-800 text-white rounded-2xl font-bold text-base transition-[transform,background-color] duration-200 active:scale-[0.98] shadow-brand"
                         >
                             <BoltIcon className="text-base" />
-                            {isStartingCheckout ? '결제 페이지로 이동 중...' : 'Pro로 업그레이드'}
+                            Pro 요청 메일 보내기
                         </button>
-                        {checkoutError && (
-                            <p className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-center text-xs font-medium text-danger-700">
-                                {checkoutError}
-                            </p>
-                        )}
                         <button
                             type="button"
                             onClick={onClose}
@@ -136,7 +109,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose, onS
                     </div>
 
                     <p className="text-center text-xs text-ink-400 mt-4">
-                        문의: <a href="mailto:support@clevermonkey.app" className="text-brand-600 hover:underline font-medium">support@clevermonkey.app</a>
+                        메일 앱이 열리면 계정 이메일을 확인해 보내 주세요.
                     </p>
                 </div>
             </div>

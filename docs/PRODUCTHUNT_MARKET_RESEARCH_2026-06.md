@@ -35,7 +35,7 @@ Clever Monkey는 사용자가 PDF, 이미지, 텍스트/마크다운 자료를 �
 | 플래시카드 | 문서 기반 카드 생성, due/practice 모드, SM-2 계열 interval 업데이트 | `components/FlashcardsTab.tsx`, `services/flashcardsService.ts` |
 | 마인드맵 | 문서 기반 계층형 마인드맵 생성 | `generateMindMap` |
 | 팟캐스트 | 단일 내레이터 스크립트, TTS 음성 선택, Supabase 저장 복원 | `components/PodcastTab.tsx`, `synthesizeSpeech` |
-| 과금/계정 | guest/free/pro 제한, Supabase Auth, Stripe checkout/portal 엔드포인트 | `types.ts`, `services/billingService.ts` |
+| 과금/계정 | guest/free/pro 제한, Supabase Auth, Pro 전환 메일 요청 | `types.ts`, `services/proRequest.ts` |
 
 현재 제품은 "요약기"가 아니라 "input material -> active recall -> review memory -> audio recap"까지 이어지는 학습 엔진이다.
 

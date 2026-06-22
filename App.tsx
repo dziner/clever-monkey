@@ -19,7 +19,6 @@ import { useUser } from './contexts/UserContext';
 import { isAdminUser } from './services/adminConfig';
 import { ROUTES } from './routes';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useToast } from './components/Toast';
 
 const StudyPage = React.lazy(() => import('./pages/StudyPage').then(m => ({ default: m.StudyPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(m => ({ default: m.AdminPage })));
@@ -55,7 +54,6 @@ const App: React.FC = () => {
     useBackgroundProcessing();
     const navigate = useNavigate();
     const location = useLocation();
-    const { showToast } = useToast();
     const isLegalRoute = location.pathname === ROUTES.PRIVACY || location.pathname === ROUTES.TERMS;
     const isKnownRoute = Object.values(ROUTES).includes(location.pathname as (typeof ROUTES)[keyof typeof ROUTES]);
 
@@ -128,22 +126,6 @@ const App: React.FC = () => {
     const totalFileSize = state.documents.reduce((acc, doc) => acc + (doc.fileSize || 0), 0);
     const storageUsage = formatBytes(totalFileSize);
     const planName = userProfile?.tier === 'pro' ? 'Pro' : 'Free';
-
-    React.useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const billing = params.get('billing');
-        if (!billing) return;
-
-        if (billing === 'success') {
-            showToast('결제 확인 중입니다. 잠시 후 Pro 상태가 반영됩니다.', 'success');
-            void refreshProfile();
-            window.setTimeout(() => { void refreshProfile(); }, 2500);
-        } else if (billing === 'cancelled') {
-            showToast('결제가 취소되었습니다.', 'info');
-        }
-
-        navigate(location.pathname, { replace: true });
-    }, [location.pathname, location.search, navigate, refreshProfile, showToast]);
 
     const needsName = !!userProfile && !userProfile.displayName && !isInactiveAccount;
 
@@ -222,11 +204,8 @@ const App: React.FC = () => {
                 <UpgradeModal
                     isOpen={isUpgradeOpen}
                     reason={upgradeReason}
+                    userEmail={userEmail}
                     onClose={closeUpgrade}
-                    onSignInRequired={() => {
-                        closeUpgrade();
-                        setIsAuthModalOpen(true);
-                    }}
                 />
                 <React.Suspense fallback={<PageLoader />}>
                     <AdminPage onMenuClick={() => {}} />
@@ -240,6 +219,12 @@ const App: React.FC = () => {
         return (
             <React.Fragment>
                 {authUI}
+                <UpgradeModal
+                    isOpen={isUpgradeOpen}
+                    reason={upgradeReason}
+                    userEmail={userEmail}
+                    onClose={closeUpgrade}
+                />
                 <ProfilePage
                     userEmail={userEmail}
                     displayName={userProfile?.displayName ?? null}
@@ -293,11 +278,8 @@ const App: React.FC = () => {
             <UpgradeModal
                 isOpen={isUpgradeOpen}
                 reason={upgradeReason}
+                userEmail={userEmail}
                 onClose={closeUpgrade}
-                onSignInRequired={() => {
-                    closeUpgrade();
-                    setIsAuthModalOpen(true);
-                }}
             />
 
             {/* Sidebar — Mobile overlay */}

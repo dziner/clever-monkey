@@ -17,7 +17,7 @@ import { AccountSecurityCard } from './AccountSecurityCard';
 import { useUser } from '../contexts/UserContext';
 import { t } from '../services/uiStrings';
 import { useToast } from './Toast';
-import { createBillingPortalSessionUrl } from '../services/billingService';
+import { openProRequestEmail } from '../services/proRequest';
 
 interface ProfilePageProps {
     userEmail: string | null;
@@ -51,7 +51,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const langPref = userProfile?.language;
     const { showToast } = useToast();
     const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
-    const [isOpeningBilling, setIsOpeningBilling] = React.useState(false);
 
     const [isEditing, setIsEditing] = React.useState(false);
     const [draftName, setDraftName] = React.useState(displayName ?? '');
@@ -89,16 +88,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         await onLanguageSaved();
     };
 
-    const handleManageBilling = async () => {
-        setIsOpeningBilling(true);
-        const result = await createBillingPortalSessionUrl();
-        setIsOpeningBilling(false);
-        if (result.error) {
-            showToast(result.error === 'NO_SESSION' ? '로그인 후 결제 관리를 열 수 있습니다.' : result.error, 'error');
-            return;
-        }
-        window.location.assign(result.url);
-    };
+    const handleProRequest = () => openProRequestEmail({ reason: 'generic', userEmail });
 
     const startEdit = () => {
         setDraftName(displayName ?? '');
@@ -251,17 +241,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                                 </Badge>
                                 <h3 className="mt-3 text-xl font-display font-bold tracking-tight text-ink-900">Pro 플랜 사용 중</h3>
                                 <p className="mt-1 text-sm text-ink-500">
-                                    결제 수단, 인보이스, 구독 변경은 Stripe 보안 포털에서 관리됩니다.
+                                    Pro 상태 변경이나 결제 관련 문의는 운영자에게 메일로 요청해 주세요.
                                 </p>
                             </div>
                             <Button
                                 variant="outline"
                                 size="md"
-                                onClick={handleManageBilling}
-                                loading={isOpeningBilling}
+                                onClick={handleProRequest}
                                 className="self-start sm:self-center"
                             >
-                                결제 관리
+                                Pro 문의
                             </Button>
                         </div>
                     </div>
@@ -276,7 +265,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                             </Badge>
                             <h3 className="mt-3 text-2xl md:text-3xl font-display font-bold tracking-tight">Pro로 한 단계 더</h3>
                             <p className="mt-2 text-sm text-brand-100/90 max-w-md">
-                                업로드 한도 확대, 우선 처리, 고급 분석, 프리미엄 AI 모델까지 — 학습이 막힘없이 흐릅니다.
+                                업로드 한도 확대, 우선 처리, 고급 분석, 프리미엄 AI 모델까지 — Pro 전환은 메일 요청으로 처리됩니다.
                             </p>
                             <ul className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                 {['높은 업로드 한도', '우선 처리 큐', '고급 분석 대시보드', '프리미엄 AI 모델'].map(item => (
@@ -292,7 +281,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                                 onClick={onUpgrade}
                                 className="mt-6 bg-white text-brand-700 hover:bg-brand-50 shadow-pop"
                             >
-                                Pro 업그레이드
+                                Pro 요청하기
                             </Button>
                         </div>
                     </div>

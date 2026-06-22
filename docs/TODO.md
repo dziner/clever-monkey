@@ -30,11 +30,10 @@
 
 ## Done
 
-- [x] 2026-06-18 Stripe Pro 결제 연동 1차 구현
-  - 구조: Stripe Checkout/Portal은 Netlify Functions에서 생성하고, webhook 서명 검증 후 Supabase `profiles.tier`를 갱신.
-  - 보안: 브라우저의 직접 tier/role/stripe 필드 업데이트를 막기 위한 `supabase/add_stripe_billing.sql` 추가.
-  - 프론트: UpgradeModal은 Checkout으로 이동하고, Pro 사용자는 Profile에서 Billing Portal을 열 수 있음.
-  - 문서: `docs/STRIPE_BILLING_SETUP.md`, `.env.example`, `docs/SECRETS.md` 업데이트.
+- [x] 2026-06-22 Pro 전환 메일 요청 방식으로 변경
+  - 결정: 결제 provider 연동은 main에서 제거하고, Paddle 결제는 별도 브랜치에서 진행.
+  - 수정: Pro CTA는 외부 결제 페이지 이동 대신 `support@clevermonkey.app`으로 요청 메일을 작성.
+  - 정리: 결제 자동화 함수, provider SDK, 관련 migration/setup 문서를 제거.
 
 - [x] 2026-06-18 AI 생성 작업 동시 실행 방지
   - 현상: 팟캐스트 생성 중 퀴즈 생성을 시작하면 순간 요청 부하가 몰리며 오류가 발생할 수 있었다.

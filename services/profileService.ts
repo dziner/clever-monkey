@@ -3,7 +3,7 @@ import { mapProfileRow } from './profileMapper';
 import type { UserProfile } from '../types';
 
 const PROFILE_COLUMNS =
-    'id, email, display_name, role, tier, tier_expires_at, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_price_id, stripe_current_period_end, stripe_cancel_at_period_end, account_status, deactivated_at, deactivated_by, deactivation_reason, restore_until, ai_actions_today, ai_actions_date, created_at, language';
+    'id, email, display_name, role, tier, tier_expires_at, account_status, deactivated_at, deactivated_by, deactivation_reason, restore_until, ai_actions_today, ai_actions_date, created_at, language';
 
 const LEGACY_PROFILE_COLUMNS =
     'id, email, display_name, role, tier, tier_expires_at, ai_actions_today, ai_actions_date, created_at, language';
@@ -11,7 +11,7 @@ const LEGACY_PROFILE_COLUMNS =
 function isMissingProfileColumn(error: unknown): boolean {
     const e = error as { code?: string; message?: string } | null;
     const msg = `${e?.code ?? ''} ${e?.message ?? ''}`.toLowerCase();
-    return msg.includes('42703') || msg.includes('account_status') || msg.includes('restore_until') || msg.includes('stripe_');
+    return msg.includes('42703') || msg.includes('account_status') || msg.includes('restore_until');
 }
 
 export async function getMyProfile(): Promise<UserProfile | null> {
