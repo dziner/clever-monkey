@@ -23,6 +23,13 @@ const DIRECTION_ONLY_PATTERN =
   /^\s*(?:\[[^\]]{1,80}\]|\([^)]{1,80}\)|（[^）]{1,80}）)\s*$/;
 const LEADING_DIRECTION_PATTERN =
   /^\s*(?:\[[^\]]{1,80}\]|\([^)]{1,80}\)|（[^）]{1,80}）)\s*/;
+const SENTENCE_PATTERN = /[^.!?。！？\n]+[.!?。！？]+(?:["'”’）)]*)?|[^.!?。！？\n]+$/g;
+
+function splitIntoSentences(text: string): string[] {
+  return (text.match(SENTENCE_PATTERN) ?? [text])
+    .map(sentence => sentence.trim())
+    .filter(Boolean);
+}
 
 function splitOversizedText(text: string, maxChars: number): string[] {
   const parts: string[] = [];
@@ -36,7 +43,7 @@ function splitOversizedText(text: string, maxChars: number): string[] {
 function splitParagraphIntoUnits(paragraph: string, maxChars: number): string[] {
   if (paragraph.length <= maxChars) return [paragraph];
 
-  const sentences = paragraph.match(/[^.!?。！？\n]+[.!?。！？]+(?:["'”’）)]*)?|[^.!?。！？\n]+$/g) ?? [paragraph];
+  const sentences = splitIntoSentences(paragraph);
   return sentences.flatMap(sentence => {
     const trimmed = sentence.trim();
     return trimmed.length > maxChars ? splitOversizedText(trimmed, maxChars) : [trimmed];
@@ -96,4 +103,22 @@ export function splitTextForTts(text: string, maxChars = TTS_SAFE_CHUNK_CHARS): 
 
   if (current) chunks.push(current);
   return chunks;
+}
+
+export function splitTtsChunkForRetry(text: string): [string, string] | null {
+  const trimmed = text.trim();
+  if (trimmed.length < 80) return null;
+
+  const sentences = splitIntoSentences(trimmed);
+  if (sentences.length >= 2) {
+    const mid = Math.floor(sentences.length / 2);
+    const left = sentences.slice(0, mid).join(' ').trim();
+    const right = sentences.slice(mid).join(' ').trim();
+    return left && right ? [left, right] : null;
+  }
+
+  const mid = Math.floor(trimmed.length / 2);
+  const left = trimmed.slice(0, mid).trim();
+  const right = trimmed.slice(mid).trim();
+  return left && right ? [left, right] : null;
 }

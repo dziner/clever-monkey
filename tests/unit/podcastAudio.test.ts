@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizePodcastScriptForSingleNarrator,
   splitTextForTts,
+  splitTtsChunkForRetry,
   TTS_SAFE_CHUNK_CHARS,
 } from '../../utils/podcastAudio';
 
@@ -46,5 +47,38 @@ describe('splitTextForTts', () => {
     expect(chunks.every(chunk => chunk.length <= TTS_SAFE_CHUNK_CHARS)).toBe(true);
     expect(chunks.join('\n\n')).toContain('Paragraph 0.');
     expect(chunks.join('\n\n')).toContain('Paragraph 7.');
+  });
+});
+
+describe('splitTtsChunkForRetry', () => {
+  it('splits a failed Korean TTS chunk on sentence boundaries', () => {
+    const text = [
+      '첫 번째 개념은 세포가 에너지를 저장하는 방식입니다.',
+      '두 번째 개념은 ATP가 필요한 순간에 다시 분해된다는 점입니다.',
+      '마지막으로 이 흐름을 호흡 과정 전체와 연결해 볼 수 있습니다.',
+      '복습할 때는 입력과 출력의 관계를 떠올리면 좋습니다.',
+    ].join(' ');
+
+    const split = splitTtsChunkForRetry(text);
+
+    expect(split).not.toBeNull();
+    expect(split?.[0]).toContain('첫 번째 개념');
+    expect(split?.[0]).toContain('두 번째 개념');
+    expect(split?.[1]).toContain('마지막으로');
+    expect(split?.[1]).toContain('복습할 때');
+  });
+
+  it('falls back to a character split when sentence boundaries are absent', () => {
+    const text = 'x'.repeat(120);
+    const split = splitTtsChunkForRetry(text);
+
+    expect(split).not.toBeNull();
+    expect(split?.[0].length).toBeGreaterThan(0);
+    expect(split?.[1].length).toBeGreaterThan(0);
+    expect(`${split?.[0]}${split?.[1]}`).toHaveLength(120);
+  });
+
+  it('does not split tiny chunks', () => {
+    expect(splitTtsChunkForRetry('짧은 문장입니다.')).toBeNull();
   });
 });

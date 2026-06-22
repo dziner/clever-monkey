@@ -9,7 +9,7 @@ import { estimateTokens, sampleEvenly, CONTENT_BUDGET } from '../utils/promptBud
 import { createDiagnosticErrorInfo } from '../utils/diagnostics';
 import { logDiagnosticEvent } from './diagnostics';
 import { cleanAndParseJSON } from '../utils/jsonRepair';
-import { normalizePodcastScriptForSingleNarrator, splitTextForTts } from '../utils/podcastAudio';
+import { normalizePodcastScriptForSingleNarrator, splitTextForTts, splitTtsChunkForRetry } from '../utils/podcastAudio';
 import { normalizePresetQuestions } from '../utils/presetQuestions';
 import { buildQuizAvoidanceBlock } from '../utils/quizMemory';
 import {
@@ -35,10 +35,17 @@ async function getAuthHeader(): Promise<string | null> {
   return token ? `Bearer ${token}` : null;
 }
 
-async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Promise<T> {
+async function callGemini<T>(
+  payload: GeminiPayload,
+  signal?: AbortSignal,
+  diagnosticContext?: Record<string, unknown>,
+): Promise<T> {
   const authHeader = await getAuthHeader();
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (authHeader) headers['authorization'] = authHeader;
+  const context = diagnosticContext
+    ? { ...summarizeGeminiPayload(payload), ...diagnosticContext }
+    : summarizeGeminiPayload(payload);
 
   let res: Response;
   try {
@@ -56,7 +63,7 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
       model: modelForPayload(payload),
       storagePath: storagePathForPayload(payload),
       error: createDiagnosticErrorInfo(error),
-      context: summarizeGeminiPayload(payload),
+      context,
     });
     throw error;
   }
@@ -71,7 +78,7 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
       model: modelForPayload(payload),
       storagePath: storagePathForPayload(payload),
       error: { message: rawMsg, status: res.status },
-      context: summarizeGeminiPayload(payload),
+      context,
     });
     // 413 / "Request too large" / "Prompt too large" all mean the body
     // hit our function cap. PDFs route around it via the storage path,
@@ -82,7 +89,9 @@ async function callGemini<T>(payload: GeminiPayload, signal?: AbortSignal): Prom
     if (res.status === 413 || /too large/i.test(rawMsg)) {
       throw new Error('FILE_TOO_LARGE');
     }
-    throw new Error(rawMsg);
+    const error = new Error(rawMsg) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
   }
   return data as T;
 }
@@ -717,7 +726,8 @@ export async function synthesizeSpeech(
   onProgress: (done: number, total: number) => void,
   signal?: AbortSignal
 ): Promise<Blob> {
-  const chunks = splitTextForTts(normalizePodcastScriptForSingleNarrator(text));
+  const normalizedScript = normalizePodcastScriptForSingleNarrator(text);
+  const chunks = splitTextForTts(normalizedScript);
   if (chunks.length === 0) {
     throw new Error('No text available for speech synthesis.');
   }
@@ -731,51 +741,52 @@ export async function synthesizeSpeech(
   // boundaries, which the user perceives as multiple speakers.
   const pcmBuffers: Uint8Array[] = [];
 
+  const TTS_RETRY_ATTEMPTS = 2;
+  const TTS_RETRY_DELAY_MS = 1500;
+  const TTS_MAX_SPLIT_DEPTH = 2;
+
+  type TtsChunkMeta = {
+    chunkIndex: number;
+    totalChunks: number;
+    splitDepth: number;
+    splitPart: 'root' | 'left' | 'right';
+  };
+
   // TTS preview model is unstable, and the server-side retry budget has
   // to live inside a ~26 s function timeout — so the client owns the
-  // longer-horizon retries where it has no such limit:
-  //
-  //   1. Same-chunk retry: try the exact text once more after a short
-  //      backoff. Most transient failures (INTERNAL/UNAVAILABLE/504/timeout)
-  //      clear on the second attempt because they're upstream throttling,
-  //      not anything wrong with the input.
-  //   2. Split-half fallback: when the same chunk fails twice in a row,
-  //      split it on a sentence boundary and try each half once.
-  //      Smaller inputs are markedly more likely to succeed because the
-  //      model is rate-limited per second of audio output.
-  const requestChunk = async (text: string): Promise<Uint8Array> => {
+  // longer-horizon retries where it has no such limit. If the original
+  // chunk keeps failing, recursively split it into shorter requests; every
+  // split child receives the same retry budget instead of one brittle shot.
+  const requestChunk = async (chunkText: string, meta: TtsChunkMeta, attempt: number): Promise<Uint8Array> => {
     const data = await callGemini<{ audioData: string; mimeType: string }>({
-      action: 'tts', text, voice,
-    }, signal);
+      action: 'tts', text: chunkText, voice,
+    }, signal, {
+      chunkIndex: meta.chunkIndex,
+      totalChunks: meta.totalChunks,
+      splitDepth: meta.splitDepth,
+      splitPart: meta.splitPart,
+      attempt,
+      chunkLength: chunkText.length,
+      normalizedScriptLength: normalizedScript.length,
+    });
     return decodeAudioData(data.audioData);
-  };
-  const splitHalfOnSentence = (text: string): [string, string] | null => {
-    const trimmed = text.trim();
-    if (trimmed.length < 80) return null; // too small to bother splitting
-    const sentences = trimmed.match(/[^.!?]+[.!?]+\s*/g) ?? [trimmed];
-    if (sentences.length < 2) {
-      // Fall back to mid-character split if there are no sentence ends.
-      const mid = Math.floor(trimmed.length / 2);
-      return [trimmed.slice(0, mid), trimmed.slice(mid)];
-    }
-    const mid = Math.floor(sentences.length / 2);
-    return [sentences.slice(0, mid).join('').trim(), sentences.slice(mid).join('').trim()];
   };
   const isTransientTtsError = (err: unknown): boolean => {
     const msg = err instanceof Error ? err.message : '';
+    const status = (err as { status?: unknown; statusCode?: unknown } | null)?.status
+      ?? (err as { status?: unknown; statusCode?: unknown } | null)?.statusCode;
+    if (/Server missing GEMINI_API_KEY|Authentication required|Daily AI limit reached/i.test(msg)) return false;
+    if (typeof status === 'number' && status >= 500) return true;
     return /INTERNAL|UNAVAILABLE|5\d\d|internal error|overload|temporar|timeout|timed out|fetch failed|network/i.test(msg);
   };
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  for (const chunk of chunks) {
-    let pcm: Uint8Array | null = null;
+  const requestChunkWithRetries = async (chunkText: string, meta: TtsChunkMeta): Promise<Uint8Array> => {
     let lastErr: unknown;
-    // Two same-chunk attempts before falling back to split-half. The
-    // 1.5 s pause lets upstream throttling clear without dragging the
-    // user-perceived wait too long (sequential across all chunks).
-    for (let attempt = 0; attempt < 2 && pcm === null; attempt++) {
+    for (let attempt = 1; attempt <= TTS_RETRY_ATTEMPTS; attempt++) {
       try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
-        pcm = await requestChunk(chunk);
+        if (attempt > 1) await wait(TTS_RETRY_DELAY_MS);
+        return await requestChunk(chunkText, meta, attempt);
       } catch (err) {
         lastErr = err;
         // Abort/non-transient: bail immediately, don't waste a retry
@@ -784,17 +795,62 @@ export async function synthesizeSpeech(
         if (!isTransientTtsError(err)) throw err;
       }
     }
-    if (pcm === null) {
-      // Same chunk failed twice — split and try each half once.
-      const halves = splitHalfOnSentence(chunk);
-      if (!halves) throw lastErr ?? new Error('TTS failed');
-      const [a, b] = halves;
-      const pa = await requestChunk(a);
-      const pb = await requestChunk(b);
-      pcm = concatPcmBuffers([pa, pb]);
+    throw lastErr ?? new Error('TTS failed');
+  };
+
+  const synthesizeChunk = async (chunkText: string, meta: TtsChunkMeta): Promise<Uint8Array> => {
+    try {
+      return await requestChunkWithRetries(chunkText, meta);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') throw err;
+      if (!isTransientTtsError(err) || meta.splitDepth >= TTS_MAX_SPLIT_DEPTH) throw err;
+      const halves = splitTtsChunkForRetry(chunkText);
+      if (!halves) throw err;
+      const [leftText, rightText] = halves;
+      const left = await synthesizeChunk(leftText, {
+        ...meta,
+        splitDepth: meta.splitDepth + 1,
+        splitPart: 'left',
+      });
+      const right = await synthesizeChunk(rightText, {
+        ...meta,
+        splitDepth: meta.splitDepth + 1,
+        splitPart: 'right',
+      });
+      return concatPcmBuffers([left, right]);
     }
-    pcmBuffers.push(pcm);
-    onProgress(++completed, chunks.length);
+  };
+
+  for (const [index, chunk] of chunks.entries()) {
+    try {
+      const pcm = await synthesizeChunk(chunk, {
+        chunkIndex: index + 1,
+        totalChunks: chunks.length,
+        splitDepth: 0,
+        splitPart: 'root',
+      });
+      pcmBuffers.push(pcm);
+      onProgress(++completed, chunks.length);
+    } catch (err) {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
+        void logDiagnosticEvent({
+          severity: 'error',
+          stage: 'podcast.tts.chunk_failed',
+          message: 'Podcast TTS chunk failed after retries and split fallback',
+          model: 'gemini-2.5-flash-preview-tts',
+          error: createDiagnosticErrorInfo(err),
+          context: {
+            voice,
+            chunkIndex: index + 1,
+            totalChunks: chunks.length,
+            chunkLength: chunk.length,
+            normalizedScriptLength: normalizedScript.length,
+            maxSplitDepth: TTS_MAX_SPLIT_DEPTH,
+          },
+        });
+      }
+      throw err;
+    }
   }
 
   // MP3 (48 kbps mono) instead of WAV: ≈8× smaller for the same audible
