@@ -6,6 +6,11 @@ export interface AdminUserRow extends UserProfile {
     documentCount: number;
 }
 
+export interface AdminAccountActionResult {
+    ok: boolean;
+    error: string | null;
+}
+
 export async function adminGetUserStats(): Promise<{ rows: AdminUserRow[]; error: string | null }> {
     const { data, error } = await supabase.rpc('admin_get_user_stats');
     if (error) {
@@ -24,19 +29,24 @@ export async function adminGetUserStats(): Promise<{ rows: AdminUserRow[]; error
 export async function adminUpdateProfile(
     userId: string,
     updates: { tier?: UserTier; role?: UserRole }
-): Promise<boolean> {
+): Promise<AdminAccountActionResult> {
     const { error } = await supabase.rpc('admin_update_user_profile', {
         p_user_id: userId,
         p_tier: updates.tier ?? null,
         p_role: updates.role ?? null,
     });
-    if (error) console.error('[admin] adminUpdateProfile failed:', error);
-    return !error;
-}
+    if (!error) return { ok: true, error: null };
 
-export interface AdminAccountActionResult {
-    ok: boolean;
-    error: string | null;
+    console.error('[admin] adminUpdateProfile RPC failed:', error);
+    const fallback = await adminUpdateProfileViaFunction(userId, updates);
+    if (fallback.ok) return fallback;
+
+    return {
+        ok: false,
+        error: fallback.error
+            ? `${error.message} / server fallback: ${fallback.error}`
+            : error.message,
+    };
 }
 
 export async function adminDeactivateUser(
@@ -52,6 +62,34 @@ export async function adminDeactivateUser(
         return { ok: false, error: error.message };
     }
     return { ok: true, error: null };
+}
+
+async function adminUpdateProfileViaFunction(
+    userId: string,
+    updates: { tier?: UserTier; role?: UserRole },
+): Promise<AdminAccountActionResult> {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return { ok: false, error: 'Not authenticated' };
+
+        const res = await fetch('/api/admin-update-profile', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ userId, ...updates }),
+        });
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        if (!res.ok) {
+            return { ok: false, error: body.error ?? `Admin update failed (${res.status})` };
+        }
+        return { ok: true, error: null };
+    } catch (error) {
+        console.error('[admin] adminUpdateProfile server fallback failed:', error);
+        return { ok: false, error: error instanceof Error ? error.message : 'Admin update failed' };
+    }
 }
 
 export async function adminRestoreUser(userId: string): Promise<AdminAccountActionResult> {

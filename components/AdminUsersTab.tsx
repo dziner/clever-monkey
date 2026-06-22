@@ -132,7 +132,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
                     <p className="font-bold text-danger-600">계정 상태 변경 실패</p>
                     <p className="mt-1 font-mono text-xs text-ink-600 break-all">{accountActionError}</p>
                     <p className="mt-2 text-xs text-ink-500">
-                        Supabase SQL Editor에서 <code className="font-mono">supabase/add_admin_soft_delete.sql</code>을 실행했는지 확인하세요.
+                        관리자 권한, Netlify <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code>, 또는 Supabase admin migration 상태를 확인하세요.
                     </p>
                 </div>
             )}

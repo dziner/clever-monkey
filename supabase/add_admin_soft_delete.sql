@@ -114,6 +114,52 @@ begin
   end if;
 end; $$;
 
+-- Keep the tier/role update RPC in this migration too. The Users tab needs
+-- this function even when Stripe checkout has not been enabled yet.
+create or replace function public.admin_update_user_profile(
+  p_user_id uuid,
+  p_tier text default null,
+  p_role text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_exists boolean;
+begin
+  if not public.is_admin_user() then
+    raise exception 'Access denied: admin role required';
+  end if;
+
+  if p_tier is not null and p_tier not in ('free', 'pro') then
+    raise exception 'Invalid tier';
+  end if;
+
+  if p_role is not null and p_role not in ('user', 'admin') then
+    raise exception 'Invalid role';
+  end if;
+
+  update public.profiles
+  set
+    tier = coalesce(p_tier, tier),
+    role = coalesce(p_role, role),
+    updated_at = now()
+  where id = p_user_id
+    and account_status = 'active';
+
+  if not found then
+    select exists(select 1 from public.profiles where id = p_user_id) into v_exists;
+    if v_exists then
+      raise exception 'Cannot update an inactive profile';
+    end if;
+    raise exception 'Profile not found';
+  end if;
+end; $$;
+
+grant execute on function public.admin_update_user_profile(uuid, text, text) to authenticated;
+
 -- ── 4) AI action guard for inactive accounts ───────────────────────
 -- Keep the latest category/model logging shape. Inactive users fail before
 -- counters/log tables are incremented.
